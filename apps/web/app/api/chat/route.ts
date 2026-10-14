@@ -5,17 +5,11 @@ export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const authorization = gatewayAuthorization(request);
-  if (!authorization) {
-    return Response.json(
-      { detail: "Browser access is not configured. Set VELTRA_BROWSER_API_KEY or provide a developer key." },
-      { status: 503 },
-    );
-  }
 
   const upstream = await fetch(`${gatewayUrl()}/v1/chat/completions`, {
     method: "POST",
     headers: {
-      Authorization: authorization,
+      ...(authorization ? { Authorization: authorization } : {}),
       "Content-Type": "application/json",
       Accept: "text/event-stream, application/json",
     },

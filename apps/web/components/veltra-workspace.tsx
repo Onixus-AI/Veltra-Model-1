@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import ArtifactCanvas, { Artifact } from "@/components/artifact-canvas";
 import ProjectKnowledge, { KnowledgeDocument } from "@/components/project-knowledge";
-import { readApiKey } from "@/lib/client-session";
+import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type ModelMode = "velocity" | "deep";
@@ -56,7 +56,6 @@ export default function VeltraWorkspace() {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ModelMode>("velocity");
   const [modelOpen, setModelOpen] = useState(false);
-  const [apiKey, setApiKey] = useState("");
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [documents, setDocuments] = useState<KnowledgeDocument[]>([]);
   const [artifact, setArtifact] = useState<Artifact>(initialArtifact);
@@ -68,7 +67,6 @@ export default function VeltraWorkspace() {
   const knowledgeText = useMemo(() => knowledgePrompt(documents), [documents]);
 
   useEffect(() => {
-    setApiKey(readApiKey());
     const saved = window.localStorage.getItem(HISTORY_KEY);
     if (saved) {
       try {
@@ -107,7 +105,7 @@ export default function VeltraWorkspace() {
       ];
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}) },
+        headers: { "Content-Type": "application/json", ...gatewayAuthorizationHeaders() },
         body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true }),
       });
       if (!response.ok) {

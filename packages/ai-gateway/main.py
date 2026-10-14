@@ -6,6 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 import httpx
 import litellm
@@ -65,6 +66,15 @@ class ApiKeyCreateRequest(BaseModel):
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {
+        "service": "Veltra Model 1 AI Gateway",
+        "status": "online",
+        "docs": "/docs",
+    }
 
 
 async def supabase_request(
@@ -160,41 +170,100 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
         raise HTTPException(status_code=402, detail="Insufficient credits")
 
 
-async def get_authenticated_key(
+async def get_authenticated_principal(
     credentials: HTTPAuthorizationCredentials | None,
-) -> dict[str, str]:
-    if credentials is None or not credentials.credentials.startswith("veltra_sk_"):
+) -> dict[str, Any]:
+    if credentials is None:
         raise HTTPException(
             status_code=401,
-            detail="Invalid or missing API key",
+            detail="Invalid or missing bearer token",
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    key_hash = hashlib.sha256(credentials.credentials.encode("utf-8")).hexdigest()
-    api_keys = await supabase_request(
-        "api_keys",
-        params={
-            "select": "id,organization_id,key_prefix",
-            "key_hash": f"eq.{key_hash}",
-            "revoked_at": "is.null",
-            "limit": "1",
-        },
-    )
-    if not api_keys:
+    token = credentials.credentials
+    if token.startswith("veltra_sk_"):
+        key_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        api_keys = await supabase_request(
+            "api_keys",
+            params={
+                "select": "id,organization_id,key_prefix",
+                "key_hash": f"eq.{key_hash}",
+                "revoked_at": "is.null",
+                "limit": "1",
+            },
+        )
+        if api_keys:
+            return api_keys[0]
         raise HTTPException(
             status_code=401,
-            detail="Invalid or missing API key",
+            detail="Invalid or missing bearer token",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return api_keys[0]
+
+    supabase_url = os.environ.get("SUPABASE_URL")
+    service_role_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
+    if not supabase_url or not service_role_key:
+        raise HTTPException(status_code=503, detail="Supabase is not configured")
+
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.get(
+                f"{supabase_url.rstrip('/')}/auth/v1/user",
+                headers={
+                    "apikey": service_role_key,
+                    "Authorization": f"Bearer {token}",
+                },
+            )
+            if response.status_code in (400, 401, 403):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Invalid or expired user session",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            response.raise_for_status()
+            user = response.json()
+    except HTTPException:
+        raise
+    except httpx.HTTPStatusError as error:
+        logger.error("Supabase session verification failed with status %s", error.response.status_code)
+        raise HTTPException(status_code=503, detail="Could not verify user session") from error
+    except httpx.RequestError as error:
+        logger.error("Supabase session verification could not be completed: %s", error)
+        raise HTTPException(status_code=503, detail="Supabase is unavailable") from error
+    except ValueError as error:
+        logger.error("Supabase returned an invalid user session response")
+        raise HTTPException(status_code=503, detail="Supabase returned an invalid response") from error
+
+    if not isinstance(user, dict):
+        raise HTTPException(status_code=503, detail="Supabase returned an invalid response")
+
+    user_id = user.get("id")
+    app_metadata = user.get("app_metadata")
+    if not isinstance(user_id, str) or not isinstance(app_metadata, dict):
+        raise HTTPException(status_code=401, detail="Invalid user session")
+
+    organization_id = app_metadata.get("org_id") or app_metadata.get("organization_id")
+    if not isinstance(organization_id, str):
+        raise HTTPException(status_code=403, detail="User is not assigned to an organization")
+    try:
+        organization_id = str(UUID(organization_id))
+    except ValueError as error:
+        raise HTTPException(status_code=403, detail="User has an invalid organization assignment") from error
+
+    return {
+        "id": "",
+        "organization_id": organization_id,
+        "key_prefix": None,
+        "user_id": user_id,
+    }
 
 
 @app.get("/v1/account")
 async def get_account(
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> dict[str, Any]:
-    api_key = await get_authenticated_key(credentials)
-    wallet = await get_wallet(api_key["organization_id"])
+    principal = await get_authenticated_principal(credentials)
+    wallet = await get_wallet(principal["organization_id"])
     if wallet is None:
         raise HTTPException(status_code=404, detail="Credit wallet not found")
 
@@ -203,7 +272,7 @@ async def get_account(
         "credit_transactions",
         params={
             "select": "amount,created_at",
-            "organization_id": f"eq.{api_key['organization_id']}",
+            "organization_id": f"eq.{principal['organization_id']}",
             "amount": "lt.0",
             "created_at": f"gte.{(now - timedelta(days=30)).isoformat()}",
             "order": "created_at.asc",
@@ -217,7 +286,7 @@ async def get_account(
         daily_consumption[day] = daily_consumption.get(day, 0) + abs(transaction["amount"])
 
     return {
-        "api_key_prefix": api_key["key_prefix"],
+        "api_key_prefix": principal["key_prefix"],
         "credits_remaining": wallet["credits_remaining"],
         "monthly_credit_allowance": wallet["monthly_credit_allowance"],
         "plan_name": wallet["plan_name"],
@@ -234,17 +303,17 @@ async def get_account(
 async def list_api_keys(
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> list[dict[str, Any]]:
-    api_key = await get_authenticated_key(credentials)
+    principal = await get_authenticated_principal(credentials)
     records = await supabase_request(
         "api_keys",
         params={
             "select": "id,name,key_prefix,created_at,last_used_at,revoked_at",
-            "organization_id": f"eq.{api_key['organization_id']}",
+            "organization_id": f"eq.{principal['organization_id']}",
             "revoked_at": "is.null",
             "order": "created_at.desc",
         },
     )
-    return [{**record, "is_current": record["id"] == api_key["id"]} for record in records]
+    return [{**record, "is_current": record["id"] == principal["id"]} for record in records]
 
 
 @app.post("/v1/keys", status_code=201)
@@ -252,7 +321,7 @@ async def create_api_key(
     request: ApiKeyCreateRequest,
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> dict[str, Any]:
-    api_key = await get_authenticated_key(credentials)
+    principal = await get_authenticated_principal(credentials)
     name = request.name.strip()
     if not name:
         raise HTTPException(status_code=422, detail="API key name cannot be blank")
@@ -263,7 +332,7 @@ async def create_api_key(
         method="POST",
         params={"select": "id,name,key_prefix,created_at"},
         payload={
-            "organization_id": api_key["organization_id"],
+            "organization_id": principal["organization_id"],
             "name": name,
             "key_prefix": key_prefix,
             "key_hash": hashlib.sha256(secret.encode("utf-8")).hexdigest(),
@@ -279,15 +348,15 @@ async def revoke_api_key(
     key_id: str,
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> None:
-    api_key = await get_authenticated_key(credentials)
-    if key_id == api_key["id"]:
+    principal = await get_authenticated_principal(credentials)
+    if key_id == principal["id"]:
         raise HTTPException(status_code=409, detail="Cannot revoke the API key used for this request")
     records = await supabase_request(
         "api_keys",
         method="PATCH",
         params={
             "id": f"eq.{key_id}",
-            "organization_id": f"eq.{api_key['organization_id']}",
+            "organization_id": f"eq.{principal['organization_id']}",
             "revoked_at": "is.null",
             "select": "id",
         },
@@ -302,8 +371,8 @@ async def create_chat_completion(
     request: ChatCompletionRequest,
     credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> dict[str, Any] | StreamingResponse:
-    api_key = await get_authenticated_key(credentials)
-    organization_id = api_key["organization_id"]
+    principal = await get_authenticated_principal(credentials)
+    organization_id = principal["organization_id"]
     wallet = await get_wallet(organization_id)
     if wallet is None or wallet["credits_remaining"] <= 0:
         raise HTTPException(status_code=402, detail="Insufficient credits")

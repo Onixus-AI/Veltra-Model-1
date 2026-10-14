@@ -6,13 +6,13 @@ import {
   AlertTriangle, ArrowLeft, Check, Copy, CreditCard, KeyRound, LoaderCircle,
   Sparkles, TrendingDown, Wallet, X,
 } from "lucide-react";
-import { readApiKey } from "@/lib/client-session";
+import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
 type SettingsTab = "usage" | "keys" | "subscription";
 
 type ConsumptionDay = { date: string; credits: number };
 type Account = {
-  api_key_prefix: string;
+  api_key_prefix: string | null;
   credits_remaining: number;
   monthly_credit_allowance: number;
   plan_name: string;
@@ -37,8 +37,7 @@ const tabs: { id: SettingsTab; label: string; icon: typeof Wallet }[] = [
 ];
 
 function authorizationHeaders(): HeadersInit {
-  const apiKey = readApiKey();
-  return apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+  return gatewayAuthorizationHeaders();
 }
 
 async function responseData<T>(response: Response): Promise<T> {

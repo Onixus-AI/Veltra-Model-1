@@ -5,12 +5,6 @@ export const runtime = "nodejs";
 
 async function forward(request: NextRequest, method: "GET" | "POST" | "DELETE") {
   const authorization = gatewayAuthorization(request);
-  if (!authorization) {
-    return Response.json(
-      { detail: "Browser access is not configured. Set VELTRA_BROWSER_API_KEY or provide a developer key." },
-      { status: 503 },
-    );
-  }
 
   const endpoint = new URL(`${gatewayUrl()}/v1/keys`);
   if (method === "DELETE") {
@@ -22,7 +16,7 @@ async function forward(request: NextRequest, method: "GET" | "POST" | "DELETE") 
   const upstream = await fetch(endpoint, {
     method,
     headers: {
-      Authorization: authorization,
+      ...(authorization ? { Authorization: authorization } : {}),
       Accept: "application/json",
       ...(method === "POST" ? { "Content-Type": "application/json" } : {}),
     },

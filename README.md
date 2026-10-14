@@ -15,12 +15,15 @@ uvicorn main:app --app-dir packages/ai-gateway --reload
 ```
 
 The gateway exposes `GET /health` and authenticated
-`POST /v1/chat/completions`, account, and API-key management endpoints. Pass an
-active `veltra_sk_...` API key as a bearer token and use one of
+`POST /v1/chat/completions`, account, and API-key management endpoints. Pass a
+Supabase Auth access token or an active `veltra_sk_...` API key as a bearer
+token and use one of
 `veltra-free`, `veltra-fast-free`, `veltra-code-free`, `veltra-logic`,
 `veltra-fast`, `veltra-agent`, `veltra-media`, or `veltra-dev` as the requested
-model. The key is looked up by its SHA-256 hash in Supabase. Requests are
-rejected with HTTP 402 when the organization has no credits.
+model. API keys are looked up by their SHA-256 hash in Supabase. User access
+tokens are verified with Supabase Auth, and the organization is read from
+`app_metadata.org_id` or `app_metadata.organization_id`. Requests are rejected
+with HTTP 402 when the organization has no credits.
 The gateway prepends Veltra's identity and business-assistant instructions to
 each request. One credit is deducted per reported input or output token. Model
 routing is defined in
@@ -47,14 +50,10 @@ npm --prefix apps/web run dev
 
 Open `http://localhost:3000` and use the Project Knowledge drawer to add PDF or
 text context. The web app proxies chat, account, and key-management requests to
-`http://localhost:8000` by default; set `AI_GATEWAY_URL` in the web server
-environment to use a different gateway.
-
-For a no-prompt browser session, set `VELTRA_BROWSER_API_KEY` in the **web
-server** environment (for local development, `apps/web/.env.local`) to an
-active key for the intended organization. The server injects it into gateway
-requests; it is never sent to the browser. Do not expose the web app publicly
-without protecting access to that shared organization. Developers may still
-provide a personal key in browser session storage. `/settings` contains
-rolling usage analytics, key management, and the subscription view;
-`/settings/keys` redirects there for compatibility.
+`http://localhost:8000` by default. Set `AI_GATEWAY_URL` or
+`NEXT_PUBLIC_VELTRA_API_URL` in the web server environment to use a different
+gateway. The browser automatically forwards the access token from the standard
+Supabase Auth local-storage session. Developer API keys remain available for
+external tools and as a browser fallback. `/settings` contains rolling usage
+analytics, key management, and the subscription view; `/settings/keys`
+redirects there for compatibility.
