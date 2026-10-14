@@ -18,7 +18,11 @@ from starlette.responses import StreamingResponse
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+env_path = Path(__file__).resolve().parent / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 with CONFIG_PATH.open(encoding="utf-8") as config_file:
     MODEL_CONFIG = yaml.safe_load(config_file)
 
