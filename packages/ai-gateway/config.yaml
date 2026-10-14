@@ -1,0 +1,58 @@
+model_list:
+  # Zero-cost general-purpose routing for utility tasks and classification
+  - model_name: veltra-free
+    litellm_params:
+      model: openrouter/openrouter/free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Free high-speed agent and triage model
+  - model_name: veltra-fast-free
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Free coding and structural data extraction model
+  - model_name: veltra-code-free
+    litellm_params:
+      model: openrouter/cohere/north-mini-code:free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Complex logic, deep reasoning, and code
+  - model_name: veltra-logic
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+      temperature: 0.2
+
+  # Fast text, email triage, and CRM actions
+  - model_name: veltra-fast
+    litellm_params:
+      model: openrouter/qwen/qwen-2.5-coder-32b-instruct
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+      temperature: 0.3
+
+  # Agentic workflow execution and tool calling
+  - model_name: veltra-agent
+    litellm_params:
+      model: openrouter/nvidia/nemotron-3-super-120b-a12b
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Media and graphics generation
+  - model_name: veltra-media
+    litellm_params:
+      model: openrouter/wan/wan-2.1-image
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Free development and local test tier
+  - model_name: veltra-dev
+    litellm_params:
+      model: openrouter/deepseek/deepseek-r1:free
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
