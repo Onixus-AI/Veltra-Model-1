@@ -1,9 +1,13 @@
 "use client";
 
 import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { browserSupabase } from "@/lib/supabase";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const publicPage = ["/eula", "/privacy", "/docs", "/support"].includes(pathname);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
@@ -18,6 +22,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (publicPage) return;
     const recoveryPending = window.location.hash.includes("type=recovery") || sessionStorage.getItem("veltra-password-recovery") === "1";
     setRecovering(recoveryPending);
     const supabase = browserSupabase();
@@ -47,7 +52,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       if (active) { setSignedIn(Boolean(session)); setReady(true); }
     });
     return () => { active = false; subscription.unsubscribe(); };
-  }, []);
+  }, [publicPage]);
 
   async function signInWithGoogle() {
     const supabase = browserSupabase(); if (!supabase) return;
@@ -85,6 +90,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }
 
+  if (publicPage) return <>{children}</>;
   if (!ready) return <main className="auth-page"><p role="status">Opening your workspace…</p></main>;
   if (signedIn && !recovering) return <>{children}</>;
   return (
@@ -115,6 +121,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <button type="submit" disabled={busy || !browserSupabase()}>{busy ? "Please wait…" : recovering ? "Save new password" : resetMode ? "Send reset link" : "Sign in"}</button>
         {!recovering && !resetMode && googleEnabled && <button type="button" disabled={busy} onClick={() => void signInWithGoogle()}>Continue with Google</button>}
         {!recovering && <button type="button" disabled={busy} onClick={() => { setResetMode(!resetMode); setError(""); setNotice(""); setPassword(""); }}>{resetMode ? "Back to sign in" : "Forgot password?"}</button>}
+        <nav className="auth-legal" aria-label="Legal and help"><Link href="/eula">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/docs">Docs</Link><Link href="/support">Support</Link></nav>
       </form>
     </main>
   );
