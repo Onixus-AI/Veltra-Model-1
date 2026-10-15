@@ -150,7 +150,7 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
                 json={"p_organization_id": organization_id, "p_credits": credits},
                 headers={
                     "apikey": service_role_key,
-                    "Authorization": f"******",
+                    "Authorization": f"Bearer {service_role_key}",
                     "Content-Type": "application/json",
                 },
             )
@@ -168,6 +168,17 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
 
     if deducted is not True:
         raise HTTPException(status_code=402, detail="Insufficient credits")
+
+
+async def call_model(params: dict[str, Any]) -> Any:
+    try:
+        return await litellm.acompletion(**params)
+    except Exception as error:
+        logger.error("Model provider request failed: %s", error)
+        raise HTTPException(
+            status_code=502,
+            detail="The model provider could not complete this request. Try again, or choose another model.",
+        ) from error
 
 
 async def get_authenticated_principal(
@@ -402,18 +413,23 @@ async def create_chat_completion(
     if request.stream:
         params["stream"] = True
         params["stream_options"] = {"include_usage": True}
-        response = await litellm.acompletion(**params)
+        response = await call_model(params)
 
         async def stream_response():
             total_tokens: int | None = None
-            async for chunk in response:
-                chunk_data = chunk.model_dump()
-                usage = chunk_data.get("usage")
-                if isinstance(usage, dict):
-                    reported_tokens = usage.get("total_tokens")
-                    if isinstance(reported_tokens, int) and reported_tokens >= 0:
-                        total_tokens = reported_tokens
-                yield f"data: {json.dumps(chunk_data)}\n\n"
+            try:
+                async for chunk in response:
+                    chunk_data = chunk.model_dump()
+                    usage = chunk_data.get("usage")
+                    if isinstance(usage, dict):
+                        reported_tokens = usage.get("total_tokens")
+                        if isinstance(reported_tokens, int) and reported_tokens >= 0:
+                            total_tokens = reported_tokens
+                    yield f"data: {json.dumps(chunk_data)}\n\n"
+            except Exception as error:
+                logger.error("Model provider stream failed: %s", error)
+                yield 'event: error\ndata: {"error":"The model provider stopped responding. Try again."}\n\n'
+                return
 
             if total_tokens is None:
                 yield 'event: error\ndata: {"error":"Model provider returned invalid token usage"}\n\n'
@@ -432,7 +448,7 @@ async def create_chat_completion(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    response = await litellm.acompletion(**params)
+    response = await call_model(params)
     result = response.model_dump()
     usage = result.get("usage")
     total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None

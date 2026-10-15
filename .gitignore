@@ -7,3 +7,6 @@ node_modules/
 out/
 coverage/
 *.tsbuildinfo
+
+# Local web app environment
+apps/web/.env.local
