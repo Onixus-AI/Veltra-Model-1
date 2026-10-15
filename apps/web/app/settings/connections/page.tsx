@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import DeveloperConnections from "@/components/developer-connections";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Check, Mail, Plug, ShieldCheck } from "lucide-react";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
@@ -50,7 +51,7 @@ export default function ConnectionsPage() {
   return <main className="connections-page">
     <header className="connections-header"><Link href="/" className="connections-back"><ArrowLeft size={16}/> Back to Chat</Link><Link href="/" className="connections-brand"><img src="/veltra-logo.png" alt=""/> Veltra</Link></header>
     <section className="connections-body">
-      <div className="connections-title"><div><h1>Your workspace, connected.</h1><p>Connect Google once. Open Veltra Mail in your canvas and keep Chat beside you.</p></div><Plug size={30}/></div>
+      <div className="connections-title"><div><h1>Your workspace, connected.</h1><p>Connect your accounts. Open Mail or code in the canvas, with Chat beside you.</p></div><Plug size={30}/></div>
       {notice && <p className="connections-notice" role="status">{notice}</p>}{error && <p className="connections-error" role="alert">{error}</p>}
       <section className="connected-apps" aria-labelledby="apps-title"><div className="connections-section-heading"><h2 id="apps-title">Your apps</h2><span>{connection?.connected ? "1 connected" : "Connect Google to get started"}</span></div>
         <article className={`mail-app-card ${connection?.connected ? "is-connected" : ""}`}>
@@ -59,6 +60,7 @@ export default function ConnectionsPage() {
           <div className="mail-app-footer"><span className={`connection-status ${connection?.connected ? "connected" : ""}`}><i/>{connection?.connected ? connection.mailbox?.email ?? "Google connected" : "Google connection required"}</span>{connection && <a href={connection.mail_url} target="_blank" rel="noreferrer">Open standalone Mail <ArrowUpRight size={13}/></a>}</div>
         </article>
       </section>
+      <DeveloperConnections/>
       <section className="google-connector" id="google-connector" aria-labelledby="google-title"><div className="google-icon" aria-hidden="true">G</div><div className="google-copy"><h2 id="google-title">Google Workspace</h2><p>{connection?.connected ? `Connected as ${connection.mailbox?.email ?? "your Google account"}` : "Turn on Google to bring your Gmail workspace into Veltra Mail."}</p><span><ShieldCheck size={14}/> You choose the account and approve access.</span></div><button className={`google-connect-button ${connection?.connected ? "connected" : ""}`} disabled={busy || !connection} onClick={() => void connect(Boolean(connection?.connected))}>{busy ? "Please wait…" : connection?.connected ? <><Check size={17}/> Connected · Disconnect</> : "Connect Google"}</button></section>
       <p className="connections-footnote">Veltra Mail also works on its own. Disconnecting here keeps your standalone Mail account and mailbox connection.</p>
     </section>
