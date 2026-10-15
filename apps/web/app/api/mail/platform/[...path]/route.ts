@@ -7,7 +7,7 @@ async function proxy(request: NextRequest, context: Context) {
   const safe = path.every(part => /^[a-zA-Z0-9@._%+-]+$/.test(part) && part !== "." && part !== "..");
   const isApi = path[0] === "api";
   const isAsset = path[0] === "assets";
-  const isPublicImage = path.length === 1 && path[0] === "veltra-hero.webp";
+  const isPublicImage = path.length === 1 && ["veltra-hero.webp", "veltra-logo.png"].includes(path[0]);
   const isApp = path.length === 1 && path[0] === "app";
   if (!safe || !(isApi || isAsset || isApp || isPublicImage)) return new Response("Not found", { status: 404 });
   const token = request.cookies.get("veltra_mail_frame")?.value;
@@ -24,7 +24,7 @@ async function proxy(request: NextRequest, context: Context) {
     const contentType = upstream.headers.get("content-type") ?? "application/octet-stream";
     const headers = { "Content-Type": contentType, "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", ...(isApp ? { "Content-Security-Policy": "frame-ancestors 'self'" } : {}) };
     if (isApp && upstream.ok) {
-      const html = (await upstream.text()).replaceAll('="/assets/', '="/api/mail/platform/assets/');
+      const html = (await upstream.text()).replaceAll('="/assets/', '="/api/mail/platform/assets/').replaceAll('="/veltra-logo.png', '="/api/mail/platform/veltra-logo.png');
       return new Response(html, { headers });
     }
     return new Response(upstream.body, { status: upstream.status, headers });
