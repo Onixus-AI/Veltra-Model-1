@@ -317,3 +317,12 @@ a { color: inherit; text-decoration: none; }
 .workspace button:focus-visible, .workspace a:focus-visible, .workspace textarea:focus-visible { outline: 2px solid #b8edf0; outline-offset: 3px; }
 @media (max-width: 680px) { .bridge-status { padding: 10px 17px; font-size: 10px; }.message { max-width: 94%; }.message-body { padding: 12px 14px; } }
 @media (prefers-reduced-motion: reduce) { .workspace *, .workspace *::before, .workspace *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+.creation-mode { display: flex; align-items: center; gap: 6px; padding: 0 27px 12px; }
+.creation-mode button { display: flex; align-items: center; gap: 6px; padding: 7px 12px; border: 1px solid #304860; border-radius: 20px; background: transparent; color: #a5bdd3; font-size: 11px; }
+.creation-mode button[aria-pressed="true"] { background: #25465e; color: #c6f1f3; border-color: #6dabb7; }
+.creation-mode > span { font-size: 10px; color: #a5bdd3; margin-left: auto; }
+.generated-image { margin: 0 0 12px; }.generated-image img { display: block; max-width: 100%; width: 420px; border-radius: 10px; }.generated-image figcaption { margin-top: 9px; }.generated-image a { color: #ace4ed; text-decoration: underline; font-size: 12px; }
+@media (max-width: 680px) { .creation-mode { padding: 0 17px 12px; flex-wrap: wrap; }.creation-mode > span { margin-left: 0; } }
+
+.image-model-label { display: grid; gap: 4px; margin-left: auto; color: #a5bdd3; font-size: 10px; }.image-model-label select { max-width: 250px; border: 1px solid #304860; border-radius: 7px; padding: 6px; color: #dcecf9; background: #102238; }
