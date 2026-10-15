@@ -451,6 +451,7 @@ async def create_chat_completion(
 
 
 class ImageGenerationRequest(BaseModel):
+    model: str = "recraft/recraft-v4.1-flash"
     prompt: str = Field(min_length=1, max_length=4000)
 
 
@@ -466,18 +467,24 @@ async def generate_image(
     if not request.prompt.strip():
         raise HTTPException(status_code=422, detail="Describe the image you want to create.")
     generation_id = str(uuid4())
-    model = MODEL_CONFIG["image_generation"]["model"]
+    image_models = {item["id"]: item for item in MODEL_CONFIG["image_generation"]["models"]}
+    model = request.model
+    if model not in image_models:
+        raise HTTPException(status_code=400, detail="Choose one of Veltra’s supported image models.")
+    image_options = image_models[model]
     reserved = await supabase_request("rpc/reserve_image_credits", method="POST", params={}, payload={
         "p_id": generation_id, "p_org_id": principal["organization_id"],
     })
     if reserved != 100:
         raise HTTPException(status_code=402, detail="Insufficient credits")
     try:
+        await supabase_request("image_requests", method="PATCH", params={"id": f"eq.{generation_id}"}, payload={"model": model})
         async with httpx.AsyncClient(timeout=150) as client:
             response = await client.post("https://openrouter.ai/api/v1/images", headers={
                 "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
             }, json={"model": model, "prompt": request.prompt.strip(), "n": 1,
-                     "resolution": "1K", "aspect_ratio": "1:1", "provider": {"ignore": ["groq"]}})
+                     **({"resolution": "1K"} if image_options["supports_resolution"] else {}),
+                     "aspect_ratio": "1:1", "provider": {"ignore": ["groq"]}})
             response.raise_for_status()
             result = response.json()
         image = result.get("data", [])[0]
