@@ -182,7 +182,7 @@ export default function SettingsPage() {
     <main className="settings-page">
       <header className="settings-header">
         <Link href="/" className="back-link"><ArrowLeft size={16} /> Back to workspace</Link>
-        <div className="brand-lockup"><span className="brand-mark"><Sparkles size={16} /></span> veltra</div>
+        <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Veltra V logo" /></span> veltra</div>
       </header>
 
       <section className="settings-content settings-dashboard">

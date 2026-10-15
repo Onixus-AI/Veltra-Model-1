@@ -288,7 +288,7 @@ export default function VeltraWorkspace() {
         <div className="conversation" ref={scrollRef}>
           {messages.length === 0 ? (
             <div className="welcome">
-              <span className="welcome-orb"><Sparkles size={21} /></span>
+              <span className="welcome-orb"><img src="/veltra-logo.png" alt="Veltra V logo" width={34} height={34}/></span>
               <span className="welcome-label">A little direction. Endless possibility.</span>
               <h1>Where shall we<br />go next?</h1>
               <p>What are we making today?</p>
@@ -302,7 +302,7 @@ export default function VeltraWorkspace() {
             <div className="message-list">
               {messages.map((message, index) => (
                 <article className={`message ${message.role}`} key={`${index}-${message.role}`}>
-                  {message.role === "assistant" ? <span className="assistant-avatar"><Sparkles size={13} /></span> : <span className="user-avatar">Y</span>}
+                  {message.role === "assistant" ? <span className="assistant-avatar"><img src="/veltra-logo.png" alt="Veltra V logo" width={22} height={22}/></span> : <span className="user-avatar">Y</span>}
                   <div className="message-body">
                     <div className="message-meta">{message.role === "assistant" ? "Veltra" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{imageMode ? "Creating…" : message.content ? "Replying…" : "Thinking…"}</span>}</div>
                     {message.image && <figure className="generated-image"><img src={message.image} alt="Image generated from your prompt" /><figcaption><button type="button" onClick={() => openImageInCanvas(message.image!)}>Open in canvas</button><a href={message.image} download={`veltra-${message.imageId || "image"}.png`}>Download image</a></figcaption></figure>}
