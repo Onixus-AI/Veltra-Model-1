@@ -64,6 +64,7 @@ function ChatContent({ content }: { content: string }) {
 
 export default function VeltraWorkspace() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [imageModel, setImageModel] = useState("recraft/recraft-v4.1-flash");
   const [imageMode, setImageMode] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [input, setInput] = useState("");
@@ -125,7 +126,7 @@ export default function VeltraWorkspace() {
       if (imageMode) {
         const response = await fetch("/api/images", {
           method: "POST", headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-          body: JSON.stringify({ prompt }),
+          body: JSON.stringify({ prompt, model: imageModel }),
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.detail || "Image creation failed");
@@ -255,7 +256,12 @@ export default function VeltraWorkspace() {
         <div className="creation-mode" aria-label="Creation mode">
           <button disabled={sending} aria-pressed={!imageMode} onClick={() => setImageMode(false)}>Chat</button>
           <button disabled={sending} aria-pressed={imageMode} onClick={() => setImageMode(true)}><ImagePlus size={14} /> Image</button>
-          {imageMode && <span>Qwen Image · 100 credits per image</span>}
+          {imageMode && <label className="image-model-label">Image model<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
+            <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
+            <option value="black-forest-labs/flux.2-klein-4b">FLUX Klein · ~$0.014 provider cost</option>
+            <option value="bytedance-seed/seedream-5-0-flash">Seedream Flash · ~$0.018 provider cost</option>
+            <option value="qwen/qwen-image-3">Qwen Image 3 · ~$0.03 provider cost</option>
+          </select></label>}
         </div>
         <div className="bridge-status"><span><Navigation2 size={14} /> Veltra bridge</span><span role="status" aria-live="polite"><i className={sending ? "working" : ""} />{sending ? (imageMode ? "Creating your image" : "Working on your reply") : "Ready when you are"}</span></div>
         <div className="conversation" ref={scrollRef}>
