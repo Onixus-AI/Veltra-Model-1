@@ -6,13 +6,23 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, Command, Copy, FileText, Layers3, Menu,
-  Plus, Settings2, ShieldCheck, Sparkles, SquarePen, Zap,
+  Navigation2, Plus, Settings2, ShieldCheck, Sparkles, SquarePen, Zap,
 } from "lucide-react";
 import ArtifactCanvas, { Artifact } from "@/components/artifact-canvas";
 import ProjectKnowledge, { KnowledgeDocument } from "@/components/project-knowledge";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
+function friendlyChatError(message: string) {
+  if (/credit|wallet|deduct|supabase|token usage/i.test(message)) {
+    return /insufficient credits/i.test(message)
+      ? "You’ve used your available credits. Open Settings to check your balance."
+      : "Your account is temporarily unavailable. Please try again shortly.";
+  }
+  if (/session|bearer|unauthorized/i.test(message)) return "Please sign in again to continue chatting.";
+  return "Veltra couldn’t complete this reply. Please try again.";
+}
+
 type ModelMode = "velocity" | "deep";
 
 const HISTORY_KEY = "veltra-chat-history";
@@ -71,7 +81,11 @@ export default function VeltraWorkspace() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as ChatMessage[];
-        if (Array.isArray(parsed)) setMessages(parsed);
+        if (Array.isArray(parsed)) setMessages(parsed.map((message) =>
+          message.role === "assistant" && /^\*\*Request failed:\*\*.*(?:credit|deduct|supabase)/i.test(message.content)
+            ? { ...message, content: friendlyChatError(message.content) }
+            : message,
+        ));
       } catch {
         window.localStorage.removeItem(HISTORY_KEY);
       }
@@ -153,10 +167,10 @@ export default function VeltraWorkspace() {
       if (nextArtifact) setArtifact(nextArtifact);
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The request could not be completed.";
-      setError(message);
+      setError(friendlyChatError(message));
       setMessages((current) => current.map((item, index) =>
         index === current.length - 1 && item.role === "assistant"
-          ? { ...item, content: item.content || `**Request failed:** ${message}` }
+          ? { ...item, content: item.content || friendlyChatError(message) }
           : item,
       ));
     } finally {
@@ -195,7 +209,7 @@ export default function VeltraWorkspace() {
         </header>
 
         <div className="chat-toolbar">
-          <button className="new-chat-button" onClick={startNewChat}><SquarePen size={15} /><span>New chat</span></button>
+          <button className="new-chat-button" disabled={sending} onClick={startNewChat}><SquarePen size={15} /><span>New chat</span></button>
           <div className="model-selector-wrap">
             <button className={`model-selector ${modelOpen ? "is-open" : ""}`} onClick={() => setModelOpen(!modelOpen)} aria-expanded={modelOpen}>
               <span className={`model-indicator ${mode}`}><i /></span>
@@ -215,12 +229,13 @@ export default function VeltraWorkspace() {
           <button className="header-icon chat-options" title="Conversation settings" aria-label="Conversation settings"><Command size={16} /></button>
         </div>
 
+        <div className="bridge-status"><span><Navigation2 size={14} /> Veltra bridge</span><span role="status" aria-live="polite"><i className={sending ? "working" : ""} />{sending ? "Working on your reply" : "Ready when you are"}</span></div>
         <div className="conversation" ref={scrollRef}>
           {messages.length === 0 ? (
             <div className="welcome">
               <span className="welcome-orb"><Sparkles size={21} /></span>
-              <span className="eyebrow">YOUR AI WORKSPACE</span>
-              <h1>Think at the<br /><em>speed of now.</em></h1>
+              <span className="welcome-label">A little direction. Endless possibility.</span>
+              <h1>Where shall we<br />go next?</h1>
               <p>What are we making today?</p>
               <div className="suggestion-grid">
                 <button onClick={() => setInput("Build a beautiful landing page for a new product")}><span className="suggestion-icon purple"><Layers3 size={15} /></span><span><b>Build something</b><small>Turn an idea into a live preview</small></span><ArrowDown size={14} /></button>
@@ -234,10 +249,10 @@ export default function VeltraWorkspace() {
                 <article className={`message ${message.role}`} key={`${index}-${message.role}`}>
                   {message.role === "assistant" ? <span className="assistant-avatar"><Sparkles size={13} /></span> : <span className="user-avatar">Y</span>}
                   <div className="message-body">
-                    <div className="message-meta">{message.role === "assistant" ? "Veltra" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="typing-dot" />}</div>
+                    <div className="message-meta">{message.role === "assistant" ? "Veltra" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{message.content ? "Replying…" : "Thinking…"}</span>}</div>
                     {message.content
                       ? <div className="message-content"><ChatContent content={message.content} /></div>
-                      : <div className="thinking-lines"><i /><i /><i /></div>}
+                      : <div className="thinking-indicator" role="status"><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span><span>{sending ? "Veltra is thinking…" : "No reply received. Try sending your message again."}</span></div>}
                   </div>
                 </article>
               ))}

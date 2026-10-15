@@ -134,7 +134,7 @@ async def get_wallet(organization_id: str) -> dict[str, Any] | None:
     return wallets[0] if wallets else None
 
 
-async def deduct_credits(organization_id: str, credits: int) -> None:
+async def deduct_credits(organization_id: str, credits: int, model: str) -> None:
     if credits == 0:
         return
 
@@ -147,7 +147,8 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
         async with httpx.AsyncClient(timeout=10) as client:
             response = await client.post(
                 f"{supabase_url.rstrip('/')}/rest/v1/rpc/deduct_credits_simple",
-                json={"p_organization_id": organization_id, "p_credits": credits},
+                json={"p_org_id": organization_id, "p_credits_needed": credits,
+                      "p_category": "chat", "p_model": model, "p_tokens": credits},
                 headers={
                     "apikey": service_role_key,
                     "Authorization": f"Bearer {service_role_key}",
@@ -158,7 +159,7 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
             deducted = response.json()
     except httpx.HTTPStatusError as error:
         logger.error("Supabase credit deduction failed with status %s", error.response.status_code)
-        raise HTTPException(status_code=503, detail="Credit deduction failed") from error
+        raise HTTPException(status_code=503, detail="Your account is temporarily unavailable. Please try again shortly.") from error
     except httpx.RequestError as error:
         logger.error("Supabase credit deduction could not be completed: %s", error)
         raise HTTPException(status_code=503, detail="Supabase is unavailable") from error
@@ -166,8 +167,11 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
         logger.error("Supabase returned an invalid credit deduction response")
         raise HTTPException(status_code=503, detail="Supabase returned an invalid response") from error
 
-    if deducted is not True:
+    if deducted == -1:
         raise HTTPException(status_code=402, detail="Insufficient credits")
+    if type(deducted) is not int or deducted != credits:
+        logger.error("Unexpected credit deduction result")
+        raise HTTPException(status_code=503, detail="Your account is temporarily unavailable. Please try again shortly.")
 
 
 async def get_authenticated_principal(
@@ -420,7 +424,7 @@ async def create_chat_completion(
                 return
 
             try:
-                await deduct_credits(organization_id, total_tokens)
+                await deduct_credits(organization_id, total_tokens, request.model)
             except HTTPException as error:
                 yield f"event: error\ndata: {json.dumps({'error': error.detail})}\n\n"
                 return
@@ -442,5 +446,5 @@ async def create_chat_completion(
             detail="Model provider returned invalid token usage",
         )
 
-    await deduct_credits(organization_id, total_tokens)
+    await deduct_credits(organization_id, total_tokens, request.model)
     return result
