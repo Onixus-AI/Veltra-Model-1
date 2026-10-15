@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import litellm
@@ -448,3 +448,55 @@ async def create_chat_completion(
 
     await deduct_credits(organization_id, total_tokens, request.model)
     return result
+
+
+class ImageGenerationRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=4000)
+
+
+@app.post("/v1/images/generations")
+async def generate_image(
+    request: ImageGenerationRequest,
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> dict[str, Any]:
+    principal = await get_authenticated_principal(credentials)
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Image creation is temporarily unavailable.")
+    if not request.prompt.strip():
+        raise HTTPException(status_code=422, detail="Describe the image you want to create.")
+    generation_id = str(uuid4())
+    model = MODEL_CONFIG["image_generation"]["model"]
+    reserved = await supabase_request("rpc/reserve_image_credits", method="POST", params={}, payload={
+        "p_id": generation_id, "p_org_id": principal["organization_id"],
+    })
+    if reserved != 100:
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    try:
+        async with httpx.AsyncClient(timeout=150) as client:
+            response = await client.post("https://openrouter.ai/api/v1/images", headers={
+                "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+            }, json={"model": model, "prompt": request.prompt.strip(), "n": 1,
+                     "resolution": "1K", "aspect_ratio": "1:1", "provider": {"ignore": ["groq"]}})
+            response.raise_for_status()
+            result = response.json()
+        image = result.get("data", [])[0]
+        media_type = image.get("media_type", "image/png")
+        encoded = image.get("b64_json")
+        if media_type not in ("image/png", "image/jpeg", "image/webp") or not isinstance(encoded, str) or not encoded or len(encoded) > 4_000_000:
+            raise ValueError("Invalid image result")
+        settled = await supabase_request("rpc/finish_image_credits", method="POST", params={}, payload={
+            "p_id": generation_id, "p_success": True,
+        })
+        if settled is not True:
+            raise ValueError("Image settlement incomplete")
+        return {"image": f"data:{media_type};base64,{encoded}", "credits": 100, "model": model}
+    except Exception as error:
+        logger.error("Image generation failed (%s), request %s", type(error).__name__, generation_id)
+        try:
+            await supabase_request("rpc/finish_image_credits", method="POST", params={}, payload={
+                "p_id": generation_id, "p_success": False,
+            })
+        except Exception:
+            logger.exception("Image refund pending for request %s", generation_id)
+        raise HTTPException(status_code=503, detail="Image creation couldn’t finish. Please try again shortly.") from error
