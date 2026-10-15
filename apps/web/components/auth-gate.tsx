@@ -8,6 +8,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -57,7 +58,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <label htmlFor="login-email">Email</label>
         <input id="login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required />
         <label htmlFor="login-password">Password</label>
-        <input id="login-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <input id="login-password" type={showPassword ? "text" : "password"} autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required />
+        <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <input type="checkbox" checked={showPassword} onChange={(event) => setShowPassword(event.target.checked)} aria-controls="login-password" style={{ width: "auto" }} />
+          Show password
+        </label>
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={busy || !browserSupabase()}>{busy ? "Signing in…" : "Sign in"}</button>
       </form>
