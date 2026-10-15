@@ -43,16 +43,14 @@ model_list:
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
-  # Media and graphics generation
-  - model_name: veltra-media
-    litellm_params:
-      model: openrouter/wan/wan-2.1-image
-      api_base: https://openrouter.ai/api/v1
-      api_key: os.environ/OPENROUTER_API_KEY
-
   # Free development and local test tier
   - model_name: veltra-dev
     litellm_params:
       model: openrouter/deepseek/deepseek-r1:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
+
+# Dedicated image endpoint; image models do not use text chat completions.
+image_generation:
+  model: qwen/qwen-image-3
+  api_base: https://openrouter.ai/api/v1
