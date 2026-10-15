@@ -12,6 +12,7 @@ async function proxy(request:NextRequest,context:{params:Promise<{path:string[]}
   try {
     const suffix=path[0]==="status"?"":path.map(encodeURIComponent).join("/");
     const response=await fetch(`${base.replace(/\/$/,"")}/chat/connections/${suffix}${request.nextUrl.search}`,{method:request.method,headers:{authorization,"Content-Type":"application/json"},body:request.method==="GET"?undefined:await request.text(),cache:"no-store",redirect:"error",signal:AbortSignal.timeout(100_000)});
+    if(!response.headers.get("content-type")?.includes("application/json"))return Response.json({error:"Workspace connections are temporarily unavailable. Please try again shortly."},{status:502});
     return new Response(response.body,{status:response.status,headers:{"Content-Type":"application/json","Cache-Control":"no-store"}});
   }catch{return Response.json({error:"This connection is temporarily unavailable. Try again."},{status:502});}
 }
