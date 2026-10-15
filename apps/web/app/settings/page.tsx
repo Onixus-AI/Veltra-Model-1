@@ -189,6 +189,7 @@ export default function SettingsPage() {
         <div className="settings-heading">
           <span className="eyebrow">WORKSPACE SETTINGS</span>
           <h1>Settings &amp; analytics</h1>
+          <Link href="/settings/connections" className="back-link">Workspace connections →</Link>
           <p>Your credits, developer access, and subscription in one place.</p>
         </div>
 

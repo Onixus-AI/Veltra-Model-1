@@ -25,7 +25,7 @@ button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 ::selection { background: rgba(169, 149, 255, .3); }
 
-.workspace { width: 100%; height: 100dvh; min-height: 620px; display: grid; grid-template-columns: minmax(390px, 58%) minmax(0, 42%); overflow: hidden; background: #0c0c0f; }
+.workspace { width: 100%; height: 100dvh; min-height: 620px; display: grid; grid-template-columns: minmax(350px, 38%) minmax(0, 62%); overflow: hidden; background: #0c0c0f; }
 .chat-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-right: 1px solid var(--line); background: #0c1929; position: relative; z-index: 1; }
 .chat-header { height: 62px; flex: 0 0 62px; display: flex; align-items: center; justify-content: space-between; padding: 0 27px; border-bottom: 1px solid var(--line); }
 .brand-lockup { display: inline-flex; align-items: center; gap: 8px; font: 800 18px "Manrope", sans-serif; letter-spacing: -.8px; }
@@ -163,7 +163,7 @@ a { color: inherit; text-decoration: none; }
 @keyframes pulse { from { opacity: .42; } to { opacity: .95; } }
 
 @media (max-width: 900px) {
-  .workspace { grid-template-columns: minmax(340px, 58%) minmax(0, 42%); }
+  .workspace { grid-template-columns: minmax(340px, 43%) minmax(0, 57%); }
   .chat-header, .chat-toolbar { padding-right: 16px; padding-left: 16px; }
   .canvas-column { padding-right: 15px; padding-left: 15px; }
   .composer-area { padding-right: 14px; padding-left: 14px; }
@@ -326,3 +326,28 @@ a { color: inherit; text-decoration: none; }
 @media (max-width: 680px) { .creation-mode { padding: 0 17px 12px; flex-wrap: wrap; }.creation-mode > span { margin-left: 0; } }
 
 .image-model-label { display: grid; gap: 4px; margin-left: auto; color: #a5bdd3; font-size: 10px; }.image-model-label select { max-width: 250px; border: 1px solid #304860; border-radius: 7px; padding: 6px; color: #dcecf9; background: #102238; }
+
+/* Veltra identity: jet black, with cyan navigation and electric action accents. */
+:root { --ink: #f4f6fa; --muted: #a5a5b2; --panel: #000; --surface: #0a0a0d; --accent: #00f0ff; --accent-bright: #8bf8ff; --green: #70ff00; --magenta: #ff00b8; --purple: #b300ff; }
+body, .workspace, .auth-page { background: #000; }
+.workspace { --accent: #00f0ff; --accent-bright: #8bf8ff; --line: #ffffff19; }
+.workspace .chat-panel, .workspace .canvas-column, .workspace .chat-header, .workspace .chat-toolbar, .workspace .conversation { background: #000; }
+.workspace .brand-mark { width: 36px; height: 36px; background: #000; border-radius: 0; }.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.workspace .brand-dot { color: #00f0ff; }.workspace .brand-lockup { color: #f4f6fa; }
+.workspace .bridge-status { color: #b5c4c8; background: #080a0d; border-color: #00f0ff38; }.workspace .bridge-status i { background: #70ff00; }.workspace .bridge-status i.working { background: #ff00b8; }
+.workspace .assistant-avatar { background: #06181b; border-color: #00f0ff66; color: #00f0ff; }.workspace .user-avatar { background: #200c2c; color: #efaaff; }
+.workspace .message-body { background: #090f13; border-color: #00f0ff40; }.workspace .message.user .message-body { background: #1c0b25; border-color: #b300ff70; }
+.workspace .message-meta { color: #8bf8ff; }.workspace .message.user .message-meta { color: #efaaff; }.workspace .reply-status { color: #ff80dc; }
+.workspace .composer { background: #08080b; border-color: #46414f; box-shadow: 0 0 0 1px #b300ff15; }.workspace .send-button { background: #00f0ff; color: #000; }.workspace .send-button:hover { background: #70ff00; }
+.workspace .welcome-orb { background: #001315; color: #00f0ff; border-color: #00f0ff66; box-shadow: 0 0 0 8px #00f0ff09; }.workspace .welcome h1 { color: #fff; }.workspace .welcome-label { color: #8bf8ff; }
+.workspace .suggestion-grid button, .workspace .model-menu { background: #09090c; border-color: #ffffff22; }.workspace .suggestion-grid button:hover { border-color: #b300ff; }.workspace .model-indicator.deep { color: #d16bff; }.workspace .model-indicator.velocity { color: #70ff00; }
+.workspace .canvas-panel { background: #050507; border-color: #33313b; }.workspace .canvas-workarea { background-color: #030305; background-image: radial-gradient(#00f0ff14 .7px, transparent .7px); }.workspace .canvas-topbar { background: #09090d; }.workspace .live-indicator { color: #70ff00; }.workspace .live-indicator i { background: #70ff00; }.workspace .canvas-status { background: #08080b; }
+.workspace .creation-mode button { color: #b5b5c2; border-color: #45414c; }.workspace .creation-mode button[aria-pressed="true"] { background: #00262b; color: #8bf8ff; border-color: #00f0ff; }.workspace .image-model-label select { background: #08080b; border-color: #4d4657; color: #eee; }
+.generated-image figcaption { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }.generated-image figcaption button { padding: 7px 10px; border: 1px solid #00f0ff77; border-radius: 7px; background: #002025; color: #8bf8ff; font-size: 12px; }
+.canvas-image-preview { margin: 0; min-height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px; padding: 32px; }.canvas-image-preview img { display: block; max-width: 100%; max-height: 75dvh; object-fit: contain; border-radius: 10px; }.canvas-image-preview figcaption { color: #aaa9b5; font-size: 12px; }
+.auth-page .auth-card { background: #000; border-color: #3b2f48; box-shadow: 0 0 44px #b300ff0d; }.auth-page .auth-card input { background: #08080b; border-color: #4d4657; }.auth-page .auth-card button { background: #00f0ff; color: #000; }.auth-page .auth-card button[type="button"] { background: transparent; color: #d477ff; border: 1px solid #b300ff55; }.auth-logo { width: 80px; height: 80px; object-fit: contain; }.auth-page .eyebrow { color: #8bf8ff; }
+.mobile-workspace-tabs { display: none; }
+@media (max-width: 680px) {
+ .mobile-workspace-tabs { display: flex; height: 48px; padding: 6px 16px; gap: 8px; border-bottom: 1px solid #ffffff22; }.mobile-workspace-tabs button { flex: 1; border: 1px solid #37313f; border-radius: 8px; background: #08080b; color: #aaa; }.mobile-workspace-tabs button[aria-pressed="true"] { border-color: #00f0ff; color: #8bf8ff; }
+ .workspace .chat-panel { height: calc(100dvh - 48px); min-height: 0; }.workspace.mobile-canvas .chat-panel { display: none; }.workspace.mobile-canvas .canvas-column { display: flex; height: calc(100dvh - 48px); padding: 0 10px 10px; }.workspace.mobile-chat .canvas-column { display: none; }.canvas-image-preview { padding: 16px; }
+}

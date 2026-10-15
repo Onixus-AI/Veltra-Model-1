@@ -6,7 +6,7 @@ import remarkGfm from "remark-gfm";
 import { Check, Code2, Copy, Download, Eye, FileCode2, PencilLine, X } from "lucide-react";
 
 export type Artifact = {
-  kind: "html" | "react" | "markdown" | "mermaid";
+  kind: "html" | "react" | "markdown" | "mermaid" | "image";
   content: string;
   title: string;
 };
@@ -77,6 +77,14 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
   }
 
   function exportArtifact() {
+    if (artifact.kind === "image") {
+      const anchor = document.createElement("a");
+      anchor.href = artifact.content;
+      const extension = artifact.content.startsWith("data:image/jpeg") ? "jpg" : artifact.content.startsWith("data:image/webp") ? "webp" : "png";
+      anchor.download = `veltra-image.${extension}`;
+      anchor.click();
+      return;
+    }
     const blob = new Blob([artifact.content], { type: artifact.kind === "markdown" ? "text/markdown" : "text/plain" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
@@ -95,6 +103,7 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
           <span className="live-indicator"><i /> LIVE</span>
         </div>
         <div className="canvas-actions">
+          {artifact.kind !== "image" && <>
           <button className="canvas-action" onClick={() => void copyCode()} title="Copy artifact source">
             {copied ? <Check size={14} /> : <Copy size={14} />}<span>{copied ? "Copied" : "Copy Code"}</span>
           </button>
@@ -102,11 +111,14 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
           <button className={`canvas-action ${showCode ? "active" : ""}`} onClick={() => setShowCode(!showCode)} title="Toggle source and preview">
             {showCode ? <Eye size={14} /> : <Code2 size={14} />}<span>{showCode ? "Preview" : "Code"}</span>
           </button>
+          </>}
           <button className="canvas-action export-action" onClick={exportArtifact}><Download size={14} /><span>Export</span></button>
         </div>
       </div>
       <div className="canvas-workarea">
-        {showCode || (artifact.kind === "markdown" && editing) ? (
+        {artifact.kind === "image" ? (
+          <figure className="canvas-image-preview"><img src={artifact.content} alt={artifact.title} /><figcaption>Generated with Veltra · Use Export to download</figcaption></figure>
+        ) : showCode || (artifact.kind === "markdown" && editing) ? (
           <div className="code-view">
             <div className="editor-label"><span>{artifact.kind === "markdown" && editing ? "EDIT MARKDOWN" : "SOURCE"}</span>
               {artifact.kind === "markdown" && <button onClick={() => setEditing(!editing)}>{editing ? <><Eye size={13} /> Preview</> : <><PencilLine size={13} /> Edit</>}</button>}
@@ -123,7 +135,7 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
           </div>
         )}
       </div>
-      <div className="canvas-status"><span><i /> All changes saved</span><span>Veltra Canvas <b>·</b> {artifact.kind.toUpperCase()}</span></div>
+      <div className="canvas-status"><span><i /> Current canvas</span><span>Veltra Canvas <b>·</b> {artifact.kind.toUpperCase()}</span></div>
     </section>
   );
 }

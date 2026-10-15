@@ -64,6 +64,7 @@ function ChatContent({ content }: { content: string }) {
 
 export default function VeltraWorkspace() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [mobileView, setMobileView] = useState<"chat" | "canvas">("chat");
   const [imageModel, setImageModel] = useState("recraft/recraft-v4.1-flash");
   const [imageMode, setImageMode] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
@@ -107,6 +108,11 @@ export default function VeltraWorkspace() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, historyLoaded]);
 
+  function openImageInCanvas(image: string) {
+    setArtifact({ kind: "image", title: "Generated image", content: image });
+    setMobileView("canvas");
+  }
+
   function startNewChat() {
     setMessages([]);
     setArtifact(initialArtifact);
@@ -134,6 +140,7 @@ export default function VeltraWorkspace() {
         const imageId = crypto.randomUUID();
         let saved = true;
         try { await saveImage(imageId, data.image); } catch { saved = false; }
+        openImageInCanvas(data.image);
         setMessages([...nextMessages, { role: "assistant", content: `Image ready. ${data.credits} credits used.${saved ? "" : " Download it now; browser storage is unavailable."}`, image: data.image, ...(saved ? { imageId } : {}) }]);
         return;
       }
@@ -218,16 +225,21 @@ export default function VeltraWorkspace() {
   }
 
   return (
-    <main className="workspace">
+    <main className={`workspace mobile-${mobileView}`}>
+      <nav className="mobile-workspace-tabs" aria-label="Workspace view">
+        <button aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")}>Chat</button>
+        <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>Canvas</button>
+      </nav>
       <section className="chat-panel">
         <header className="chat-header">
-          <Link href="/" className="brand-lockup"><span className="brand-mark"><Sparkles size={16} /></span> veltra<span className="brand-dot">.</span></Link>
+          <Link href="/" className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="" /></span> veltra<span className="brand-dot">.</span></Link>
           <button className="header-icon mobile-menu" aria-label="Open menu"><Menu size={18} /></button>
           <div className="header-right">
             <button className={`knowledge-button ${documents.length ? "has-documents" : ""}`} onClick={() => setKnowledgeOpen(true)}>
               <Layers3 size={15} /><span>Knowledge</span>{documents.length > 0 && <b>{documents.length}</b>}
             </button>
             <span className="header-divider" />
+            <Link href="/settings/connections" className="header-icon" title="Connect Veltra Mail" aria-label="Connect Veltra Mail">Mail</Link>
             <Link href="/settings" className="header-icon" title="Settings and analytics" aria-label="Settings and analytics"><Settings2 size={17} /></Link>
           </div>
         </header>
@@ -284,7 +296,7 @@ export default function VeltraWorkspace() {
                   {message.role === "assistant" ? <span className="assistant-avatar"><Sparkles size={13} /></span> : <span className="user-avatar">Y</span>}
                   <div className="message-body">
                     <div className="message-meta">{message.role === "assistant" ? "Veltra" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{imageMode ? "Creating…" : message.content ? "Replying…" : "Thinking…"}</span>}</div>
-                    {message.image && <figure className="generated-image"><img src={message.image} alt="Image generated from your prompt" /><figcaption><a href={message.image} download={`veltra-${message.imageId || "image"}.png`}>Download image</a></figcaption></figure>}
+                    {message.image && <figure className="generated-image"><img src={message.image} alt="Image generated from your prompt" /><figcaption><button type="button" onClick={() => openImageInCanvas(message.image!)}>Open in canvas</button><a href={message.image} download={`veltra-${message.imageId || "image"}.png`}>Download image</a></figcaption></figure>}
                     {message.content
                       ? <div className="message-content"><ChatContent content={message.content} /></div>
                       : <div className="thinking-indicator" role="status"><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span><span>{sending ? (imageMode ? "Veltra is creating your image…" : "Veltra is thinking…") : "No reply received. Try sending your message again."}</span></div>}
