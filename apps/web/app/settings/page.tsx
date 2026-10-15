@@ -36,7 +36,7 @@ const tabs: { id: SettingsTab; label: string; icon: typeof Wallet }[] = [
   { id: "subscription", label: "Subscription", icon: CreditCard },
 ];
 
-function authorizationHeaders(): HeadersInit {
+async function authorizationHeaders(): Promise<HeadersInit> {
   return gatewayAuthorizationHeaders();
 }
 
@@ -108,7 +108,7 @@ export default function SettingsPage() {
     setLoading(true);
     setError("");
     try {
-      const headers = authorizationHeaders();
+      const headers = await authorizationHeaders();
       const [accountResponse, keysResponse] = await Promise.all([
         fetch("/api/account", { headers, cache: "no-store" }),
         fetch("/api/keys", { headers, cache: "no-store" }),
@@ -137,7 +137,7 @@ export default function SettingsPage() {
     try {
       const created = await responseData<CreatedKey>(await fetch("/api/keys", {
         method: "POST",
-        headers: { ...authorizationHeaders(), "Content-Type": "application/json" },
+        headers: { ...await authorizationHeaders(), "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       }));
       setCreatedKey(created);
@@ -157,7 +157,7 @@ export default function SettingsPage() {
     try {
       const response = await fetch(`/api/keys?id=${encodeURIComponent(key.id)}`, {
         method: "DELETE",
-        headers: authorizationHeaders(),
+        headers: await authorizationHeaders(),
       });
       await responseData<unknown>(response);
       setKeys((existing) => existing.filter(({ id }) => id !== key.id));

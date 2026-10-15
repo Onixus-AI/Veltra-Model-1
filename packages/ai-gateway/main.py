@@ -150,7 +150,7 @@ async def deduct_credits(organization_id: str, credits: int) -> None:
                 json={"p_organization_id": organization_id, "p_credits": credits},
                 headers={
                     "apikey": service_role_key,
-                    "Authorization": f"******",
+                    "Authorization": f"Bearer {service_role_key}",
                     "Content-Type": "application/json",
                 },
             )

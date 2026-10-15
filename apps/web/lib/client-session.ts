@@ -1,36 +1,22 @@
 "use client";
 
+import { browserSupabase } from "@/lib/supabase";
+
 const API_KEY_STORAGE_KEY = "veltra-api-key";
 
-function readSupabaseAccessToken(): string {
-  const storageKeys = Object.keys(window.localStorage).filter((key) =>
-    key.startsWith("sb-") && key.endsWith("-auth-token"),
-  );
-  if (storageKeys.length !== 1) return "";
-
-  try {
-    const session: unknown = JSON.parse(window.localStorage.getItem(storageKeys[0]) ?? "null");
-    if (typeof session === "object" && session !== null && "access_token" in session) {
-      const accessToken = session.access_token;
-      return typeof accessToken === "string" ? accessToken : "";
-    }
-  } catch {
-    return "";
+export async function readGatewayAuthorization(): Promise<string> {
+  const supabase = browserSupabase();
+  if (supabase) {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw new Error("Your session expired. Please sign in again.");
+    if (data.session) return `Bearer ${data.session.access_token}`;
   }
-
-  return "";
-}
-
-export function readGatewayAuthorization(): string {
-  const sessionToken = readSupabaseAccessToken();
-  if (sessionToken) return `Bearer ${sessionToken}`;
-
   const apiKey = window.sessionStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
   return apiKey ? `Bearer ${apiKey}` : "";
 }
 
-export function gatewayAuthorizationHeaders(): HeadersInit {
-  const authorization = readGatewayAuthorization();
+export async function gatewayAuthorizationHeaders(): Promise<HeadersInit> {
+  const authorization = await readGatewayAuthorization();
   return authorization ? { Authorization: authorization } : {};
 }
 

@@ -52,8 +52,13 @@ Open `http://localhost:3000` and use the Project Knowledge drawer to add PDF or
 text context. The web app proxies chat, account, and key-management requests to
 `http://localhost:8000` by default. Set `AI_GATEWAY_URL` or
 `NEXT_PUBLIC_VELTRA_API_URL` in the web server environment to use a different
-gateway. The browser automatically forwards the access token from the standard
-Supabase Auth local-storage session. Developer API keys remain available for
+gateway. Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` before
+building the web app. The sign-in screen uses an existing Supabase email/password
+account, refreshes its session automatically, and forwards the access token to
+the gateway. The account must have a trusted `app_metadata.org_id` or
+`app_metadata.organization_id` assignment and an organization credit wallet.
+The OpenRouter key and Supabase service-role key belong only on the gateway;
+never use a `NEXT_PUBLIC_` variable for either secret. Developer API keys remain available for
 external tools and as a browser fallback. `/settings` contains rolling usage
 analytics, key management, and the subscription view; `/settings/keys`
 redirects there for compatibility.
