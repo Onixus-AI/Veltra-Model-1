@@ -336,7 +336,9 @@ body, .workspace, .auth-page { background: #000; }
 .workspace .brand-dot { color: #00f0ff; }.workspace .brand-lockup { color: #f4f6fa; }
 .workspace .bridge-status { color: #b5c4c8; background: #080a0d; border-color: #00f0ff38; }.workspace .bridge-status i { background: #70ff00; }.workspace .bridge-status i.working { background: #ff00b8; }
 .workspace .assistant-avatar { background: #06181b; border-color: #00f0ff66; color: #00f0ff; }.workspace .user-avatar { background: #200c2c; color: #efaaff; }
-.workspace .message-body { background: #090f13; border-color: #00f0ff40; }.workspace .message.user .message-body { background: #1c0b25; border-color: #b300ff70; }
+.workspace .message.assistant { align-items: flex-start; }
+.workspace .message.assistant .message-body { padding: 0; background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.workspace .message.user .message-body { background: #1c0b25; border-color: #b300ff70; }
 .workspace .message-meta { color: #8bf8ff; }.workspace .message.user .message-meta { color: #efaaff; }.workspace .reply-status { color: #ff80dc; }
 .workspace .composer { background: #08080b; border-color: #46414f; box-shadow: 0 0 0 1px #b300ff15; }.workspace .send-button { background: #00f0ff; color: #000; }.workspace .send-button:hover { background: #70ff00; }
 .workspace .welcome-orb { background: #001315; color: #00f0ff; border-color: #00f0ff66; box-shadow: 0 0 0 8px #00f0ff09; }.workspace .welcome h1 { color: #fff; }.workspace .welcome-label { color: #8bf8ff; }
