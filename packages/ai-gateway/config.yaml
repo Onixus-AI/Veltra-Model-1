@@ -50,7 +50,37 @@ model_list:
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
-# Dedicated image endpoint; image models do not use text chat completions.
+# Media models use OpenRouter's dedicated APIs, not text chat completions.
+# Provider estimates are USD before markup. Verify live pricing before charging.
 image_generation:
-  model: qwen/qwen-image-3
+  default_model: recraft/recraft-v4.1-flash
   api_base: https://openrouter.ai/api/v1
+  models:
+    - id: recraft/recraft-v4.1-flash
+      name: Recraft V4.1 Flash
+      estimated_usd_per_image: 0.007
+      supports_resolution: false
+    - id: black-forest-labs/flux.2-klein-4b
+      name: FLUX.2 Klein 4B
+      estimated_usd_per_image: 0.014
+      pricing_note: First output megapixel; additional megapixels cost extra.
+      supports_resolution: false
+    - id: bytedance-seed/seedream-5-0-flash
+      name: Seedream 5.0 Flash
+      estimated_usd_per_image: 0.018
+      supports_resolution: true
+    - id: qwen/qwen-image-3
+      name: Qwen Image 3
+      estimated_usd_per_image: 0.03
+      supports_resolution: true
+video_generation:
+  api_base: https://openrouter.ai/api/v1
+  models:
+    - id: bytedance/seedance-2.0-mini
+      name: Seedance 2.0 Mini
+      estimated_usd_per_second_from: 0.03363
+      pricing_note: Starting estimate at 480p; resolution and references affect price.
+    - id: kwaivgi/kling-v3.0-std
+      name: Kling 3.0 Standard
+      estimated_usd_per_second_without_audio: 0.084
+      estimated_usd_per_second_with_audio: 0.126
