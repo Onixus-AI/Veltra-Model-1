@@ -1,10 +1,12 @@
--- Applied and transaction-tested on live Supabase; server access only.
+-- Base reservation flow applied and transaction-tested; model tracking below awaits image launch.
+-- Server access only.
 create table if not exists public.image_requests (
  id uuid primary key, organization_id uuid not null references public.organizations(id),
  status text not null default 'pending' check (status in ('pending','succeeded','failed')),
  credits integer not null default 100 check(credits=100),
  created_at timestamptz not null default now(), updated_at timestamptz not null default now()
 );
+alter table public.image_requests add column if not exists model text not null default 'qwen/qwen-image-3';
 alter table public.image_requests enable row level security;
 revoke all on public.image_requests from public,anon,authenticated;
 grant select,insert,update on public.image_requests to service_role;
@@ -28,7 +30,7 @@ begin
  if r.status<>'pending' then return r.status=case when p_success then 'succeeded' else 'failed' end; end if;
  if p_success then
   insert into public.usage_logs(organization_id,category,model_used,tokens_consumed,credits_deducted)
-  values(r.organization_id,'image','qwen/qwen-image-3',0,r.credits);
+  values(r.organization_id,'image',r.model,0,r.credits);
   insert into public.credit_transactions(organization_id,amount,description)
   values(r.organization_id,-r.credits,'Image generation');
  else
