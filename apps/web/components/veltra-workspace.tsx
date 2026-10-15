@@ -105,7 +105,7 @@ export default function VeltraWorkspace() {
       ];
       const response = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...gatewayAuthorizationHeaders() },
+        headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
         body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true }),
       });
       if (!response.ok) {
