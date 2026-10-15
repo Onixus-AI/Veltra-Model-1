@@ -43,6 +43,19 @@ model_list:
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
+  # Explicit provider choices exposed in the Chat selector
+  - model_name: veltra-mimo
+    litellm_params:
+      model: openrouter/xiaomi/mimo-v2.6-flash
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: veltra-ling
+    litellm_params:
+      model: openrouter/inclusionai/ling-3.0-flash
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
   # Free development and local test tier
   - model_name: veltra-dev
     litellm_params:

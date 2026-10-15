@@ -6,8 +6,9 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, Command, Copy, FileText, Layers3, Menu,
-  ImagePlus, Navigation2, Plus, Settings2, ShieldCheck, Sparkles, SquarePen, Zap,
+  ImagePlus, Navigation2, Plug, Plus, Settings2, ShieldCheck, Sparkles, SquarePen, Zap,
 } from "lucide-react";
+import MailCanvas from "@/components/mail-canvas";
 import ArtifactCanvas, { Artifact } from "@/components/artifact-canvas";
 import ProjectKnowledge, { KnowledgeDocument } from "@/components/project-knowledge";
 import { loadImage, saveImage } from "@/lib/image-store";
@@ -24,12 +25,16 @@ function friendlyChatError(message: string) {
   return "Veltra couldn’t complete this reply. Please try again.";
 }
 
-type ModelMode = "velocity" | "deep";
+type ModelMode = "velocity" | "deep" | "free" | "mimo" | "ling" | "agent";
 
 const HISTORY_KEY = "veltra-chat-history";
 const MODEL_OPTIONS: Record<ModelMode, { model: string; name: string; subtitle: string }> = {
-  velocity: { model: "veltra-fast", name: "Velocity Mode", subtitle: "Fast execution" },
-  deep: { model: "veltra-logic", name: "Deep Tra Mode", subtitle: "Complex reasoning" },
+  free: { model: "veltra-fast-free", name: "Nemotron Lightning · Free", subtitle: "Small tasks and quick answers" },
+  velocity: { model: "veltra-fast", name: "Qwen Coder", subtitle: "Velocity · fast coding and text" },
+  deep: { model: "veltra-logic", name: "DeepSeek Chat", subtitle: "Reasoning and complex tasks" },
+  mimo: { model: "veltra-mimo", name: "MiMo Flash", subtitle: "Writing and everyday assistance" },
+  ling: { model: "veltra-ling", name: "Ling Flash", subtitle: "Fast general tasks" },
+  agent: { model: "veltra-agent", name: "Nemotron Super", subtitle: "Complex planning and reasoning" },
 };
 
 const initialArtifact: Artifact = {
@@ -63,6 +68,8 @@ function ChatContent({ content }: { content: string }) {
 }
 
 export default function VeltraWorkspace() {
+  const [mailOpen, setMailOpen] = useState(false);
+  useEffect(() => { if (new URLSearchParams(location.search).get("canvas") === "mail") { setMailOpen(true); setMobileView("canvas"); } }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [mobileView, setMobileView] = useState<"chat" | "canvas">("chat");
   const [imageModel, setImageModel] = useState("recraft/recraft-v4.1-flash");
@@ -109,6 +116,7 @@ export default function VeltraWorkspace() {
   }, [messages, historyLoaded]);
 
   function openImageInCanvas(image: string) {
+    setMailOpen(false);
     setArtifact({ kind: "image", title: "Generated image", content: image });
     setMobileView("canvas");
   }
@@ -239,7 +247,8 @@ export default function VeltraWorkspace() {
               <Layers3 size={15} /><span>Knowledge</span>{documents.length > 0 && <b>{documents.length}</b>}
             </button>
             <span className="header-divider" />
-            <Link href="/settings/connections" className="header-icon" title="Connect Veltra Mail" aria-label="Connect Veltra Mail">Mail</Link>
+            <button className="header-icon" title="Open Veltra Mail" aria-label="Open Veltra Mail" onClick={() => { setMailOpen(true); setMobileView("canvas"); }}>Mail</button>
+            <Link href="/settings/connections" className="header-icon" title="Connections" aria-label="Connections"><Plug size={17}/></Link>
             <Link href="/settings" className="header-icon" title="Settings and analytics" aria-label="Settings and analytics"><Settings2 size={17} /></Link>
           </div>
         </header>
@@ -249,14 +258,14 @@ export default function VeltraWorkspace() {
           <div className="model-selector-wrap">
             <button className={`model-selector ${modelOpen ? "is-open" : ""}`} onClick={() => setModelOpen(!modelOpen)} aria-expanded={modelOpen}>
               <span className={`model-indicator ${mode}`}><i /></span>
-              <span className="model-label"><strong>{mode === "velocity" ? "Velocity Mode" : "Deep Tra Mode"}</strong><small>{activeModel.subtitle}</small></span>
+              <span className="model-label"><strong>{activeModel.name}</strong><small>{activeModel.subtitle}</small></span>
               <ChevronDown size={15} />
             </button>
             {modelOpen && <div className="model-menu">
               {(Object.keys(MODEL_OPTIONS) as ModelMode[]).map((option) => (
                 <button key={option} onClick={() => { setMode(option); setModelOpen(false); }}>
                   <span className={`model-indicator ${option}`}><i /></span>
-                  <span><strong>{option === "velocity" ? "⚡ Velocity Mode" : "🧠 Deep Tra Mode"}</strong><small>{MODEL_OPTIONS[option].subtitle}</small></span>
+                  <span><strong>{MODEL_OPTIONS[option].name}</strong><small>{MODEL_OPTIONS[option].subtitle}</small></span>
                   {mode === option && <Check size={15} />}
                 </button>
               ))}
@@ -320,7 +329,7 @@ export default function VeltraWorkspace() {
             />
             <div className="composer-footer">
               <button type="button" className="composer-tool" onClick={() => setKnowledgeOpen(true)} aria-label="Add project knowledge"><Plus size={16} /></button>
-              <span className="composer-hint">{mode === "velocity" ? "Quick answers, fast" : "Take your time · think deeply"} <b>·</b> ↵ to send</span>
+              <span className="composer-hint">{activeModel.subtitle} <b>·</b> ↵ to send</span>
               <button type="submit" className="send-button" disabled={!input.trim() || sending || !historyLoaded} aria-label="Send message">{sending ? <span className="send-loading" /> : <ArrowUp size={17} />}</button>
             </div>
           </form>
@@ -333,10 +342,10 @@ export default function VeltraWorkspace() {
           <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>Canvas</strong><small>Your ideas, made tangible</small></div></div>
           <div className="canvas-head-actions">
             <button onClick={() => void copyLastAnswer()} title="Copy latest answer"><Copy size={14} />{copied ? <Check size={13} /> : null}</button>
-            <button className="canvas-add-button" onClick={() => setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." })}><Plus size={15} /><span>New</span></button>
+            <button className="canvas-add-button" onClick={() => { setMailOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        <ArtifactCanvas artifact={artifact} onChange={setArtifact} />
+        {mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
         <div className="canvas-bottom"><span><ShieldCheck size={13} /> Private workspace</span><span>Built for ideas that move.</span></div>
       </section>
 

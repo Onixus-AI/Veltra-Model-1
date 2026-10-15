@@ -35,3 +35,10 @@ The UI includes a Mail connection page and read-only recent inbox view. Mail ver
 Mail runs independently without CHAT_* variables. Production linking requires durable PostgreSQL storage. Configure CHAT_ORIGIN, CHAT_SUPABASE_URL and CHAT_SUPABASE_PUBLIC_KEY on Mail; set VELTRA_MAIL_URL on Chat. The public key is a Supabase publishable/anon key, never a service-role key. Google sign-in for Chat is displayed only when the Supabase Google provider is enabled; connecting Mail with Google also works for existing password-based Chat users. Google provider credentials and the Supabase callback must be configured separately to enable Google login to Chat itself.
 
 This release does not add sending email through the Chat model, other external connectors or shared session cookies. Inbox reads are explicit; emails are not automatically injected into model prompts. The canvas and branding changes remain included.
+
+
+## Full Mail canvas
+
+The Connections page has a Google connector and a Veltra Mail app tile. The tile opens /?canvas=mail. The canvas loads the same built Mail frontend used by the standalone service through a same-origin frame proxy, preserving its inbox, approvals, people, folders and settings. A verified launch creates a short-lived HttpOnly, SameSite=Strict cookie restricted to the frame proxy path; the parent renews it using the current Chat session. The proxy never exposes tokens in frame URLs or JavaScript. Every Mail API request independently verifies the Chat user and current Mail link and enters the existing account-scoped Mail router. Admin and OAuth routes are excluded. State-changing frame requests require a same-origin request and a custom frame header. Google disconnect invalidates API access immediately.
+
+Email actions remain explicit user actions in Mail’s existing UI; the Chat model does not receive new email tools or automatic mailbox context. The real Google connection is already retained; no reconnect should be necessary for existing linked users.
