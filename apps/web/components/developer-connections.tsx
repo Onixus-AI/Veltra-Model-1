@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
+import ToolLogo from "@/components/tool-logo";
 import {useCallback,useEffect,useState,type ReactNode} from "react";
-import {Github,Triangle,Database,ArrowUpRight} from "lucide-react";
+import {ArrowUpRight} from "lucide-react";
 import {connectionRequest,type Provider,type WorkspaceConnection} from "@/lib/connections-client";
-const providers=[{id:"github" as Provider,name:"GitHub",description:"Choose a repository. Read files, edit code and propose a draft pull request.",Icon:Github},{id:"vercel" as Provider,name:"Vercel",description:"Choose a project and inspect its deployments beside your code.",Icon:Triangle},{id:"supabase" as Provider,name:"Supabase",description:"Choose a database project and keep its details beside Chat.",Icon:Database}];
+const providers=[{id:"github" as Provider,name:"GitHub",description:"Choose a repository. Read files, edit code and propose a draft pull request."},{id:"vercel" as Provider,name:"Vercel",description:"Choose a project and inspect its deployments beside your code."},{id:"supabase" as Provider,name:"Supabase",description:"Choose a database project and keep its details beside Chat."}];
 type Resource={id:string;name:string;branch?:string};
 export default function DeveloperConnections({query="",onCount,children}:{query?:string;onCount?:(count:number)=>void;children?:ReactNode}){
  const [expanded,setExpanded]=useState<string|null>(null);
@@ -27,10 +28,10 @@ export default function DeveloperConnections({query="",onCount,children}:{query?
  }
  return <>
  {error&&<p role="alert" className="connections-error">{error}</p>}{notice&&<p role="status" className="connections-notice">{notice}</p>}
- <div className="hub-grid">{providers.filter(p=>`${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())).map(({id,name,description,Icon})=>{
+ <div className="hub-grid">{providers.filter(p=>`${p.name} ${p.description}`.toLowerCase().includes(query.toLowerCase())).map(({id,name,description})=>{
  const connection=connections.find(c=>c.provider===id),open=expanded===id;
  return <article className={`hub-card provider-${id} ${open?"expanded":""}`} key={id}>
- <div className="hub-card-top"><span className="hub-tool-icon"><Icon size={21}/></span><span className={`hub-status ${connection?.connected?"live":""}`}>{connection?.connected?"Connected":connection?.configured?"Available":connection?"Setup needed":error?"Unavailable":"Loading…"}</span></div>
+ <div className="hub-card-top"><ToolLogo name={name}/><span className={`hub-status ${connection?.connected?"live":""}`}>{connection?.connected?"Connected":connection?.configured?"Available":connection?"Setup needed":error?"Unavailable":"Loading…"}</span></div>
  <h3>{name}</h3><p>{connection?.selection.name??description}</p>
  <button className="hub-card-button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{connection?.connected?"Manage":"Set up"}<ArrowUpRight size={13}/></button>
  {open&&<div className="hub-card-details">
