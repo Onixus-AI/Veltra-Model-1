@@ -2,6 +2,9 @@ import { VELOCITY_CONVERSATION_STYLE } from "@/lib/conversation-style";
 import { NextRequest } from "next/server";
 import { gatewayAuthorization, gatewayUrl } from "@/lib/gateway";
 
+import {crmContext,crmError} from '@/lib/crm/server';
+import {memoryPrompt} from '@/lib/crm/suite-domain';
+
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
@@ -10,7 +13,9 @@ export async function POST(request: NextRequest) {
   if (!payload || typeof payload !== "object" || !Array.isArray(payload.messages)) {
     return Response.json({detail:"Send a valid conversation."},{status:400});
   }
-  const messages = [{role:"system",content:VELOCITY_CONVERSATION_STYLE},...payload.messages];
+  let memory:unknown=null;
+  if(payload.conversation_id){try{memory=await crmContext(request,payload.conversation_id);}catch(e){return crmError(e);}}
+  const messages = [...(memory?[{role:'system',content:memoryPrompt(memory)}]:[]),{role:"system",content:VELOCITY_CONVERSATION_STYLE},...payload.messages];
 
   const upstream = await fetch(`${gatewayUrl()}/v1/chat/completions`, {
     method: "POST",

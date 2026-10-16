@@ -17,6 +17,9 @@ import ProjectKnowledge, { KnowledgeDocument } from "@/components/project-knowle
 import { loadImage, saveImage } from "@/lib/image-store";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
+import CrmChatBar, {crmRequest,type CloudConversation} from '@/components/crm-chat-bar';
+import {browserSupabase} from '@/lib/supabase';
+
 type ChatMessage = { role: "user" | "assistant"; content: string; image?: string; imageId?: string };
 function friendlyChatError(message: string) {
   if (/credit|wallet|deduct|supabase|token usage/i.test(message)) {
@@ -81,6 +84,12 @@ export default function VeltraWorkspace() {
     if(query.get("canvas")==="mail"){setMailOpen(true);setMobileView("canvas");}
     if(query.get("canvas")==="code"){setCodeOpen(true);setWorkspaceMode("work");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
+  const [cloud,setCloud]=useState<CloudConversation|null>(null);
+  const cloudRef=useRef<CloudConversation|null>(null);
+  const [cloudRequired,setCloudRequired]=useState(false);
+  const [cloudReset,setCloudReset]=useState(0);
+  function loadCloud(row:CloudConversation){cloudRef.current=row;setCloud(row);setCloudRequired(true);setMessages(row.messages);setHistoryLoaded(true);setError('');}
+  function unavailableCloud(){cloudRef.current=null;setCloud(null);setMessages([]);}
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [mobileView, setMobileView] = useState<"chat" | "canvas">("chat");
   const [imageModel, setImageModel] = useState("recraft/recraft-v4.1-flash");
@@ -108,6 +117,8 @@ export default function VeltraWorkspace() {
     let active = true;
     async function restore() {
       try {
+        const session=await browserSupabase()?.auth.getSession();
+        if(session?.data.session){if(active){setCloudRequired(true);setMessages([]);}return;}
         const parsed = JSON.parse(window.localStorage.getItem(HISTORY_KEY) || "[]") as ChatMessage[];
         if (Array.isArray(parsed)) {
           const restored = await Promise.all(parsed.map(async (message) => ({
@@ -126,10 +137,10 @@ export default function VeltraWorkspace() {
 
   useEffect(() => {
     if (!historyLoaded) return;
-    try { window.localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.map(({ image, ...message }) => message))); }
+    try { if(!cloudRequired)window.localStorage.setItem(HISTORY_KEY, JSON.stringify(messages.map(({ image, ...message }) => message))); }
     catch { /* Chat remains usable if browser storage is full or disabled. */ }
     if(messages.length&&stickToBottom.current)scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "instant" });
-  }, [messages, historyLoaded]);
+  }, [messages, historyLoaded,cloudRequired]);
 
   function openImageInCanvas(image: string) {
     setMailOpen(false); setCodeOpen(false);
@@ -138,6 +149,7 @@ export default function VeltraWorkspace() {
   }
 
   function startNewChat() {
+    if(cloudRequired){setCloudReset(n=>n+1);return;}
     setMessages([]);
     setArtifact(initialArtifact);
     setError("");
@@ -147,10 +159,14 @@ export default function VeltraWorkspace() {
     event?.preventDefault();
     const prompt = input.trim();
     if (!prompt || sending || !historyLoaded) return;
+    if(cloudRequired&&!cloudRef.current){setError('Cloud history is not ready. Choose a conversation before sending.');return;}
+    const savedCloud=cloudRef.current;
+    let savedMessages:ChatMessage[]=[];
     setError("");
     stickToBottom.current=true;
     setInput("");
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: prompt }];
+    savedMessages=nextMessages;
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
     setSending(true);
     try {
@@ -166,7 +182,8 @@ export default function VeltraWorkspace() {
         let saved = true;
         try { await saveImage(imageId, data.image); } catch { saved = false; }
         openImageInCanvas(data.image);
-        setMessages([...nextMessages, { role: "assistant", content: `Image ready. ${data.credits} credits used.${saved ? "" : " Download it now; browser storage is unavailable."}`, image: data.image, ...(saved ? { imageId } : {}) }]);
+        savedMessages=[...nextMessages, { role: "assistant", content: `Image ready. ${data.credits} credits used.${saved ? "" : " Download it now; browser storage is unavailable."}`, image: data.image, ...(saved ? { imageId } : {}) }];
+        setMessages(savedMessages);
         return;
       }
       const gatewayMessages = [
@@ -178,7 +195,7 @@ export default function VeltraWorkspace() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-        body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true }),
+        body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true,...(savedCloud?{conversation_id:savedCloud.id}: {}) }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -193,7 +210,8 @@ export default function VeltraWorkspace() {
       let streamError = "";
       const updateAnswer = (addition: string) => {
         answer += addition;
-        setMessages([...nextMessages, { role: "assistant", content: answer }]);
+        savedMessages=[...nextMessages,{role:"assistant",content:answer}];
+        setMessages(savedMessages);
       };
       while (true) {
         const { done, value } = await reader.read();
@@ -232,6 +250,7 @@ export default function VeltraWorkspace() {
           : item,
       ));
     } finally {
+      if(savedCloud&&savedMessages.length){try{const result=await crmRequest<{revision:number}>('conversations/'+savedCloud.id,'PUT',{revision:savedCloud.revision,messages:savedMessages.map(({role,content,imageId})=>({role,content,...(imageId?{imageId}: {})}))});const row={...savedCloud,revision:result.revision};cloudRef.current=row;setCloud(row);}catch(e){setError('Reply was not saved to cloud history. '+(e instanceof Error?e.message:'Please retry.'));}}
       setSending(false);
     }
   }
@@ -285,6 +304,7 @@ export default function VeltraWorkspace() {
 
         </div>
 
+        <CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/>
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
