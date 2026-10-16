@@ -410,3 +410,5 @@ body, .workspace, .auth-page { background: #000; }
 .hub-tool-icon.veltra-tool-logo { background:#03090c; }
 .hub-google > .brand-logo { width:34px; height:34px; border-radius:8px; flex-shrink:0; }
 @media(max-width:760px){.hub-tool-icon.brand-logo img{width:21px;height:21px}}
+
+.hub-card-details>label{display:grid;gap:7px;margin:12px 0;font-size:11px;color:#abb7c7}.hub-card-details>label input{width:100%;min-width:0;box-sizing:border-box;padding:9px 8px;border:1px solid #354050;border-radius:7px;background:#0d1118;color:#e7eef8;font:inherit}.code-canvas-tabs{flex-wrap:wrap}
