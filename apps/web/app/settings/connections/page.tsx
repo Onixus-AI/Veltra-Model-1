@@ -1,8 +1,9 @@
 "use client";
 import Link from "next/link";
 import DeveloperConnections from "@/components/developer-connections";
-import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, ArrowUpRight, Check, Mail, Plug, ShieldCheck } from "lucide-react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { ArrowLeft, ArrowUpRight, Check, Mail, Search, X, Layers, Code2, Briefcase, Palette, Building2, Megaphone, BookOpen, Users, Plug } from "lucide-react";
+import { connectorSections, type CatalogTool } from "@/lib/connector-catalog";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
 type Connection = { connected: boolean; mailbox: { email: string } | null; mail_url: string };
@@ -14,6 +15,12 @@ async function call<T>(method: string, body?: object): Promise<T> {
   return data as T;
 }
 export default function ConnectionsPage() {
+  const [query,setQuery]=useState("");
+  const [category,setCategory]=useState("all");
+  const [developerCount,setDeveloperCount]=useState(0);
+  const [detail,setDetail]=useState<CatalogTool|null>(null);
+  const detailDialog=useRef<HTMLDialogElement>(null);
+  useEffect(()=>{if(detail)detailDialog.current?.showModal();else detailDialog.current?.close();},[detail]);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -48,21 +55,22 @@ export default function ConnectionsPage() {
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Please try again."); }
     finally { setBusy(false); }
   }
-  return <main className="connections-page">
-    <header className="connections-header"><Link href="/" className="connections-back"><ArrowLeft size={16}/> Back to Chat</Link><Link href="/" className="connections-brand"><img src="/veltra-logo.png" alt=""/> Veltra</Link></header>
-    <section className="connections-body">
-      <div className="connections-title"><div><h1>Your workspace, connected.</h1><p>Connect your accounts. Open Mail or code in the canvas, with Chat beside you.</p></div><Plug size={30}/></div>
-      {notice && <p className="connections-notice" role="status">{notice}</p>}{error && <p className="connections-error" role="alert">{error}</p>}
-      <section className="connected-apps" aria-labelledby="apps-title"><div className="connections-section-heading"><h2 id="apps-title">Your apps</h2><span>{connection?.connected ? "1 connected" : "Connect Google to get started"}</span></div>
-        <article className={`mail-app-card ${connection?.connected ? "is-connected" : ""}`}>
-          <div className="mail-app-icon"><Mail size={30}/></div><div className="mail-app-copy"><h3>Veltra Mail</h3><p>Your full email workspace, inside Veltra.</p><span>Inbox · Approvals · Contacts · Sender folders · Business settings</span></div>
-          {connection?.connected ? <Link className="open-mail-button" href="/?canvas=mail">Open Veltra Mail <ArrowUpRight size={18}/></Link> : <a className="mail-connect-hint" href="#google-connector">Connect Google below <ArrowLeft size={15}/></a>}
-          <div className="mail-app-footer"><span className={`connection-status ${connection?.connected ? "connected" : ""}`}><i/>{connection?.connected ? connection.mailbox?.email ?? "Google connected" : "Google connection required"}</span>{connection && <a href={connection.mail_url} target="_blank" rel="noreferrer">Open standalone Mail <ArrowUpRight size={13}/></a>}</div>
-        </article>
-      </section>
-      <DeveloperConnections/>
-      <section className="google-connector" id="google-connector" aria-labelledby="google-title"><div className="google-icon" aria-hidden="true">G</div><div className="google-copy"><h2 id="google-title">Google Workspace</h2><p>{connection?.connected ? `Connected as ${connection.mailbox?.email ?? "your Google account"}` : "Turn on Google to bring your Gmail workspace into Veltra Mail."}</p><span><ShieldCheck size={14}/> You choose the account and approve access.</span></div><button className={`google-connect-button ${connection?.connected ? "connected" : ""}`} disabled={busy || !connection} onClick={() => void connect(Boolean(connection?.connected))}>{busy ? "Please wait…" : connection?.connected ? <><Check size={17}/> Connected · Disconnect</> : "Connect Google"}</button></section>
-      <p className="connections-footnote">Veltra Mail also works on its own. Disconnecting here keeps your standalone Mail account and mailbox connection.</p>
-    </section>
+  const icons=[Code2,Briefcase,Palette,Building2,Megaphone,Users,BookOpen,Plug];
+  const matches=(name:string)=>name.toLowerCase().includes(query.toLowerCase());
+  const planned=(tool:CatalogTool)=><article className="hub-card planned" key={tool.name}><div className="hub-card-top"><span className="hub-tool-icon" aria-hidden="true">{tool.mark}</span><span className="hub-status">Planned</span></div><h3>{tool.name}</h3><p>{tool.description}</p><button className="hub-card-button" onClick={()=>setDetail(tool)}>View details <ArrowUpRight size={13}/></button></article>;
+  return <main className="connections-page connector-hub">
+    <header className="hub-header"><Link href="/" className="hub-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra</strong><small>by Onixus</small></span></Link><span className="hub-tagline">Your AI workspace.</span><Link href="/" className="hub-back"><ArrowLeft size={14}/>Back to Chat</Link></header>
+    <div className="hub-layout"><aside className="hub-sidebar"><p>Your workspace</p><nav aria-label="Connector sections"><button aria-pressed={category==="all"} onClick={()=>setCategory("all")}><Layers size={16}/>All tools</button>{connectorSections.map((section,index)=>{const Icon=icons[index];return <button key={section.id} aria-pressed={category===section.id} onClick={()=>setCategory(section.id)}><Icon size={16}/>{section.name}</button>;})}</nav><div className="hub-side-note"><span className="hub-live-dot"/>{developerCount+(connection?.connected?1:0)} accounts connected<small>You control what each tool can access.</small></div></aside>
+    <section className="hub-content"><div className="hub-intro"><div><h1>Make it your workspace.</h1><p>Bring your tools together. Connect one, then keep building.</p></div><span className="hub-section-count">8 sections</span></div>
+    <div className="hub-toolbar"><label className="hub-search"><Search size={17}/><input type="search" aria-label="Search tools" placeholder="Find a tool…" value={query} onChange={e=>setQuery(e.target.value)}/>{query&&<button aria-label="Clear search" onClick={()=>setQuery("")}><X size={14}/></button>}</label><span><i className="hub-live-dot"/>Connected <i className="hub-planned-dot"/>Planned</span></div>
+    {notice&&<p className="connections-notice" role="status">{notice}</p>}{error&&<p className="connections-error" role="alert">{error}</p>}
+    <div className="hub-sections">{connectorSections.filter(s=>category==="all"||category===s.id).map((section,index)=>{const tools=section.tools.filter(t=>matches(t.name+" "+t.description));const devMatch=section.id==="dev"&&["GitHub","Vercel","Supabase"].some(matches);const mailMatch=section.id==="business"&&["Veltra Mail","Gmail"].some(matches);if(!tools.length&&!devMatch&&!mailMatch)return null;const Icon=icons[connectorSections.indexOf(section)];return <section key={section.id} className={`hub-section hub-section-${section.id}`} aria-labelledby={`hub-${section.id}`}><div className="hub-section-heading"><span><Icon size={17}/><h2 id={`hub-${section.id}`}>{section.name}</h2></span><p>{section.description}</p></div>
+    {section.id==="dev"?<DeveloperConnections query={query} onCount={setDeveloperCount}>{tools.map(planned)}</DeveloperConnections>:<div className="hub-grid">{section.id==="business"&&["Veltra Mail","Gmail"].filter(matches).map(name=><article className="hub-card" key={name}><div className="hub-card-top"><span className="hub-tool-icon"><Mail size={21}/></span><span className={`hub-status ${connection?.connected?"live":""}`}>{connection?.connected?"Connected":connection?"Available":error?"Unavailable":"Loading…"}</span></div><h3>{name}</h3><p>{name==="Veltra Mail"?"Your full Mail workspace, beside Chat.":"Email, drafts and follow-ups through Veltra Mail."}</p>{connection?.connected?<Link className="hub-card-button" href="/?canvas=mail">Open Mail <ArrowUpRight size={13}/></Link>:<a className="hub-card-button" href="#google-connector">Connect Google <ArrowUpRight size={13}/></a>}</article>)}{tools.map(planned)}</div>}
+    </section>;})}</div>
+    {query&&!connectorSections.some(s=>(category==="all"||category===s.id)&&(s.tools.some(t=>matches(t.name+" "+t.description))||s.id==="dev"&&["GitHub","Vercel","Supabase"].some(matches)||s.id==="business"&&["Veltra Mail","Gmail"].some(matches)))&&<div className="hub-no-results"><Search size={25}/><h2>No tools found</h2><p>Try a different name or choose another section.</p><button onClick={()=>{setQuery("");setCategory("all");}}>Show all tools</button></div>}
+    <section className="hub-google" id="google-connector" aria-labelledby="google-title"><span className="hub-google-icon">G</span><div><h2 id="google-title">Google Workspace</h2><p>{connection?.connected?connection.mailbox?.email??"Mail connected":"Connect Google to use Veltra Mail."}</p><small>Mail access only. Docs, Sheets and Calendar need separate setup.</small></div><button disabled={busy||!connection} onClick={()=>void connect(Boolean(connection?.connected))}>{busy?"Please wait…":connection?.connected?"Disconnect Mail":"Connect Google"}</button></section>
+    <footer className="hub-footer"><p>Disconnecting Mail from Chat keeps standalone Mail available.</p><div><Link href="/docs">Help</Link><Link href="/privacy">Privacy</Link><Link href="/eula">Terms</Link></div></footer>
+    </section></div>
+    {detail&&<dialog ref={detailDialog} className="hub-detail-dialog" onCancel={()=>setDetail(null)} aria-labelledby="tool-detail-title"><div className="hub-detail-top"><span className="hub-tool-icon">{detail.mark}</span><button aria-label="Close tool details" onClick={()=>setDetail(null)}><X size={18}/></button></div><span className="hub-status">Planned {detail.kind==="workspace"?"workspace":detail.kind==="mcp"?"MCP connection":"integration"}</span><h2 id="tool-detail-title">{detail.name}</h2><p>{detail.description}</p><div className="hub-detail-note">This tool is on Veltra’s connection roadmap. It is not connected or available yet. We’ll enable account authorization once its integration is ready.</div><button className="hub-detail-done" onClick={()=>setDetail(null)}>Back to tools</button></dialog>}
   </main>;
 }
