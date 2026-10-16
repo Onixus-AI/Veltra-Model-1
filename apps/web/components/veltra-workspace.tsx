@@ -28,16 +28,13 @@ function friendlyChatError(message: string) {
   return "Veltra couldn’t complete this reply. Please try again.";
 }
 
-type ModelMode = "velocity" | "deep" | "free" | "mimo" | "ling" | "agent";
+type ModelMode = "velocity" | "deep" | "agent";
 
 const HISTORY_KEY = "veltra-chat-history";
 const MODEL_OPTIONS: Record<ModelMode, { model: string; name: string; subtitle: string }> = {
-  free: { model: "veltra-fast-free", name: "Nemotron Lightning · Free", subtitle: "Small tasks and quick answers" },
-  velocity: { model: "veltra-fast", name: "Qwen Coder", subtitle: "Velocity · fast coding and text" },
-  deep: { model: "veltra-logic", name: "DeepSeek Chat", subtitle: "Reasoning and complex tasks" },
-  mimo: { model: "veltra-mimo", name: "MiMo Flash", subtitle: "Writing and everyday assistance" },
-  ling: { model: "veltra-ling", name: "Ling Flash", subtitle: "Fast general tasks" },
-  agent: { model: "veltra-agent", name: "Nemotron Super", subtitle: "Complex planning and reasoning" },
+  velocity: { model: "veltra-fast", name: "Velocity 1", subtitle: "Everyday conversation and coding" },
+  deep: { model: "veltra-logic", name: "Velocity 1.1", subtitle: "Deeper thinking and problem solving" },
+  agent: { model: "veltra-agent", name: "Velocity 1.2", subtitle: "Complex work and planning" },
 };
 
 const initialArtifact: Artifact = {
