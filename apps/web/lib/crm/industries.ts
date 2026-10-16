@@ -1,0 +1,12 @@
+/** Business categories, not a claim that specialized integrations are implemented. */
+export const industryGroups = [
+  { name: 'Retail & ecommerce', industries: ['Ecommerce', 'Retail store', 'Boutique & fashion retail', 'Wholesale & distribution', 'Food & beverage retail'] },
+  { name: 'Construction & property', industries: ['Construction & general contracting', 'Permitting & expediting', 'Plumbing', 'Electrical services', 'HVAC', 'Roofing', 'Landscaping & lawn care', 'Painting & decorating', 'Cleaning & janitorial', 'Handyman services', 'Pest control', 'Real estate', 'Property management', 'Home inspection'] },
+  { name: 'Transport & automotive', industries: ['Trucking & logistics', 'Freight brokerage', 'Courier & delivery', 'Moving & storage', 'Auto repair & mechanics', 'Mobile mechanic', 'Roadside assistance & towing', 'Auto detailing', 'Tire services', 'Fleet maintenance'] },
+  { name: 'Health & wellness', industries: ['Nursing & home care', 'Healthcare staffing', 'Fitness & personal training', 'Yoga & Pilates', 'Massage therapy', 'Nutrition coaching', 'Mental health practice', 'Dental practice', 'Physical therapy'] },
+  { name: 'Beauty & personal services', industries: ['Personal styling', 'Barbering', 'Hair salon', 'Nail salon', 'Esthetics & skin care', 'Makeup artistry', 'Spa services', 'Tailoring & alterations', 'Laundry & dry cleaning'] },
+  { name: 'Events & entertainment', industries: ['Event planning', 'Entertainment & performers', 'DJ services', 'Photography', 'Videography', 'Wedding services', 'Catering', 'Event venue', 'Party & equipment rentals'] },
+  { name: 'Education & professional services', industries: ['Instructors & tutoring', 'Music & dance instruction', 'Driving school', 'Business consulting', 'Marketing agency', 'Web & design studio', 'IT support & managed services', 'Bookkeeping & accounting', 'Tax preparation', 'Legal services', 'Notary services', 'Insurance agency', 'Recruiting & staffing', 'Virtual assistance', 'Translation & interpretation'] },
+  { name: 'Hospitality & local services', industries: ['Restaurant & cafe', 'Bakery', 'Food truck', 'Lodging & vacation rentals', 'Travel planning', 'Pet grooming', 'Pet care & boarding', 'Appliance repair', 'Security services', 'Printing & signage', 'Nonprofit & community organization'] },
+] as const;
+export const industries: readonly string[] = industryGroups.flatMap(group => [...group.industries]);
