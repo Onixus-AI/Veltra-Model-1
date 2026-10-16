@@ -1,0 +1,246 @@
+[
+  {
+    "name": "github",
+    "file": "github.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/github.svg",
+    "title": "GitHub",
+    "hex": "181717",
+    "source": "https://github.com/logos",
+    "guidelines": "https://github.com/logos",
+    "sha256": "141e413b3eaa71a9fdc848fe87f04e22b3ad83a0a20bc4bb9c0df310878e1a6c",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "vercel",
+    "file": "vercel.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/vercel.svg",
+    "title": "Vercel",
+    "hex": "000000",
+    "source": "https://vercel.com/geist/brands",
+    "guidelines": "https://vercel.com/geist/brands",
+    "sha256": "414545d1b0c426b274c0d080fdb8a6b164e6069a0a0bacefc19a17a87f2860f8",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "supabase",
+    "file": "supabase.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/supabase.svg",
+    "title": "Supabase",
+    "hex": "3FCF8E",
+    "source": "https://github.com/supabase/supabase/blob/4031a7549f5d46da7bc79c01d56be4177dc7c114/packages/common/assets/images/supabase-logo-wordmark--light.svg",
+    "sha256": "75f9566421d97d4f1d8d7f34526189fd6e727ca83987432fc2477c2fc8388086",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "n8n",
+    "file": "n8n.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/n8n.svg",
+    "title": "n8n",
+    "hex": "EA4B71",
+    "source": "https://n8n.io/press",
+    "sha256": "2a415d5d2dea1903450d0df1b2b76866948d12a704e13378e54ed6896830c2e9",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "railway",
+    "file": "railway.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/railway.svg",
+    "title": "Railway",
+    "hex": "0B0D0E",
+    "source": "https://railway.app",
+    "sha256": "846df9530923f4ff4ac0084dd79e681d5299e10f8ca060aef6b8e22f261082fe",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "hubspot",
+    "file": "hubspot.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/hubspot.svg",
+    "title": "HubSpot",
+    "hex": "FF7A59",
+    "source": "https://www.hubspot.com/style-guide",
+    "guidelines": "https://www.hubspot.com/style-guide",
+    "sha256": "5e3d32c06f065e541829e34c2d2429b1fee686a49020b1974b3fec228916f55e",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "quickbooks",
+    "file": "quickbooks.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/quickbooks.svg",
+    "title": "QuickBooks",
+    "hex": "2CA01C",
+    "source": "https://design.intuit.com/quickbooks/brand",
+    "guidelines": "https://design.intuit.com/quickbooks/brand",
+    "sha256": "d5a398a718e8cc41d8c4deaef430ba3db881351bc89b38cefb66046c0f42ded9",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "shopify",
+    "file": "shopify.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/shopify.svg",
+    "title": "Shopify",
+    "hex": "7AB55C",
+    "source": "https://www.shopify.com/brand-assets",
+    "guidelines": "https://www.shopify.com/brand-assets",
+    "sha256": "73b7faee1aa8969eba999c3d6622ece507a6415039592185e85ce7bb6244ddc2",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "tiktok",
+    "file": "tiktok.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/tiktok.svg",
+    "title": "TikTok",
+    "hex": "000000",
+    "source": "https://tiktok.com",
+    "sha256": "05605d30c4f9a29d455167b95e74e287ae61eb260df738305a51308ec1f48e67",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "discord",
+    "file": "discord.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/discord.svg",
+    "title": "Discord",
+    "hex": "5865F2",
+    "source": "https://discord.com/branding",
+    "guidelines": "https://discord.com/branding",
+    "sha256": "79a8105c2fc15d8caa6ee7b87b58597432e171386d22a2cc2237f0eb3bbbe7dd",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "telegram",
+    "file": "telegram.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/telegram.svg",
+    "title": "Telegram",
+    "hex": "26A5E4",
+    "source": "https://telegram.org/tour/screenshots",
+    "sha256": "4435c9a57e165a1c3b7f27e0b5b11b82b10d674ea4fff7f6748cb67b7fcb994e",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "notion",
+    "file": "notion.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/notion.svg",
+    "title": "Notion",
+    "hex": "000000",
+    "source": "https://www.notion.so",
+    "sha256": "66603ff51824f5d722977448fe39b9ad58c1eb2c700a8ae6b04fa35e8140d389",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "googledocs",
+    "file": "googledocs.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/docs_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "847dd64eee44da9ba829bd44a3dbe2bc11a5f8ce6547f88c62c98910f096a27e",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "googlesheets",
+    "file": "googlesheets.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/sheets_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "7bef05dde4e1e8e9c5e7374cab674241f4d77b8574b19e829f2f414fe94191a6",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "googleslides",
+    "file": "googleslides.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/slides_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "faafa258b255df313ec807447f87fde903d9b4b560cb83025d1396c5a07fe517",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "googlecalendar",
+    "file": "googlecalendar.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/calendar_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "c2a7600e39f41146589f8ff9111d6f756f94d0af6f83ec98ab6768c985bf7d3b",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "googledrive",
+    "file": "googledrive.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/drive_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "72ea8d2de5e0568158cf48029cb9121564ab20c275465a65453776baf1160ebd",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "gmail",
+    "file": "gmail.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/gmail_2020q4_48dp.png",
+    "source": "https://workspace.google.com/",
+    "hex": "",
+    "sha256": "a5cf5c35082aa506518402699c5c5bbc2416742904c60a8cdd81731a2b080bad",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "onedrive",
+    "file": "onedrive.svg",
+    "asset_url": "https://static2.sharepointonline.com/files/fabric/assets/brand-icons/product/svg/onedrive_48x1.svg",
+    "source": "https://www.microsoft.com/microsoft-365/onedrive/online-cloud-storage",
+    "sha256": "393fe3509c33de52e4dcfb7aece1a5ea41d8114ac1be0d68b13948cc28962f6a",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "sharepoint",
+    "file": "sharepoint.svg",
+    "asset_url": "https://static2.sharepointonline.com/files/fabric/assets/brand-icons/product/svg/sharepoint_48x1.svg",
+    "source": "https://www.microsoft.com/microsoft-365/sharepoint/collaboration",
+    "sha256": "7f260c54c77342eb16ce20ab132729c7e640e7ead6a4bb9e7d1b4a94bd0e8eda",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "higgsfield",
+    "file": "higgsfield.png",
+    "asset_url": "https://higgsfield.ai/icon.png",
+    "source": "https://higgsfield.ai",
+    "sha256": "77edee005ae63f7881f930b815392b6cfa607f960ffb419d1c9df52e37fd50c1",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "remotion",
+    "file": "remotion.png",
+    "asset_url": "https://raw.githubusercontent.com/remotion-dev/brand/main/withouttitle/element-0.png",
+    "source": "https://github.com/remotion-dev/brand",
+    "sha256": "f0b84916d4a77a16af29cc7b97a6359445855fdccfc355c3c06f7670faf4db4d",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "slack",
+    "file": "slack.png",
+    "asset_url": "https://a.slack-edge.com/9cc0056/img/icons/favicon-32.png",
+    "source": "https://slack.com",
+    "sha256": "ca3872d0fb85ff9858bcbdc529d6e1db32c029c681c6e723e4f2ecb1c7defea6",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "linkedin",
+    "file": "linkedin.svg",
+    "asset_url": "https://static.licdn.com/aero-v1/sc/h/akt4ae504epesldzj74dzred8",
+    "source": "https://www.linkedin.com",
+    "sha256": "b1f9ca49adf83cc0c5953d1067f56dc0ba8d46b3262b7078792f19b96cb11bcd",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "canva",
+    "file": "canva.webp",
+    "asset_url": "https://www.canva.dev/_next/static/media/apple-touch-180x180.b6aae4a9.webp",
+    "source": "https://www.canva.dev",
+    "sha256": "9f2147016ce1698cb6e8d2b21a62ec8d6e546e44833319e04552e5f2122ff78d",
+    "via": "Publisher asset"
+  },
+  {
+    "name": "google",
+    "file": "google.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png",
+    "source": "https://workspace.google.com",
+    "sha256": "3730780f82acd51907c761bf0da9429d18266a9c6b33a03a515c4dd06819a0d9",
+    "via": "Publisher asset"
+  }
+]
