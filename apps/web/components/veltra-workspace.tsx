@@ -1,4 +1,5 @@
 "use client";
+import ToolLogo from "./tool-logo";
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -319,8 +320,8 @@ export default function VeltraWorkspace() {
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Chat</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
-          <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Veltra Mail</span></button>
-          {crmConnected&&<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Veltra CRM</span></button>}
+          <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>
+          {<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
           <Link href="/settings/connections" title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
