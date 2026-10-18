@@ -383,7 +383,7 @@ export default function VeltraWorkspace() {
         <div className="composer-area">
           {error && <div className="chat-error"><ShieldCheck size={14} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
           {codeOpen&&codeContext&&<div className="context-chip"><FileText size={12}/>{codeContext.path}<button type="button" aria-label="Remove file from chat context" onClick={()=>setCodeContext(null)}>×</button></div>}
-          {tmsOpen&&<div className="context-chip">Onixus TMS · Current operations included as read-only context</div>}
+          {tmsOpen&&<div className="context-chip">Onixus TMS · Read-only context checked when you send</div>}
           {documents.length > 0 && <div className="context-chip"><FileText size={12} /> {documents.length} project {documents.length === 1 ? "file" : "files"} in context</div>}
           <form className="composer" onSubmit={(event) => void sendMessage(event)}>
             <textarea
