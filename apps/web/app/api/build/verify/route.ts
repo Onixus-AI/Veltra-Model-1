@@ -45,19 +45,20 @@ export async function POST(request:NextRequest){
   const credentials=process.env.VERCEL_TOKEN&&process.env.VERCEL_TEAM_ID&&process.env.VERCEL_PROJECT_ID?{token:process.env.VERCEL_TOKEN,teamId:process.env.VERCEL_TEAM_ID,projectId:process.env.VERCEL_PROJECT_ID}:{};
   sandbox=await Sandbox.create({...credentials,resources:{vcpus:1},timeout:180000,persistent:false,
    networkPolicy:browser?{allow:['registry.npmjs.org']}:'deny-all'});
-  await sandbox.mkDir('project');
+  await sandbox.mkDir('/vercel/sandbox');
+  await sandbox.mkDir('/vercel/sandbox/project');
   // Generated code is written only inside the isolated VM, without host credentials.
-  for(const file of files){const dirs=file.path.split('/').slice(0,-1).join('/');if(dirs)await sandbox.mkDir('project/'+dirs);}
-  await sandbox.writeFiles(files.map(f=>({path:'project/'+f.path,content:Buffer.from(f.content)})));
+  for(const file of files){const dirs=file.path.split('/').slice(0,-1).join('/');if(dirs)await sandbox.mkDir('/vercel/sandbox/project/'+dirs);}
+  await sandbox.writeFiles(files.map(f=>({path:'/vercel/sandbox/project/'+f.path,content:Buffer.from(f.content)})));
   if(typeof run.state.image==='string'&&/^data:image\/(png|jpeg|webp);base64,/.test(run.state.image)){
-   await sandbox.mkDir('project/assets');
-   await sandbox.writeFiles([{path:'project/assets/generated.png',content:Buffer.from(run.state.image.split(',')[1],'base64')}]);
+   await sandbox.mkDir('/vercel/sandbox/project/assets');
+   await sandbox.writeFiles([{path:'/vercel/sandbox/project/assets/generated.png',content:Buffer.from(run.state.image.split(',')[1],'base64')}]);
   }
   if(browser){
-   await sandbox.mkDir('.veltra-tools');
-   await sandbox.writeFiles([{path:'.veltra-tools/package.json',content:Buffer.from(JSON.stringify({private:true,dependencies:{'playwright-core':'1.64.1','@sparticuz/chromium':'153.0.0'}}))},
-    {path:'.veltra-tools/browser.cjs',content:Buffer.from(harness)},
-    {path:'.veltra-tools/actions.json',content:Buffer.from(JSON.stringify(actions))}]);
+   await sandbox.mkDir('/vercel/sandbox/.veltra-tools');
+   await sandbox.writeFiles([{path:'/vercel/sandbox/.veltra-tools/package.json',content:Buffer.from(JSON.stringify({private:true,dependencies:{'playwright-core':'1.64.1','@sparticuz/chromium':'153.0.0'}}))},
+    {path:'/vercel/sandbox/.veltra-tools/browser.cjs',content:Buffer.from(harness)},
+    {path:'/vercel/sandbox/.veltra-tools/actions.json',content:Buffer.from(JSON.stringify(actions))}]);
    const install=await sandbox.runCommand({cmd:'npm',args:['install','--ignore-scripts','--no-audit','--no-fund'],cwd:'/vercel/sandbox/.veltra-tools'});
    if(install.exitCode!==0)throw new Error('The isolated browser could not start.');
   }
@@ -70,9 +71,9 @@ export async function POST(request:NextRequest){
   let screenshot:string|undefined,browserResult:unknown;
   if(browser){
    await check('Browser: render and requested actions','node',['/vercel/sandbox/.veltra-tools/browser.cjs']);
-   const screen=await sandbox.readFileToBuffer({path:'.veltra-tools/screen.png'});
+   const screen=await sandbox.readFileToBuffer({path:'/vercel/sandbox/.veltra-tools/screen.png'});
    if(screen)screenshot='data:image/png;base64,'+screen.toString('base64');
-   const result=await sandbox.readFileToBuffer({path:'.veltra-tools/browser.json'});
+   const result=await sandbox.readFileToBuffer({path:'/vercel/sandbox/.veltra-tools/browser.json'});
    if(result)browserResult=JSON.parse(result.toString());
   }
   for(const file of files){
