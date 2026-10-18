@@ -21,7 +21,7 @@ Separate product databases were not inherently a mistake. The missing contracts 
 | Business pricing | 14 industry categories and industry intake defaults; prices mostly free text; only warehouse had a service picker | Industry labels alone did not make pricing reliable |
 | Onixus setup | Warehousing profile, warehouse rates, saved trucking-style intake; pallet storage described per container | Replace stale intake after review; never infer or silently change billing units |
 | Vercel | Chat/CRM projects hosted; in-product connector reports Setup needed | Hosting access is separate from client OAuth authorization |
-| Vercel connector configuration | WORKSPACE_VERCEL_CLIENT_ID, WORKSPACE_VERCEL_CLIENT_SECRET, WORKSPACE_VERCEL_INTEGRATION_SLUG absent from Mail service | Owner must register an integration and enter credentials privately; no credentials were read or invented |
+| Vercel connector configuration | WORKSPACE_VERCEL_CLIENT_ID, WORKSPACE_VERCEL_CLIENT_SECRET, WORKSPACE_VERCEL_INTEGRATION_SLUG absent from Mail service | Existing Veltra Workspace integration was found with the correct callback and read-only Projects/Deployments scopes. Public slug configured; client ID/secret still need private entry. No secret was read or invented |
 | Automation | Existing inbound email approvals/followups and CRM tasks; no campaign/sequence execution engine | Outreach required durable state, review, limits and stop rules |
 | Ordinary Chat | Text generation endpoint had no execution tools yet called itself an automation platform | Strengthen honest-action instructions; Super Coder and tools must supply real receipts |
 | Industry operations | Staff/jobs/payment SQL exists in source but related tables are absent in canonical production schema | Do not present scheduling/payments as live capabilities |
@@ -42,6 +42,10 @@ Mail owns a durable campaign/message store and provider receipt. CRM remains aut
 
 Each follow-up is created as a new draft requiring separate approval. The legacy followup generator and its send path defer campaign recipients to Outreach. Operation IDs prevent duplicate campaign creation after network retries. Duplicate unfinished audience enrollment is rejected. Account dispatch locks serialize provider calls across replicas. Unknown or interrupted sends become uncertain and never auto-retry. A provider acceptance receipt does not prove inbox delivery. No production campaign was created or activated during testing, and no customer email was sent by these tests.
 
+### Model route health
+
+Live Mail startup checks passed sorting, replies and quotes but initially failed the follow-up and backup defaults under the existing provider guardrails. Their defaults were changed to the already working reply/quote route. Privacy settings and provider guardrails were preserved. Remaining fallback endpoints are not all independently verified.
+
 ### Connection and security fixes
 
 Vercel setup cards expose missing variable names and the registered callback, never secrets. The existing OAuth integration remains blocked until registration/consent is complete.
@@ -55,7 +59,7 @@ Security advisor's remaining public SECURITY DEFINER warnings are the intentiona
 | Priority | Gap | Concrete completion criterion |
 | --- | --- | --- |
 | P0 | Activate Mail ↔ CRM | Owner consent; correct workspace; test event visible once; suppression blocks send before provider |
-| P0 | Finish Vercel OAuth app | Registered read-only Projects/Deployments integration, credentials entered privately, real consent, selected project deployments displayed |
+| P0 | Finish Vercel OAuth app | Existing registered integration verified; finish private credential entry, real consent, selected project deployments displayed |
 | P0 | Confirm Onixus pricing meaning | Resolve pallet/container ambiguity; fill supported rates; replace stale intake; test representative quotes without sending |
 | P1 | Deliverability and abuse feedback | Verified SPF/DKIM/DMARC, mailbox/provider limits, hard-bounce/complaint events, automatic global suppression, tested unsubscribe coverage |
 | P1 | Real outreach outcomes | Link reply → qualified opportunity → meeting → accepted quote → verified payment; report actual conversion and cost per outcome |
@@ -72,7 +76,7 @@ Security advisor's remaining public SECURITY DEFINER warnings are the intentiona
 
 Mail automated tests include the real SQL engine for durable workflow state with fake mail providers; PGlite lock functions are stubs, so distributed lock contention is not proven by those tests. API tests cover authenticated account/workspace binding. Mail backend typecheck, web build and clean dependency install are required. CRM unit/database tests and both Next production builds are required. Live RPC checks run within rolled-back transactions. Recheck terminal deployment status after publishing.
 
-No live campaign send, provider deliverability test, booking, payment, real microphone transcription or historic email backfill was performed. Mail-CRM owner approval and Vercel app registration remain external activation gates. Current UI/API caps and review controls intentionally bound this first rollout; this is an automation foundation rather than unrestricted autonomous selling.
+No live campaign send, provider deliverability test, booking, payment, real microphone transcription or historic email backfill was performed. Mail-CRM owner approval and Vercel credential entry/consent remain external activation gates. Current UI/API caps and review controls intentionally bound this first rollout; this is an automation foundation rather than unrestricted autonomous selling.
 
 ## Success measures
 
