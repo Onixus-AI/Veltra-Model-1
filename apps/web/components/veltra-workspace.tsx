@@ -275,6 +275,8 @@ export default function VeltraWorkspace() {
       <header className="workspace-topbar">
         <Link href="/" className="workspace-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra</strong><small>by Onixus</small></span></Link>
         <nav className="workspace-modes" aria-label="Workspace mode"><button disabled={sending} aria-pressed={workspaceMode==="personal"} onClick={()=>changeWorkspaceMode("personal")}>Personal</button><button disabled={sending} aria-pressed={workspaceMode==="work"} onClick={()=>changeWorkspaceMode("work")}>Work</button></nav>
+        <Link href="/build" className="new-chat-button">Build team</Link>
+        <Link href="/crm" className="new-chat-button">CRM</Link>
         <span className="workspace-repository" title={codeOpen?repository:undefined}>{codeOpen?(repository||"Code workspace"):""}</span>
         <Link href="/settings" className="header-icon" aria-label="Settings and analytics"><Settings2 size={17}/></Link>
       </header>
@@ -380,3 +382,4 @@ export default function VeltraWorkspace() {
     </main>
   );
 }
+

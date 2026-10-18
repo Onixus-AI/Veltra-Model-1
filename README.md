@@ -62,3 +62,10 @@ never use a `NEXT_PUBLIC_` variable for either secret. Developer API keys remain
 external tools and as a browser fallback. `/settings` contains rolling usage
 analytics, key management, and the subscription view; `/settings/keys`
 redirects there for compatibility.
+
+
+## Veltra Build
+
+The additive `/build` coding workspace coordinates DeepSeek planning/review, Qwen coding, optional visual input, and image creation with LangGraph. It produces reviewable files and can request isolated code/browser checks. See [setup, budgets and verification boundaries](docs/coding-team.md). Deploy both the gateway changes and the web app, and apply the additive `agent_runs` migration before enabling this workspace.
+
+Veltra CRM remains a separate standalone product for clients who do not need Chat; the embedded CRM in this application remains available independently.
