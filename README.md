@@ -1,5 +1,6 @@
-# Veltra-Model-1
-Modern LLm for Business
+# Veltra workspace
+
+Conversation, Super Coder, and connected business tools in one workspace.
 
 ## AI gateway
 
@@ -64,8 +65,18 @@ analytics, key management, and the subscription view; `/settings/keys`
 redirects there for compatibility.
 
 
-## Veltra Build
+## Veltra Super Coder
 
-The additive `/build` coding workspace coordinates DeepSeek planning/review, Qwen coding, optional visual input, and image creation with LangGraph. It produces reviewable files and can request isolated code/browser checks. See [setup, budgets and verification boundaries](docs/coding-team.md). Deploy both the gateway changes and the web app, and apply the additive `agent_runs` migration before enabling this workspace.
+The Super Coder canvas coordinates planning, coding, review, visual input, and image creation. `/build` redirects to `/?canvas=build` inside the workspace. It produces reviewable files and can request isolated code/browser checks. See [setup, budgets and verification boundaries](docs/coding-team.md). Deploy both the gateway changes and the web app, and apply the additive `agent_runs` migration before enabling this workspace.
 
 Veltra CRM remains a separate standalone product for clients who do not need Chat; the embedded CRM in this application remains available independently.
+
+## Workspace UI
+
+Chat uses a centered conversation and composer with a collapsible sidebar. Connected tools open in an optional canvas. Appearance preferences are stored in the browser; CRM visibility is an account preference, never an authorization grant. Record permissions remain enforced by the CRM APIs. Voice input uses browser speech recognition and requires browser support and microphone permission.
+
+- [Workspace connections](docs/workspace-connections.md)
+- [Coding team](docs/coding-team.md)
+- [Developer setup](docs/developer-connections-setup.md)
+
+Keep generated caches and dependencies out of source control. Product-level workspace rules live in `apps/web/styles/workspace.css`; shared base and legacy canvas styles remain in `globals.css`.

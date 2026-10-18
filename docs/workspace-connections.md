@@ -42,3 +42,10 @@ This release does not add sending email through the Chat model, other external c
 The Connections page has a Google connector and a Veltra Mail app tile. The tile opens /?canvas=mail. The canvas loads the same built Mail frontend used by the standalone service through a same-origin frame proxy, preserving its inbox, approvals, people, folders and settings. A verified launch creates a short-lived HttpOnly, SameSite=Strict cookie restricted to the frame proxy path; the parent renews it using the current Chat session. The proxy never exposes tokens in frame URLs or JavaScript. Every Mail API request independently verifies the Chat user and current Mail link and enters the existing account-scoped Mail router. Admin and OAuth routes are excluded. State-changing frame requests require a same-origin request and a custom frame header. Google disconnect invalidates API access immediately.
 
 Email actions remain explicit user actions in Mail’s existing UI; the Chat model does not receive new email tools or automatic mailbox context. The real Google connection is already retained; no reconnect should be necessary for existing linked users.
+
+
+## Shared CRM release
+
+Standalone CRM and Chat now use the same production Supabase project. Mail remains an independently authenticated service and links to an owner-selected CRM workspace. Its outbox publishes successful email and sent-quote activity; CRM policy lookups return approved customer memory, recent activity, open tasks and deals while enforcing suppression. Both customer-context APIs include the shared timeline. No calendar booking or automatic email permission is added by linking the products.
+
+The CRM connector card enables the existing account's CRM view; it does not grant record permissions. Those remain in database membership policies. Use CRM's Mail connection controls to inspect pending/blocked outbox events or retry delivery. Separate unlinked legacy data is preserved.

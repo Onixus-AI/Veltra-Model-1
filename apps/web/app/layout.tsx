@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "@/styles/workspace.css";
 import AuthGate from "@/components/auth-gate";
 
 export const metadata: Metadata = {
@@ -15,3 +16,4 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   );
 }
+

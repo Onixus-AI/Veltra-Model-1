@@ -24,7 +24,9 @@ export async function crmContext(request:Request,id:string){
  client.from('crm_customers').select('id,company,name,email,industry,phone,website,location,job_title,record_type,suppressed,identity_review_required').eq('workspace_id',workspace.id).eq('id',conversation.customer_id).single(),
  client.from('crm_memories').select('content,source,expires_at').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).eq('status','approved').or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`).limit(30),
  client.from('crm_tasks').select('id,title,due_at').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).eq('status','open').limit(30),
- client.from('crm_deals').select('title,stage,value_cents,currency').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).limit(30)]);
+ client.from('crm_deals').select('title,stage,value_cents,currency').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).limit(30),
+ client.from('crm_activity').select('kind,title,created_at').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).order('created_at',{ascending:false}).limit(20)]);
  for(const q of queries)if(q.error)throw q.error;
- return {scope:'customer',workspace,customer:queries[0].data,memories:queries[1].data,open_tasks:queries[2].data,deals:queries[3].data};
+ return {scope:'customer',workspace,customer:queries[0].data,memories:queries[1].data,open_tasks:queries[2].data,deals:queries[3].data,recent_activity:queries[4].data};
 }
+

@@ -14,7 +14,7 @@ export function overview(s:Snapshot, now=Date.now()) {
 export function contextFor(s:Snapshot,workspace:string,customer:string,now=Date.now()) {
  const account=s.customers.find(c=>c.workspace_id===workspace&&c.id===customer);
  if(!account) throw new Error('Customer is not in this workspace.');
- return {customer:account,memories:s.memories.filter(m=>m.workspace_id===workspace&&m.customer_id===customer&&m.status==='approved'&&(!m.expires_at||Date.parse(m.expires_at)>now)),open_tasks:s.tasks.filter(t=>t.workspace_id===workspace&&t.customer_id===customer&&t.status==='open'),deals:s.deals.filter(d=>d.workspace_id===workspace&&d.customer_id===customer)};
+ return {customer:account,memories:s.memories.filter(m=>m.workspace_id===workspace&&m.customer_id===customer&&m.status==='approved'&&(!m.expires_at||Date.parse(m.expires_at)>now)),open_tasks:s.tasks.filter(t=>t.workspace_id===workspace&&t.customer_id===customer&&t.status==='open'),deals:s.deals.filter(d=>d.workspace_id===workspace&&d.customer_id===customer),recent_activity:s.activities.filter(a=>a.workspace_id===workspace&&a.customer_id===customer).slice(0,20)};
 }
 export function recommendations(s:Snapshot,c:Customer) {
  const tasks=s.tasks.filter(t=>t.customer_id===c.id&&t.status==='open');
@@ -26,3 +26,4 @@ export function recommendations(s:Snapshot,c:Customer) {
  return ['Review the next action and move the opportunity when the customer confirms progress.'];
 }
 export function dollars(cents:number) {return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}).format(cents/100);}
+
