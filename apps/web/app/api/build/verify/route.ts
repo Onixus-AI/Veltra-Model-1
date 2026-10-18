@@ -24,6 +24,7 @@ export async function POST(request:NextRequest){
  const authorization=gatewayAuthorization(request);
  if(!authorization)return Response.json({detail:'Sign in to Veltra.'},{status:401});
  let sandbox:Awaited<ReturnType<typeof Sandbox.create>>|undefined;
+ let finishVerification:((success:boolean)=>Promise<void>)|undefined;
  try{
   const raw=await request.text();if(raw.length>16000)return Response.json({detail:'Request is too large.'},{status:413});
   const body=JSON.parse(raw);
@@ -39,7 +40,8 @@ export async function POST(request:NextRequest){
   if(actions.length&&!browser)throw new Error('Browser actions require a self-contained index.html.');
   const {client}=await crmUser(request);
   const claim=await client.rpc('claim_agent_verification',{p_id:run.id});
-  if(claim.error||claim.data!==true)return Response.json({detail:'This task has already used its isolated verification attempt, or verification is not configured.'},{status:409});
+  if(claim.error||claim.data!==true)return Response.json({detail:'Verification is already running, completed, or has reached its two-attempt limit.'},{status:409});
+  finishVerification=async(success)=>{await client.rpc('finish_agent_verification',{p_id:run.id,p_success:success});};
   const credentials=process.env.VERCEL_TOKEN&&process.env.VERCEL_TEAM_ID&&process.env.VERCEL_PROJECT_ID?{token:process.env.VERCEL_TOKEN,teamId:process.env.VERCEL_TEAM_ID,projectId:process.env.VERCEL_PROJECT_ID}:{};
   sandbox=await Sandbox.create({...credentials,resources:{vcpus:1},timeout:180000,persistent:false,
    networkPolicy:browser?{allow:['registry.npmjs.org']}:'deny-all'});
@@ -80,10 +82,12 @@ export async function POST(request:NextRequest){
   const jsTests=files.filter(f=>/\.(test|spec)\.(js|mjs|cjs)$/.test(f.path));
   if(jsTests.length)await check('Node tests','node',['--test',...jsTests.map(f=>f.path)]);
   if(files.some(f=>/(^|\/)test_[^/]+\.py$/.test(f.path)))await check('Python tests','python3',['-m','unittest','discover','-s','.', '-p','test_*.py']);
+  await finishVerification(true);finishVerification=undefined;
   return Response.json({run_id:run.id,receipt_id:crypto.randomUUID(),sandbox_name:sandbox.name,checks,screenshot,browser:browserResult,
    scope:'Isolated generated files only; external sites, package installation for generated projects, and deployment are not performed.',
    checks_passed:checks.length>0&&checks.every(c=>c.exit_code===0)&&!(browserResult as {errors?:string[]}|undefined)?.errors?.length}, {headers:{'Cache-Control':'no-store'}});
  }catch(error){
+  if(finishVerification)await finishVerification(false).catch(()=>{});
   console.error('Build verification failed',error instanceof Error?error.name:'Error');
   return Response.json({detail:'Verification could not finish. Check task files and Vercel Sandbox access; no successful test is claimed.'},{status:503});
  }finally{if(sandbox)await sandbox.stop().catch(()=>{});}

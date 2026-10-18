@@ -85,6 +85,19 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(table == 'rpc/finish_agent_run' for table, _ in calls))
         self.assertEqual(calls[-1][1]['payload']['status'], 'interrupted')
 
+    async def test_explicit_provider_rejection_settles_unused_credits(self):
+        class Rejected(Exception):
+            status_code = 402
+        calls=[]
+        async def db(table, **kwargs):
+            calls.append((table, kwargs))
+            return True if table.startswith('rpc/') else [{'cancel_requested': False}]
+        with patch.dict(os.environ, {'OPENROUTER_API_KEY': 'test-only'}), patch('agent_runs.litellm.token_counter', return_value=10), patch('agent_runs.litellm.acompletion', new=AsyncMock(side_effect=Rejected)):
+            await execute_run({'id': str(uuid4()), 'payload': {'task': 'Build'}, 'credits_reserved': 6000}, str(uuid4()), db, {'planner': 'test'})
+        settlement=next(kwargs['payload'] for table, kwargs in calls if table=='rpc/finish_agent_run')
+        self.assertEqual(settlement['p_used'],0)
+        self.assertFalse(settlement['p_success'])
+
 
 class AccessTests(unittest.TestCase):
     def setUp(self):

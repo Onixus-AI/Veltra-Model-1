@@ -24,7 +24,7 @@ Each stage persists outputs and usage receipts. Unused reservation returns atomi
 - Create one image as a separately downloadable asset (`assets/generated.png`).
 - Run checks through `/api/build/verify` in an ephemeral Vercel Sandbox, never the gateway host.
 - For a self-contained `index.html`, the isolated browser renders the page, performs bounded click/fill checks and captures a screenshot. External-site navigation is blocked.
-- Browser dependencies are installed before generated code runs, with registry-only egress. Egress is denied before rendering or executing generated tests. Host credentials are not passed into the VM. The VM stops in `finally`. Each completed task has one server-enforced sandbox verification attempt, bounded to three minutes and one vCPU.
+- Browser dependencies are installed before generated code runs, with registry-only egress. Egress is denied before rendering or executing generated tests. Host credentials are not passed into the VM. The VM stops in `finally`. Each completed task has at most two server-enforced sandbox attempts, bounded to three minutes and one vCPU each. A completed verification cannot repeat; an infrastructure failure can retry within that limit.
 - Model review, executed syntax checks, test results and browser evidence are labeled separately. A passing check does not establish full functional correctness.
 - Repository changes still use the existing editor/draft-PR workflow. No automatic merge, production deployment, arbitrary external-app control or paid integration purchase is enabled.
 

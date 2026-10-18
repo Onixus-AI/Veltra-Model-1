@@ -116,7 +116,7 @@ class UncertainUsage(Exception):
 
 def public_run(row: dict) -> dict:
     return {key: row.get(key) for key in ('id', 'status', 'stage', 'state', 'credits_reserved',
-                                         'credits_used', 'error', 'created_at', 'updated_at', 'cancel_requested')}
+                                         'credits_used', 'error', 'created_at', 'updated_at', 'cancel_requested', 'verification_attempts', 'verification_status')}
 
 
 def create_router(authenticate, bearer, database) -> APIRouter:
@@ -146,9 +146,20 @@ def create_router(authenticate, bearer, database) -> APIRouter:
             row = await database('rpc/reserve_agent_run', method='POST', params={}, payload={
                 'p_id': str(request.id), 'p_org': value['organization_id'], 'p_user': value['user_id'],
                 'p_payload': request.model_dump(exclude={'id', 'budget'}), 'p_budget': request.budget})
-        except HTTPException:
-            # Database helper intentionally hides raw provider/database errors.
-            raise HTTPException(409, 'Task could not be queued. Check credits, active tasks, and the task ID.')
+        except HTTPException as exc:
+            cause = exc.__cause__
+            if isinstance(cause, httpx.HTTPStatusError):
+                try:
+                    message = cause.response.json().get('message', '')
+                except ValueError:
+                    message = ''
+                if message == 'Insufficient credits':
+                    raise HTTPException(402, 'Not enough available credits for this reservation.') from exc
+                if message == 'Operation ID conflict':
+                    raise HTTPException(409, 'This task ID belongs to different input. Start a new task.') from exc
+                if message == 'Two tasks are already active':
+                    raise HTTPException(409, 'Two tasks are already active. Wait for one or stop it.') from exc
+            raise HTTPException(503, 'The coding task service could not queue this request.') from exc
         return public_run(row)
 
     @router.get('')
@@ -266,8 +277,11 @@ async def execute_run(row, worker_id, database, models):
         try:
             response = await litellm.acompletion(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
                 api_base='https://openrouter.ai/api/v1', messages=messages, max_tokens=output_limit, temperature=0.2,
-                timeout=100, num_retries=0)
+                timeout=100, num_retries=0,
+                **({'response_format': {'type': 'json_object'}} if role in ('coder', 'reviewer') else {}))
         except Exception as exc:
+            if getattr(exc, 'status_code', None) in (400, 401, 402, 403, 404, 422, 429):
+                raise ValueError('The model provider rejected this step. Check provider availability, funding, or rate limits; unused task credits are returned.') from exc
             raise UncertainUsage('Provider call failed; usage must be reconciled before releasing the reservation.') from exc
         result = response.model_dump()
         tokens = result.get('usage', {}).get('total_tokens')
