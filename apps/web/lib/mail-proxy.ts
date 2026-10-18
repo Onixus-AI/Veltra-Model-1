@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "tms") {
+export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "tms" | "shopify" | `shopify/${string}`) {
   const origin = process.env.VELTRA_MAIL_URL;
   if (!origin) return Response.json({ error: "Veltra Mail connection is not configured yet." }, { status: 503 });
   const authorization = request.headers.get("authorization");
