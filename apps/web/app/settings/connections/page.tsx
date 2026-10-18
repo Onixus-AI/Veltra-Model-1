@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import {crmConnection,setCrmConnection,type CrmConnection} from "@/lib/crm-connection";
 import ToolLogo from "@/components/tool-logo";
 import DeveloperConnections from "@/components/developer-connections";
 import { useCallback, useEffect, useState, useRef } from "react";
@@ -16,6 +17,9 @@ async function call<T>(method: string, body?: object): Promise<T> {
   return data as T;
 }
 export default function ConnectionsPage() {
+  const [crm,setCrm]=useState<CrmConnection|null>(null),[crmBusy,setCrmBusy]=useState(false),[crmError,setCrmError]=useState("");
+  useEffect(()=>{let live=true;void crmConnection().then(value=>{if(live)setCrm(value);}).catch(()=>{if(live)setCrmError("CRM connection could not be loaded.");});return()=>{live=false;};},[]);
+  async function toggleCrm(){setCrmBusy(true);setCrmError("");try{await setCrmConnection(!crm?.connected);setCrm(await crmConnection());setNotice(crm?.connected?"CRM disconnected from this workspace. Your CRM records are preserved.":"Veltra CRM is connected. Open it beside Chat.");}catch(e){setCrmError(e instanceof Error?e.message:"CRM could not connect.");}finally{setCrmBusy(false);}}
   const [query,setQuery]=useState("");
   const [category,setCategory]=useState("all");
   const [developerCount,setDeveloperCount]=useState(0);
@@ -58,7 +62,7 @@ export default function ConnectionsPage() {
   }
   const icons=[Code2,Briefcase,Palette,Building2,Megaphone,Users,BookOpen,Plug];
   const matches=(name:string)=>name.toLowerCase().includes(query.toLowerCase());
-  const planned=(tool:CatalogTool)=><article className="hub-card planned" key={tool.name}><div className="hub-card-top"><ToolLogo name={tool.name}/><span className="hub-status">Planned</span></div><h3>{tool.name}</h3><p>{tool.description}</p><button className="hub-card-button" onClick={()=>setDetail(tool)}>View details <ArrowUpRight size={13}/></button></article>;
+  const planned=(tool:CatalogTool)=>tool.name==='Veltra CRM'?<article className="hub-card" key={tool.name} id="crm-connector"><div className="hub-card-top"><ToolLogo name={tool.name}/><span className={`hub-status ${crm?.connected?'live':''}`}>{crm?.connected?'Connected':crm?'Available':crmError?'Unavailable':'Loading…'}</span></div><h3>Veltra CRM</h3><p>Your customers, pipeline and tasks, beside Chat. Uses CRM workspaces on this Veltra account.</p>{crmError&&<p role="alert">{crmError}</p>}{crm?.connected&&<Link className="hub-card-button" href="/?canvas=crm">Open CRM <ArrowUpRight size={13}/></Link>}<button className="hub-card-button" disabled={crmBusy||!crm} onClick={()=>void toggleCrm()}>{crmBusy?'Saving…':crm?.connected?'Disconnect CRM':'Connect CRM'}</button><small>Separate CRM-only accounts cannot be linked yet.</small></article>:<article className="hub-card planned" key={tool.name}><div className="hub-card-top"><ToolLogo name={tool.name}/><span className="hub-status">Planned</span></div><h3>{tool.name}</h3><p>{tool.description}</p><button className="hub-card-button" onClick={()=>setDetail(tool)}>View details <ArrowUpRight size={13}/></button></article>;
   return <main className="connections-page connector-hub">
     <header className="hub-header"><Link href="/" className="hub-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra</strong><small>by Onixus</small></span></Link><span className="hub-tagline">Your AI workspace.</span><Link href="/" className="hub-back"><ArrowLeft size={14}/>Back to Chat</Link></header>
     <div className="hub-layout"><aside className="hub-sidebar"><p>Your workspace</p><nav aria-label="Connector sections"><button aria-pressed={category==="all"} onClick={()=>setCategory("all")}><Layers size={16}/>All tools</button>{connectorSections.map((section,index)=>{const Icon=icons[index];return <button key={section.id} aria-pressed={category===section.id} onClick={()=>setCategory(section.id)}><Icon size={16}/>{section.name}</button>;})}</nav><div className="hub-side-note"><span className="hub-live-dot"/>{developerCount+(connection?.connected?1:0)} accounts connected<small>You control what each tool can access.</small></div></aside>
@@ -75,3 +79,4 @@ export default function ConnectionsPage() {
     {detail&&<dialog ref={detailDialog} className="hub-detail-dialog" onCancel={()=>setDetail(null)} aria-labelledby="tool-detail-title"><div className="hub-detail-top"><ToolLogo name={detail.name}/><button aria-label="Close tool details" onClick={()=>setDetail(null)}><X size={18}/></button></div><span className="hub-status">Planned {detail.kind==="workspace"?"workspace":detail.kind==="mcp"?"MCP connection":"integration"}</span><h2 id="tool-detail-title">{detail.name}</h2><p>{detail.description}</p><div className="hub-detail-note">This tool is on Veltra’s connection roadmap. It is not connected or available yet. We’ll enable account authorization once its integration is ready.</div><button className="hub-detail-done" onClick={()=>setDetail(null)}>Back to tools</button></dialog>}
   </main>;
 }
+

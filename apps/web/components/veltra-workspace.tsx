@@ -2,11 +2,17 @@
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import VoiceInput from "@/components/voice-input";
+import WorkspaceAppearance from "@/components/workspace-appearance";
+import {crmConnection} from "@/lib/crm-connection";
+const BuildTeam=dynamic(()=>import("@/components/build-team"));
+const CrmCanvas=dynamic(()=>import("@/components/crm-canvas"));
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, Layers3,
-  Plus, Settings2, ShieldCheck, SquarePen, Zap,
+  Plus, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, MessageSquare, Code2, Plug, Mail, Users,
 } from "lucide-react";
 import ChatTools from "@/components/chat-tools";
 import type {Provider} from "@/lib/connections-client";
@@ -76,12 +82,17 @@ export default function VeltraWorkspace() {
   const [repository,setRepository]=useState("");
   const [codeContext,setCodeContext]=useState<{path:string;content:string;repository:string}|null>(null);
   function changeWorkspaceMode(value:"personal"|"work"){setWorkspaceMode(value);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
+  const [sidebarOpen,setSidebarOpen]=useState(true);
+  const [buildOpen,setBuildOpen]=useState(false),[crmOpen,setCrmOpen]=useState(false),[crmConnected,setCrmConnected]=useState(false);
+  function openTool(tool:"mail"|"code"|"build"|"crm"){if(window.innerWidth<761)setSidebarOpen(false);setMailOpen(tool==="mail");setCodeOpen(tool==="code");setBuildOpen(tool==="build");setCrmOpen(tool==="crm");setMobileView("canvas");if(tool==="build"||tool==="code")changeWorkspaceMode("work");}
+  function toggleSidebar(){setSidebarOpen(value=>{try{localStorage.setItem("veltra-sidebar-v1",String(!value));}catch{}return !value;});}
+  useEffect(()=>{let live=true;const refresh=()=>{void crmConnection().then(s=>{if(live)setCrmConnected(s.connected);}).catch(()=>{if(live)setCrmConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);try{const saved=localStorage.getItem("veltra-sidebar-v1");if(saved!==null)setSidebarOpen(saved==="true");else if(window.innerWidth<1100)setSidebarOpen(false);}catch{}return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
   const [mailOpen, setMailOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   useEffect(() => {
     const query=new URLSearchParams(location.search);
     try{if(localStorage.getItem("veltra-workspace-mode")==="work")setWorkspaceMode("work");}catch{}
-    if(query.get("canvas")==="mail"){setMailOpen(true);setMobileView("canvas");}
+    if(["mail","crm","build"].includes(query.get("canvas")??""))openTool(query.get("canvas") as "mail"|"crm"|"build");
     if(query.get("canvas")==="code"){setCodeOpen(true);setWorkspaceMode("work");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
   const [cloud,setCloud]=useState<CloudConversation|null>(null);
@@ -143,7 +154,7 @@ export default function VeltraWorkspace() {
   }, [messages, historyLoaded,cloudRequired]);
 
   function openImageInCanvas(image: string) {
-    setMailOpen(false); setCodeOpen(false);
+    setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);
     setArtifact({ kind: "image", title: "Generated image", content: image });
     setMobileView("canvas");
   }
@@ -271,19 +282,32 @@ export default function VeltraWorkspace() {
   }
 
   return (
-    <main className={`workspace mobile-${mobileView}`}>
+    <main className={`workspace unified-workspace mobile-${mobileView} ${sidebarOpen?"sidebar-expanded":"sidebar-collapsed"}`}>
       <header className="workspace-topbar">
+        <button className="header-icon sidebar-toggle" aria-label={sidebarOpen?"Collapse sidebar":"Expand sidebar"} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={19}/>:<PanelLeftOpen size={19}/>}</button>
         <Link href="/" className="workspace-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra</strong><small>by Onixus</small></span></Link>
         <nav className="workspace-modes" aria-label="Workspace mode"><button disabled={sending} aria-pressed={workspaceMode==="personal"} onClick={()=>changeWorkspaceMode("personal")}>Personal</button><button disabled={sending} aria-pressed={workspaceMode==="work"} onClick={()=>changeWorkspaceMode("work")}>Work</button></nav>
-        <Link href="/build" className="new-chat-button">Build team</Link>
-        <Link href="/crm" className="new-chat-button">CRM</Link>
+        <button className="new-chat-button topbar-coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}>Super Coder</button>
+        <WorkspaceAppearance/>
         <span className="workspace-repository" title={codeOpen?repository:undefined}>{codeOpen?(repository||"Code workspace"):""}</span>
         <Link href="/settings" className="header-icon" aria-label="Settings and analytics"><Settings2 size={17}/></Link>
       </header>
       <nav className="mobile-workspace-tabs" aria-label="Workspace view">
         <button aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")}>Chat</button>
-        <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>{codeOpen?"Code":"Canvas"}</button>
+        <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>{buildOpen?"Super Coder":crmOpen?"CRM":codeOpen?"Code":mailOpen?"Mail":"Canvas"}</button>
       </nav>
+      <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
+        <nav aria-label="Workspace tools">
+          <button title="Chat" aria-label="Chat" onClick={()=>{setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Chat</span></button>
+          <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
+          <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
+          <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Veltra Mail</span></button>
+          {crmConnected&&<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Veltra CRM</span></button>}
+          <Link href="/settings/connections" title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
+        </nav>
+        <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
+        <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Veltra workspace</span></div>
+      </aside>
       <section className="chat-panel">
         <div className="chat-toolbar">
           <button className="new-chat-button" disabled={sending} onClick={startNewChat} aria-label="New chat"><SquarePen size={16}/></button>
@@ -306,13 +330,13 @@ export default function VeltraWorkspace() {
 
         </div>
 
-        <CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/>
+
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
             <option value="black-forest-labs/flux.2-klein-4b">FLUX Klein · ~$0.014 provider cost</option>
             <option value="bytedance-seed/seedream-5-0-flash">Seedream Flash · ~$0.018 provider cost</option>
-            <option value="qwen/qwen-image-3">Qwen Image 3 · ~$0.03 provider cost</option>
+            <option value="qwen/qwen-image-3">Veltra Image · 100 credits</option>
           </select></label>}
         </div>}
         <div className="conversation" ref={scrollRef} onScroll={event=>{const area=event.currentTarget;stickToBottom.current=area.scrollHeight-area.scrollTop-area.clientHeight<100;}}>
@@ -357,7 +381,8 @@ export default function VeltraWorkspace() {
               aria-label="Message Veltra"
             />
             <div className="composer-footer">
-              <ChatTools onKnowledge={()=>setKnowledgeOpen(true)} imageMode={imageMode} onImageMode={setImageMode} disabled={sending} onApp={provider=>{if(provider==="mail"){setMailOpen(true);setCodeOpen(false);}else{setMailOpen(false);setCodeOpen(true);setCodeTool(provider);changeWorkspaceMode("work");}setMobileView("canvas");}}/>
+              <ChatTools onKnowledge={()=>setKnowledgeOpen(true)} imageMode={imageMode} onImageMode={setImageMode} disabled={sending} onApp={provider=>{if(provider==="mail"||provider==="crm"||provider==="build")openTool(provider);else{openTool("code");setCodeTool(provider);}}}/>
+              <VoiceInput disabled={sending} onTranscript={text=>setInput(value=>value+(value&&!/\s$/.test(value)?" ":"")+text)}/>
               <span className="composer-hint">{codeOpen&&codeTool==="github"?"Ask about your code":"Shift + Enter for a new line"}</span>
               <button type="submit" className="send-button" disabled={!input.trim() || sending || !historyLoaded} aria-label="Send message">{sending ? <span className="send-loading" /> : <ArrowUp size={17} />}</button>
             </div>
@@ -368,13 +393,13 @@ export default function VeltraWorkspace() {
 
       <section className="canvas-column">
         <div className="canvas-shell-head">
-          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{codeOpen?"Code":mailOpen?"Veltra Mail":"Canvas"}</strong></div></div>
+          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{buildOpen?"Super Coder":crmOpen?"Veltra CRM":codeOpen?"Code":mailOpen?"Veltra Mail":"Canvas"}</strong></div></div>
           <div className="canvas-head-actions">
             <button onClick={() => void copyLastAnswer()} title="Copy latest answer"><Copy size={14} />{copied ? <Check size={13} /> : null}</button>
-            <button className="canvas-add-button" onClick={() => { setMailOpen(false); setCodeOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
+            <button className="canvas-add-button" onClick={() => { setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        {codeOpen ? <CodeCanvas provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {buildOpen ? <BuildTeam embedded/> : crmOpen ? <CrmCanvas/> : codeOpen ? <CodeCanvas provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 

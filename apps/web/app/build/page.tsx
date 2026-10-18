@@ -1,2 +1,2 @@
-import BuildTeam from '@/components/build-team';
-export default function Page(){return <BuildTeam/>;}
+import {redirect} from 'next/navigation';
+export default function Page(){redirect('/?canvas=build');}
