@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-export async function mailProxy(request: NextRequest, path: "link" | "inbox") {
+export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "tms") {
   const origin = process.env.VELTRA_MAIL_URL;
   if (!origin) return Response.json({ error: "Veltra Mail connection is not configured yet." }, { status: 503 });
   const authorization = request.headers.get("authorization");
@@ -17,3 +17,4 @@ export async function mailProxy(request: NextRequest, path: "link" | "inbox") {
     return Response.json({ error: "Veltra Mail is temporarily unavailable. Please try again." }, { status: 502 });
   }
 }
+

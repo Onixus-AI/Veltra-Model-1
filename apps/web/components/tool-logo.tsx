@@ -13,7 +13,7 @@ const brandAssets: Record<string, string> = {
   OneDrive: "onedrive.svg", SharePoint: "sharepoint.svg",
 };
 const workspaceIcons = {
-  Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
+  "Onixus TMS": Truck, Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
   Barber: Scissors, "Community Manager": Users, Signal: Megaphone,
   "Custom MCP Server": Plug,
 };
@@ -28,3 +28,4 @@ export default function ToolLogo({ name }: { name: string }) {
       : <Icon size={20} />}
   </span>;
 }
+

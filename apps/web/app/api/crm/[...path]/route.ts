@@ -1,3 +1,4 @@
+import {runDiscovery} from "@/lib/crm/discovery";
 import {crmUser,crmError,crmContext} from '@/lib/crm/server';
 import {checkedMessages} from '@/lib/crm/suite-domain';
 export const runtime='nodejs';
@@ -8,6 +9,10 @@ async function handle(request:Request,context:Context){try{
  const {client,user}=await crmUser(request),url=new URL(request.url),method=request.method;
  const ok=(data:unknown)=>Response.json(data,{headers:{'Cache-Control':'no-store'}});
  const body=async()=>{const raw=await request.text();if(raw.length>500000)throw new Error('413:Request is too large.');try{return JSON.parse(raw);}catch{throw new Error('400:Invalid JSON.');}};
+ if(path[0]==='discovery'&&path.length===1){
+  if(method==='GET')return ok({configured:Boolean(process.env.FIRECRAWL_API_KEY),daily_limit:5});
+  if(method==='POST'){const b=await body();if(!uuid(b.id))throw new Error('400:Choose a research request.');return ok(await runDiscovery(client,user.id,b.id,Number(b.limit??10),process.env.FIRECRAWL_API_KEY??''));}
+ }
  if(path[0]==='outreach'&&path.length===1&&['GET','POST'].includes(method)){
   const origin=process.env.VELTRA_MAIL_URL;if(!origin)throw new Error('503:Mail is not configured.');
   const workspace=url.searchParams.get('workspace');if(method==='GET'&&!uuid(workspace))throw new Error('400:Choose a workspace.');

@@ -7,7 +7,7 @@ import ToolLogo from "./tool-logo";
 import {connectionRequest,type Provider,type WorkspaceConnection} from "@/lib/connections-client";
 import {gatewayAuthorizationHeaders} from "@/lib/client-session";
 const names:Record<Provider,string>={github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"};
-export default function ChatTools({onKnowledge,onApp,imageMode,onImageMode,disabled}:{onKnowledge:()=>void;onApp:(provider:Provider|"mail"|"crm"|"build")=>void;imageMode:boolean;onImageMode:(value:boolean)=>void;disabled:boolean}){
+export default function ChatTools({onKnowledge,onApp,imageMode,onImageMode,disabled}:{onKnowledge:()=>void;onApp:(provider:Provider|"mail"|"crm"|"build"|"tms")=>void;imageMode:boolean;onImageMode:(value:boolean)=>void;disabled:boolean}){
  const [open,setOpen]=useState(false),[apps,setApps]=useState<WorkspaceConnection[]>([]),[mail,setMail]=useState(false),[crm,setCrm]=useState(false),[loading,setLoading]=useState(false),[failed,setFailed]=useState(false);
  const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null);
  useEffect(()=>{if(!open)return;let active=true;setLoading(true);setFailed(false);
@@ -23,7 +23,7 @@ export default function ChatTools({onKnowledge,onApp,imageMode,onImageMode,disab
  {open&&<div id="chat-tools-menu" className="chat-tools-menu" role="dialog" aria-label="Add to chat">
  <button type="button" onClick={()=>run(onKnowledge)}><FileText size={17}/><span>Add project files</span></button>
  <button type="button" disabled={disabled} onClick={()=>run(()=>onImageMode(!imageMode))}><ImagePlus size={17}/><span>{imageMode?"Switch to text":"Create an image"}</span>{imageMode&&<Check size={14}/>}</button>
- <button type="button" onClick={()=>run(()=>onApp("build"))}><ToolLogo name="Veltra"/><span>Super Coder</span></button><div className="chat-tools-section">Connected apps</div>
+ <button type="button" onClick={()=>run(()=>onApp("build"))}><ToolLogo name="Veltra"/><span>Super Coder</span></button><button type="button" onClick={()=>run(()=>onApp("tms"))}><ToolLogo name="Onixus TMS"/><span>Onixus TMS · Business OS</span></button><div className="chat-tools-section">Connected apps</div>
  {loading?<p role="status">Loading your apps…</p>:<>{mail&&<button type="button" onClick={()=>run(()=>onApp("mail"))}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>}{crm&&<button type="button" onClick={()=>run(()=>onApp("crm"))}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}{apps.map(app=><button type="button" key={app.provider} onClick={()=>run(()=>onApp(app.provider))}><ToolLogo name={names[app.provider]}/><span>{names[app.provider]}{app.selection.name&&<small>{app.selection.name}</small>}</span></button>)}{!mail&&!crm&&!apps.length&&!failed&&<p>No apps connected yet.</p>}{failed&&<p role="status">Some apps couldn’t be loaded. Try reopening this menu.</p>}</>}
  <Link href="/settings/connections"><Plug size={16}/><span>Manage connections</span></Link>
  </div>}</div>;
