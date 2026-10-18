@@ -3,3 +3,5 @@
 
 /* Match the Veltra workspace palette. */
 .crm-shell{--bg:#080b0d;--panel:#10181d;--line:#26363e;--accent:#9ae8ed;--muted:#a3b5bd;--text:#e0eaee;background:var(--bg)}.crm-shell .crm-sidebar,.crm-shell .crm-top{background:#080b0d}.crm-shell .crm-brand,.crm-shell .crm-sidebar nav button.active{color:var(--accent)}
+
+.crm-automation{display:grid;gap:20px}.crm-outreach-form{display:grid;gap:14px;max-width:900px}.crm-outreach-form label{display:grid;gap:6px}.crm-audience{max-height:250px;overflow:auto;display:grid;gap:10px}.crm-audience .crm-check{display:flex;align-items:center;gap:10px}.crm-audience small{display:block}.crm-message{padding:20px 0;border-bottom:1px solid var(--line,#ddd)}.crm-message pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}.crm-message h3{margin-bottom:4px}.crm-message .crm-actions{margin-top:12px}

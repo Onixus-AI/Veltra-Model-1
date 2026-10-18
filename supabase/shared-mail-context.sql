@@ -17,8 +17,17 @@ begin
    'recent_activity',coalesce((select jsonb_agg(x) from (select kind,title,created_at from public.crm_activity where workspace_id=w and customer_id=c order by created_at desc limit 15)x),'[]'::jsonb),
    'deals',coalesce((select jsonb_agg(x) from (select title,stage,value_cents,currency from public.crm_deals where workspace_id=w and customer_id=c order by created_at desc limit 20)x),'[]'::jsonb));
  end if;
- return jsonb_build_object('suppressed',blocked,'customer_context',context);
+ return jsonb_build_object('suppressed',blocked,'customer_id',c,'identity_review_required',coalesce((select identity_review_required from public.crm_customers where workspace_id=w and id=c),true),'customer_context',context);
 end $$;
 revoke all on function public.crm_mail_policy(uuid,text,text) from public;
 grant execute on function public.crm_mail_policy(uuid,text,text) to anon,authenticated;
+create or replace function public.crm_suppress_mail_contact(p_account uuid,p_token text,p_email text)
+returns void language plpgsql security definer set search_path='' as $$
+declare w uuid;
+begin
+ w:=crm_private.mail_workspace(p_account,p_token);
+ update public.crm_customers set suppressed=true where workspace_id=w and email=lower(trim(p_email));
+end $$;
+revoke all on function public.crm_suppress_mail_contact(uuid,text,text) from public;
+grant execute on function public.crm_suppress_mail_contact(uuid,text,text) to anon,authenticated;
 commit;

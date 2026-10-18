@@ -8,6 +8,12 @@ async function handle(request:Request,context:Context){try{
  const {client,user}=await crmUser(request),url=new URL(request.url),method=request.method;
  const ok=(data:unknown)=>Response.json(data,{headers:{'Cache-Control':'no-store'}});
  const body=async()=>{const raw=await request.text();if(raw.length>500000)throw new Error('413:Request is too large.');try{return JSON.parse(raw);}catch{throw new Error('400:Invalid JSON.');}};
+ if(path[0]==='outreach'&&path.length===1&&['GET','POST'].includes(method)){
+  const origin=process.env.VELTRA_MAIL_URL;if(!origin)throw new Error('503:Mail is not configured.');
+  const workspace=url.searchParams.get('workspace');if(method==='GET'&&!uuid(workspace))throw new Error('400:Choose a workspace.');
+  const upstream=await fetch(origin.replace(/\/$/,'')+'/chat/outreach'+(method==='GET'?'?workspace='+encodeURIComponent(workspace!):''),{method,headers:{Authorization:request.headers.get('authorization')!,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(await body()):undefined,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(30000)});
+  return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
+ }
  if(path[0]==='mail'&&path.length===1){
   const origin=process.env.VELTRA_MAIL_URL;if(!origin)throw new Error('503:Mail is not configured.');
   const upstream=await fetch(origin.replace(/\/$/,'')+'/chat/crm',{method,headers:{Authorization:request.headers.get('authorization')!,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(await body()):undefined,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
@@ -55,3 +61,4 @@ async function handle(request:Request,context:Context){try{
  throw new Error('404:Route not found.');
 }catch(e){return crmError(e);}}
 export const GET=handle;export const POST=handle;export const PUT=handle;export const DELETE=handle;
+
