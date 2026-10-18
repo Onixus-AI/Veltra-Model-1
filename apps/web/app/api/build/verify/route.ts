@@ -10,7 +10,9 @@ const harness=`const {chromium:pw}=require('playwright-core');
 const chromiumModule=require('@sparticuz/chromium');
 const chromium=chromiumModule.default??chromiumModule;
 const fs=require('node:fs');
-(async()=>{const browser=await pw.launch({args:chromium.args,executablePath:await chromium.executablePath(),headless:true});
+(async()=>{await chromiumModule.inflate(require('node:path').join(require('node:path').dirname(require.resolve('@sparticuz/chromium')),'../bin/al2023.tar.br'));
+chromiumModule.setupLambdaEnvironment('/tmp/al2023/lib');
+const browser=await pw.launch({args:chromium.args,executablePath:await chromium.executablePath(),headless:true});
 try{const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.route('**/*',route=>route.request().url().startsWith('file:///vercel/sandbox/project/')||route.request().url().startsWith('data:')?route.continue():route.abort());
 await page.goto('file:///vercel/sandbox/project/index.html',{waitUntil:'load',timeout:15000});
@@ -84,7 +86,8 @@ export async function POST(request:NextRequest){
   const jsTests=files.filter(f=>/\.(test|spec)\.(js|mjs|cjs)$/.test(f.path));
   if(jsTests.length)await check('Node tests','node',['--test',...jsTests.map(f=>f.path)]);
   if(files.some(f=>/(^|\/)test_[^/]+\.py$/.test(f.path)))await check('Python tests','python3',['-m','unittest','discover','-s','.', '-p','test_*.py']);
-  await finishVerification(true);finishVerification=undefined;
+  const infrastructureFailure=checks.some(c=>c.name.startsWith('Browser:')&&/error while loading shared libraries|chromium\.executablePath is not a function/.test(c.stderr));
+  await finishVerification(!infrastructureFailure);finishVerification=undefined;
   return Response.json({run_id:run.id,receipt_id:crypto.randomUUID(),sandbox_name:sandbox.name,checks,screenshot,browser:browserResult,
    scope:'Isolated generated files only; external sites, package installation for generated projects, and deployment are not performed.',
    checks_passed:checks.length>0&&checks.every(c=>c.exit_code===0)&&!(browserResult as {errors?:string[]}|undefined)?.errors?.length}, {headers:{'Cache-Control':'no-store'}});
