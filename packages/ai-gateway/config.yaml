@@ -97,3 +97,11 @@ video_generation:
       name: Kling 3.0 Standard
       estimated_usd_per_second_without_audio: 0.084
       estimated_usd_per_second_with_audio: 0.126
+
+
+# Bounded coding-team roles. Provider IDs can be overridden by server env vars.
+coding_team:
+  planner: deepseek/deepseek-chat
+  coder: qwen/qwen-2.5-coder-32b-instruct
+  reviewer: deepseek/deepseek-chat
+  vision: qwen/qwen3-vl-235b-a22b-instruct

@@ -1,4 +1,6 @@
 import hashlib
+import asyncio
+from contextlib import asynccontextmanager, suppress
 import json
 import logging
 import os
@@ -16,6 +18,7 @@ from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
+from agent_runs import create_router as agent_router, run_worker
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -42,7 +45,21 @@ VELTRA_SYSTEM_PROMPT = (
     "professional, action-oriented, and focused on useful results."
 )
 
-app = FastAPI(title="Veltra AI Gateway", version="0.1.0")
+@asynccontextmanager
+async def gateway_lifespan(app):
+    task = None
+    if os.environ.get('VELTRA_CODING_TEAM_ENABLED', 'true').lower() == 'true':
+        task = asyncio.create_task(run_worker(supabase_request, MODEL_CONFIG['coding_team']))
+    try:
+        yield
+    finally:
+        if task:
+            task.cancel()
+            with suppress(asyncio.CancelledError):
+                await task
+
+
+app = FastAPI(title="Veltra AI Gateway", version="0.2.0", lifespan=gateway_lifespan)
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
@@ -507,3 +524,7 @@ async def generate_image(
         except Exception:
             logger.exception("Image refund pending for request %s", generation_id)
         raise HTTPException(status_code=503, detail="Image creation couldn’t finish. Please try again shortly.") from error
+
+
+# Existing authentication and database helpers remain authoritative for task access.
+app.include_router(agent_router(get_authenticated_principal, bearer_scheme, supabase_request))
