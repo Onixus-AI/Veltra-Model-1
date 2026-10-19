@@ -1,3 +1,5 @@
+import {createHash} from 'node:crypto';
+import {mailIntent,executeMailIntent,mailChatResponse} from '@/lib/mail-chat';
 import {connectionIntent,connectionSummary} from "@/lib/chat-connections";
 import {beeIntent,beeChatResponse} from "@/lib/bee-chat";
 import { VELOCITY_CONVERSATION_STYLE } from "@/lib/conversation-style";
@@ -17,6 +19,15 @@ export async function POST(request: NextRequest) {
     return Response.json({detail:"Send a valid conversation."},{status:400});
   }
   const last=payload.messages.at(-1);
+  const mail=last?.role==='user'&&typeof last.content==='string'?mailIntent(last.content):null;
+  if(mail){
+    if(!authorization)return Response.json({detail:'Sign in to use Mail.'},{status:401});
+    if(!process.env.VELTRA_MAIL_URL)return Response.json({detail:'Mail connection is not configured.'},{status:503});
+    if(mail.tool==='trash_old_mail')mail.arguments.request_key=typeof payload.mail_request_key==='string'&&/^[a-f0-9-]{36}$/i.test(payload.mail_request_key)?payload.mail_request_key:createHash('sha256').update(JSON.stringify({conversation:payload.conversation_id,messages:payload.messages})).digest('hex');
+    try{return mailChatResponse(await executeMailIntent(mail,authorization,process.env.VELTRA_MAIL_URL),payload.stream===true);}
+    catch(error){const message=error instanceof Error?error.message:'502:Mail is unavailable.',match=/^(401|409|429|502|503):/.exec(message);return Response.json({detail:match?message.slice(4):'Mail is temporarily unavailable.'},{status:match?Number(match[1]):502});}
+  }
+
   const connection=last?.role==='user'&&typeof last.content==='string'?connectionIntent(last.content):null;
   if(connection){
     if(!authorization)return Response.json({detail:'Sign in to use connected tools.'},{status:401});

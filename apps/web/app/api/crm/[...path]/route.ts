@@ -19,6 +19,10 @@ async function handle(request:Request,context:Context){try{
   const upstream=await fetch(origin.replace(/\/$/,'')+'/chat/outreach'+(method==='GET'?'?workspace='+encodeURIComponent(workspace!):''),{method,headers:{Authorization:request.headers.get('authorization')!,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(await body()):undefined,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(30000)});
   return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':'application/json','Cache-Control':'no-store'}});
  }
+ if(path[0]==='quote-outcomes'&&path.length===1&&method==='GET'){
+  const workspace=url.searchParams.get('workspace');if(!uuid(workspace))throw new Error('400:Choose a workspace.');
+  const {data,error}=await client.from('crm_mail_threads').select('thread_id,subject,customer_id,quote_outcome').eq('workspace_id',workspace).not('quote_outcome','is',null).order('last_event_at',{ascending:false}).limit(50);if(error)throw error;return ok({items:data??[],scope:'Latest 50 synced quote threads in this authorized workspace.'});
+ }
  if(path[0]==='mail'&&path.length===1){
   const origin=process.env.VELTRA_MAIL_URL;if(!origin)throw new Error('503:Mail is not configured.');
   const upstream=await fetch(origin.replace(/\/$/,'')+'/chat/crm',{method,headers:{Authorization:request.headers.get('authorization')!,'Content-Type':'application/json'},body:method==='POST'?JSON.stringify(await body()):undefined,cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});

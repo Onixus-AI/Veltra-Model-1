@@ -246,7 +246,7 @@ export default function VeltraWorkspace() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-        body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true,...(savedCloud?{conversation_id:savedCloud.id}: {}) }),
+        body: JSON.stringify({ model: activeModel.model, messages: gatewayMessages, stream: true,mail_request_key:crypto.randomUUID(),...(savedCloud?{conversation_id:savedCloud.id}: {}) }),
       });
       if (!response.ok) {
         const data = await response.json().catch(() => ({}));
@@ -454,4 +454,3 @@ export default function VeltraWorkspace() {
     </main>
   );
 }
-
