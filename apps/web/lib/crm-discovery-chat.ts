@@ -1,10 +1,10 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
-export type DiscoveryIntent={action:'list'}|{action:'start';provider:'fmcsa'|'ny_registry'|'all'}|{action:'control';id:string;enabled:boolean};
+export type DiscoveryIntent={action:'list'}|{action:'start';provider:'fmcsa'|'fmcsa_contacts'|'ny_registry'|'all'}|{action:'control';id:string;enabled:boolean};
 export function discoveryIntent(text:string):DiscoveryIntent|null{
  const value=text.trim();if(value.length>250)return null;
  if(/^(?:please )?(?:show|list|check) (?:my |our )?(?:crm )?discovery (?:sources|progress|status)[.!?]?$/i.test(value))return {action:'list'};
- const start=/^(?:please )?(?:start|enable) (?:recurring |continuous )?(?:company |business |crm )?discovery(?: from)? (fmcsa|new york|all sources)[.!]?$/i.exec(value);
- if(start)return {action:'start',provider:start[1].toLowerCase()==='fmcsa'?'fmcsa':start[1].toLowerCase()==='new york'?'ny_registry':'all'};
+ const start=/^(?:please )?(?:start|enable) (?:recurring |continuous )?(?:company |business |crm )?discovery(?: from)? (fmcsa contacts|fmcsa|new york|all sources)[.!]?$/i.exec(value);
+ if(start)return {action:'start',provider:start[1].toLowerCase()==='fmcsa contacts'?'fmcsa_contacts':start[1].toLowerCase()==='fmcsa'?'fmcsa':start[1].toLowerCase()==='new york'?'ny_registry':'all'};
  const control=/^(?:please )?(pause|resume) discovery ([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})[.!]?$/i.exec(value);
  return control?{action:'control',id:control[2],enabled:control[1].toLowerCase()==='resume'}:null;
 }
@@ -21,12 +21,12 @@ export async function executeDiscoveryIntent(client:SupabaseClient,user:string,w
   if(error)throw Error('503:Discovery could not be changed.');if(!data)throw Error('404:Discovery source not found in this business.');
   return 'CRM discovery '+(data.enabled?'resumed':'paused')+': '+data.label+'.\nSource ID: '+data.id+'\nNo campaign was sent.';
  }
- const providers=intent.provider==='all'?['fmcsa','ny_registry']:[intent.provider],receipts=[];
+ const providers=intent.provider==='all'?['fmcsa','fmcsa_contacts','ny_registry']:[intent.provider],receipts=[];
  for(const provider of providers){
   let {data:source,error}=await client.from('crm_discovery_sources').select('id,label').eq('workspace_id',workspace).eq('provider',provider).is('bounds',null).eq('category','logistics').maybeSingle();
   if(error)throw Error('503:Continuous discovery is not available in this CRM workspace yet.');
   if(!source){
-   const created=await client.from('crm_discovery_sources').insert({workspace_id:workspace,provider,category:'logistics',label:provider==='fmcsa'?'FMCSA transport companies':'New York business registry',bounds:null}).select('id,label').single();
+   const created=await client.from('crm_discovery_sources').insert({workspace_id:workspace,provider,category:'logistics',label:provider==='fmcsa'?'FMCSA transport companies':provider==='fmcsa_contacts'?'FMCSA published business inboxes':'New York business registry',bounds:null}).select('id,label').single();
    if(created.error)throw Error('503:Discovery source could not be saved. Check Sources before retrying.');source=created.data;
   }
   const {data:enabled,error:enableError}=await client.from('crm_discovery_sources').update({enabled:true}).eq('workspace_id',workspace).eq('id',source!.id).select('id').single();

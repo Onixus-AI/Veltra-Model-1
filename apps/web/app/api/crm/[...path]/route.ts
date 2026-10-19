@@ -1,14 +1,21 @@
+import {contactWorker} from '@/lib/crm/contact-worker';
 import {runDiscovery} from "@/lib/crm/discovery";
 import {crmUser,crmError,crmContext} from '@/lib/crm/server';
 import {checkedMessages} from '@/lib/crm/suite-domain';
 export const runtime='nodejs';
+export const maxDuration=120;
 type Context={params:Promise<{path:string[]}>};
 const uuid=(s:unknown)=>typeof s==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
 async function handle(request:Request,context:Context){try{
  const {path}=await context.params;
+ if(path.length===1&&path[0]==='contact-worker'){if(request.method!=='POST')return Response.json({error:'Method not allowed'},{status:405});return contactWorker(request);}
  const {client,user}=await crmUser(request),url=new URL(request.url),method=request.method;
  const ok=(data:unknown)=>Response.json(data,{headers:{'Cache-Control':'no-store'}});
  const body=async()=>{const raw=await request.text();if(raw.length>500000)throw new Error('413:Request is too large.');try{return JSON.parse(raw);}catch{throw new Error('400:Invalid JSON.');}};
+ if(path[0]==='contact-research'&&path.length===1){
+  if(method==='POST'){const b=await body();if(!uuid(b.workspace_id)||!uuid(b.customer_id)||typeof b.website!=='string')throw Error('400:Choose a customer and its company website.');const {data,error}=await client.rpc('crm_request_contact_research',{p_workspace:b.workspace_id,p_customer:b.customer_id,p_website:b.website});if(error)throw Error('409:Research could not be queued. Check ownership, company website and the daily limit.');return ok({job_id:data,status:'queued'});}
+  if(method==='GET'){const w=url.searchParams.get('workspace'),c=url.searchParams.get('customer');if(!uuid(w)||!uuid(c))throw Error('400:Choose a customer.');const [evidence,jobs]=await Promise.all([client.from('crm_contact_evidence').select('email,source_url,source_kind,observed_at,verification').eq('workspace_id',w).eq('customer_id',c).order('observed_at',{ascending:false}).limit(30),client.from('crm_contact_research').select('id,status,last_error,created_at,completed_at').eq('workspace_id',w).eq('customer_id',c).order('created_at',{ascending:false}).limit(5)]);if(evidence.error||jobs.error)throw Error('503:Contact enrichment is not available yet.');return ok({evidence:evidence.data,jobs:jobs.data});}
+ }
  if(path[0]==='discovery'&&path.length===1){
   if(method==='GET')return ok({configured:Boolean(process.env.FIRECRAWL_API_KEY),daily_limit:5});
   if(method==='POST'){const b=await body();if(!uuid(b.id))throw new Error('400:Choose a research request.');return ok(await runDiscovery(client,user.id,b.id,Number(b.limit??10),process.env.FIRECRAWL_API_KEY??''));}
