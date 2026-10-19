@@ -6,7 +6,8 @@ import { VELOCITY_CONVERSATION_STYLE } from "@/lib/conversation-style";
 import { NextRequest } from "next/server";
 import { gatewayAuthorization, gatewayUrl } from "@/lib/gateway";
 
-import {crmContext,crmError} from '@/lib/crm/server';
+import {discoveryIntent,executeDiscoveryIntent} from '@/lib/crm-discovery-chat';
+import {crmContext,crmError,crmUser} from '@/lib/crm/server';
 import {memoryPrompt} from '@/lib/crm/suite-domain';
 
 export const runtime = "nodejs";
@@ -26,6 +27,17 @@ export async function POST(request: NextRequest) {
     if(mail.tool==='trash_old_mail')mail.arguments.request_key=typeof payload.mail_request_key==='string'&&/^[a-f0-9-]{36}$/i.test(payload.mail_request_key)?payload.mail_request_key:createHash('sha256').update(JSON.stringify({conversation:payload.conversation_id,messages:payload.messages})).digest('hex');
     try{return mailChatResponse(await executeMailIntent(mail,authorization,process.env.VELTRA_MAIL_URL),payload.stream===true);}
     catch(error){const message=error instanceof Error?error.message:'502:Mail is unavailable.',match=/^(401|409|429|502|503):/.exec(message);return Response.json({detail:match?message.slice(4):'Mail is temporarily unavailable.'},{status:match?Number(match[1]):502});}
+  }
+
+  const discovery=last?.role==='user'&&typeof last.content==='string'?discoveryIntent(last.content):null;
+  if(discovery){
+    try{
+      const {client,user}=await crmUser(request);
+      let workspace:string|null=null;
+      if(payload.conversation_id){const context=await crmContext(request,payload.conversation_id);workspace=(context as {workspace?:{id:string}}).workspace?.id??null;}
+      if(!workspace){const {data,error}=await client.from('crm_workspaces').select('id').eq('owner_id',user.id).limit(2);if(error)throw Error('503:CRM workspace unavailable.');if(data?.length!==1)throw Error('400:Choose a business conversation before running CRM discovery.');workspace=data[0].id;}
+      return mailChatResponse(await executeDiscoveryIntent(client,user.id,workspace!,discovery),payload.stream===true);
+    }catch(e){return crmError(e);}
   }
 
   const connection=last?.role==='user'&&typeof last.content==='string'?connectionIntent(last.content):null;

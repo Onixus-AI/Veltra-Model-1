@@ -7,3 +7,12 @@ Explicit connected-tool requests fetch real account-scoped developer connection 
 CRM was framed by this app but blocked by its own `frame-ancestors 'none'`. Same-origin framing is now permitted; external origins remain forbidden. Settings and Bee have labelled navigation entries. Billing and account controls use the documented verified-support process; self-service billing, cancellation and immediate account deletion are still backend gaps. The settings screen no longer invents a $59 active plan or promises a universal rollover policy.
 
 Verification: Bee and connected-read tests exercise command selection, streaming receipts and sensitive/path rejection. Cloud build supplies type checking and production compilation. User OAuth consent and a real coding/model charge are separate live acceptance steps; never mark those complete from mocks.
+
+CRM discovery now has direct, authenticated commands: show discovery sources or
+progress; start company discovery from FMCSA, New York or all supported sources;
+pause/resume discovery by source ID. Writes require the resolved business owner.
+A selected business conversation determines the workspace; an account with one
+owned workspace may use that workspace, while ambiguous accounts must choose.
+Receipts report saved scheduling settings separately from imported companies.
+No campaign enrollment or send is implied. The embedded CRM exposes the same
+source controls as standalone CRM and uses the same database scheduler.
