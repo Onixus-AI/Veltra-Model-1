@@ -444,8 +444,15 @@ body, .workspace, .auth-page { background: #000; }
 .workspace .tms-canvas button,.workspace .tms-canvas .actions a{font:inherit;font-size:12px;padding:11px 14px;border:1px solid #3c414a;border-radius:8px;background:#22252b;color:#dfe3ea;text-decoration:none;cursor:pointer}.workspace .tms-canvas button:disabled{opacity:.5;cursor:wait}.workspace .tms-canvas form>button{background:#e9ecef;color:#15171b;border-color:#e9ecef;font-weight:600}.workspace .tms-canvas [role=alert]{color:#f3aba5}.workspace .tms-canvas article{border:1px solid #303039;border-radius:10px;padding:16px}.workspace .tms-canvas small{color:#898e99;font-size:11px}
 
 /* Visible navigation labels and compact settings controls. */
-.workspace-header .header-icon{display:inline-flex;align-items:center;gap:7px;width:auto;min-width:34px;padding-inline:10px}
+.workspace-topbar a.header-icon{display:inline-flex;align-items:center;gap:7px;width:auto;min-width:34px;padding-inline:10px}
 .header-icon span{font-size:12px}
 .settings-tabs{flex-wrap:wrap}
 .settings-tab-panel h3{margin-top:24px}
 .settings-tab-panel a{color:#9ae8ed}
+
+.crm-open-full{font-size:12px;color:#9ae8ed;padding:8px 12px;display:block}
+.settings-page{--accent:#9ae8ed}
+.settings-tab.is-active{color:#9ae8ed;border-color:#285158;background:#102326}
+.settings-page .subscription-symbol,.settings-page .balance-icon,.settings-page .card-icon{color:#9ae8ed;background:#102326}
+.settings-page .chart-line{stroke:#9ae8ed}
+.settings-page .credit-fill,.settings-page .allocation-track>div{background:#9ae8ed}

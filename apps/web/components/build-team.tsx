@@ -24,7 +24,7 @@ export default function BuildTeam({embedded=false,onReviewFile}:{embedded?:boole
  const active=run&&['queued','running'].includes(run.status);
  useEffect(()=>{const receive=(event:Event)=>{setRun((event as CustomEvent<Run>).detail);setVerification(null);setError('');};window.addEventListener('veltra-coder-run',receive);return()=>window.removeEventListener('veltra-coder-run',receive);},[]);
  const refreshHistory=useCallback(()=>api<{runs:Run[]}>('/api/agent-runs').then(r=>setHistory(r.runs)),[]);
- useEffect(()=>{const id=sessionStorage.getItem('veltra-active-coder-run');if(id&&/^[a-f0-9-]{36}$/i.test(id))void api<Run>('/api/agent-runs/'+id).then(setRun).catch(()=>{});let live=true;void api<{runs:Run[]}>('/api/agent-runs').then(r=>{if(live)setHistory(r.runs);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[]);
+ useEffect(()=>{let id:string|null=null;try{id=sessionStorage.getItem('veltra-active-coder-run');}catch{}if(id&&/^[a-f0-9-]{36}$/i.test(id))void api<Run>('/api/agent-runs/'+id).then(setRun).catch(()=>{});let live=true;void api<{runs:Run[]}>('/api/agent-runs').then(r=>{if(live)setHistory(r.runs);}).catch(e=>{if(live)setError(e.message);});return()=>{live=false;};},[]);
  useEffect(()=>{
   if(!run||!['queued','running'].includes(run.status))return;
   let live=true;const version=++pollVersion.current;
