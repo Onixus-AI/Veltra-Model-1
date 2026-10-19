@@ -34,12 +34,12 @@ export async function POST(request: NextRequest) {
 
 
   if(crmAction){try{
-    const {client,user}=await crmUser(request);let workspace:string|null=null;
-    if(payload.conversation_id){const context=await crmContext(request,payload.conversation_id);workspace=(context as {workspace?:{id:string}}).workspace?.id??null;}
+    const {client,user}=await crmUser(request);let workspace:string|null=null,currentCustomer:string|undefined;
+    if(payload.conversation_id){const context=await crmContext(request,payload.conversation_id);workspace=(context as {workspace?:{id:string}}).workspace?.id??null;currentCustomer=(context as {customer?:{id:string}}).customer?.id;}
     if(!workspace){const {data,error}=await client.from('crm_workspaces').select('id').eq('owner_id',user.id).limit(2);if(error)throw Error('503:CRM workspace unavailable.');if(data?.length!==1)throw Error('400:Choose a business conversation before using CRM tools.');workspace=data[0].id;}
     const hash=createHash('sha256').update(JSON.stringify({user:user.id,workspace,conversation:payload.conversation_id,messages:payload.messages})).digest('hex');
     const operation=hash.slice(0,8)+'-'+hash.slice(8,12)+'-4'+hash.slice(13,16)+'-8'+hash.slice(17,20)+'-'+hash.slice(20,32);
-    return mailChatResponse(await executeCrmAction(client,user.id,workspace!,crmAction,{authorization:authorization!,mailOrigin:process.env.VELTRA_MAIL_URL,operation}),payload.stream===true);
+    return mailChatResponse(await executeCrmAction(client,user.id,workspace!,crmAction,{authorization:authorization!,mailOrigin:process.env.VELTRA_MAIL_URL,operation,customer:currentCustomer}),payload.stream===true);
   }catch(e){return crmError(e);}}
 
   const discovery=last?.role==='user'&&typeof last.content==='string'?discoveryIntent(last.content):null;
