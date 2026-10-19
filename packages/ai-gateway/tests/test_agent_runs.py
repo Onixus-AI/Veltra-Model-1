@@ -73,7 +73,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         await build_graph(call,AsyncMock(),{'task':'Build a studio site','context':reference,'mode':'design'}).ainvoke({})
         self.assertEqual(len(seen['planner'][0]['reference']),2500)
         self.assertIn(reference,seen['coder'][0])
-        self.assertEqual(seen['coder'][1],5000)
+        self.assertEqual(seen['coder'][1],4000)
 
     async def test_design_finishes_a_truncated_document_once_and_keeps_both_receipts(self):
         builders=0
