@@ -277,6 +277,7 @@ async def provider_completion(params, waiting):
                 raise
             await waiting()
             await asyncio.sleep(delay)
+            await waiting()
 
 
 async def execute_run(row, worker_id, database, models):
@@ -315,6 +316,7 @@ async def execute_run(row, worker_id, database, models):
             response = await provider_completion(dict(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
                 api_base='https://openrouter.ai/api/v1', messages=messages, max_tokens=output_limit, temperature=0.2,
                 timeout=100, num_retries=0,
+                **({'extra_body': {'reasoning': {'enabled': False}}} if role == 'coder' and payload.get('mode') == 'design' else {}),
                 **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {})), lambda: live('waiting for provider'))
         except Exception as exc:
             logger.warning('Coding provider step rejected: role=%s model=%s status=%s', role, model, getattr(exc, 'status_code', 'unknown'))
