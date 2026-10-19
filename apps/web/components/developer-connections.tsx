@@ -34,7 +34,7 @@ export default function DeveloperConnections({query="",onCount,children}:{query?
  return <article className={`hub-card provider-${id} ${open?"expanded":""}`} key={id}>
  <div className="hub-card-top"><ToolLogo name={name}/><span className={`hub-status ${connection?.connected?"live":""}`}>{connection?.connected?"Connected":connection?.configured?"Available":connection?"Setup needed":error?"Unavailable":"Loading…"}</span></div>
  <h3>{name}</h3><p>{connection?.selection.name??description}</p>
- <button className="hub-card-button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{connection?.connected?"Manage":"Set up"}<ArrowUpRight size={13}/></button>
+ <button className="hub-card-button" aria-expanded={open} onClick={()=>setExpanded(open?null:id)}>{"Settings"}<ArrowUpRight size={13}/></button>
  {open&&<div className="hub-card-details">
  <p>{description}</p>{connection?.account.name&&<p>{connection.account.name}</p>}
  {id==="n8n"&&!connection?.connected&&<label htmlFor="n8n-instance">n8n Cloud address<input id="n8n-instance" type="url" placeholder="https://your-workspace.app.n8n.cloud" value={instance} onChange={e=>setInstance(e.target.value)}/></label>}

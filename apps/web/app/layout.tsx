@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "@/styles/workspace.css";
+import "@/styles/veltra-theme.css";
 import AuthGate from "@/components/auth-gate";
 
 export const metadata: Metadata = {

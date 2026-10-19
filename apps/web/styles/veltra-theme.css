@@ -1,0 +1,2 @@
+/* Veltra suite design tokens. Keep identical in Chat, CRM and Mail. */
+:root{--veltra-bg:#000000;--veltra-sidebar:#080b0d;--veltra-panel:#10181d;--veltra-line:#26363e;--veltra-text:#e0eaee;--veltra-muted:#a3b5bd;--veltra-accent:#9ae8ed;--veltra-tint:#102326;--veltra-font:"DM Sans",sans-serif;--veltra-heading:"Manrope",sans-serif;--veltra-radius:8px}

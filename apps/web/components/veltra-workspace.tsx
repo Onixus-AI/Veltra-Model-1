@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, Layers3,
-  Plus, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, X, MessageSquare, Code2, Plug, Mail, Users,
+  Plus, Palette, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, X, MessageSquare, Code2, Plug, Mail, Users,
 } from "lucide-react";
 import ChatTools from "@/components/chat-tools";
 import {connectionRequest} from "@/lib/connections-client";
@@ -328,7 +328,7 @@ export default function VeltraWorkspace() {
         <button className="new-chat-button topbar-coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}>Super Coder</button>
         <button className="header-icon" aria-label="Open canvas" onClick={()=>{setCanvasVisible(true);setMobileView("canvas");}}><PanelRightOpen size={18}/></button><WorkspaceAppearance/>
         <span className="workspace-repository" title={codeOpen?repository:undefined}>{codeOpen?(repository||"Code workspace"):""}</span>
-        <Link href="/settings" className="header-icon" aria-label="Settings"><Settings2 size={17}/><span>Settings</span></Link>
+
       </header>
       <nav className="mobile-workspace-tabs" aria-label="Workspace view">
         <button aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")}>Chat</button>
@@ -341,11 +341,12 @@ export default function VeltraWorkspace() {
           <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
           <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>
           {<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
-          <Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link>
+          <Link href="/design" title="Design"><Palette size={17}/><span>Design</span></Link>
           <Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>
           <Link href="/settings/connections" title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
+        <nav className="sidebar-settings" aria-label="Workspace settings"><Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link></nav>
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Veltra workspace</span></div>
       </aside>
       <section className="chat-panel">
