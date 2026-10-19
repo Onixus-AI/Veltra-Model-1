@@ -341,6 +341,7 @@ export default function VeltraWorkspace() {
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Chat</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
+          <Link href="/workspace" title="Workspace home"><Layers3 size={17}/><span>Workspace home</span></Link>
           <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>
           {<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
           <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
