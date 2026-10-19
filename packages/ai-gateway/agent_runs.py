@@ -260,6 +260,25 @@ def build_graph(call, checkpoint, payload, make_image=None):
     return graph.compile()
 
 
+async def provider_completion(params, waiting):
+    for attempt in range(2):
+        try:
+            return await litellm.acompletion(**params)
+        except Exception as error:
+            if getattr(error, 'status_code', None) != 429 or attempt:
+                raise
+            response = getattr(error, 'response', None)
+            headers = getattr(response, 'headers', {}) or {}
+            try:
+                delay = max(2.0, float(headers.get('retry-after', '5')))
+            except (ValueError, TypeError):
+                delay = 5.0
+            if delay > 60:
+                raise
+            await waiting()
+            await asyncio.sleep(delay)
+
+
 async def execute_run(row, worker_id, database, models):
     used = 0
     state: TeamState = {}
@@ -284,7 +303,7 @@ async def execute_run(row, worker_id, database, models):
     async def call(role, instructions, content, limit):
         nonlocal used
         await live(role)
-        model = os.environ.get('VELTRA_DESIGN_MODEL', 'qwen/qwen3-coder-next') if role == 'coder' and payload.get('mode') == 'design' else os.environ.get(f'VELTRA_{role.upper()}_MODEL', models[role])
+        model = os.environ.get('VELTRA_DESIGN_MODEL', 'qwen/qwen3.7-plus') if role == 'coder' and payload.get('mode') == 'design' else os.environ.get(f'VELTRA_{role.upper()}_MODEL', models[role])
         messages = [{'role': 'system', 'content': instructions}, {'role': 'user', 'content': content}]
         estimate = litellm.token_counter(model='openrouter/' + model, messages=messages)
         image_hold = 100 if payload.get('create_image') else 0
@@ -293,11 +312,12 @@ async def execute_run(row, worker_id, database, models):
         if output_limit < 128:
             raise ValueError('Task budget is too small for the next step. Reduce reference material or increase the task budget.')
         try:
-            response = await litellm.acompletion(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
+            response = await provider_completion(dict(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
                 api_base='https://openrouter.ai/api/v1', messages=messages, max_tokens=output_limit, temperature=0.2,
                 timeout=100, num_retries=0,
-                **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {}))
+                **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {})), lambda: live('waiting for provider'))
         except Exception as exc:
+            logger.warning('Coding provider step rejected: role=%s model=%s status=%s', role, model, getattr(exc, 'status_code', 'unknown'))
             if getattr(exc, 'status_code', None) in (400, 401, 402, 403, 404, 422, 429):
                 raise ValueError('The model provider rejected this step. Check provider availability, funding, or rate limits; unused task credits are returned.') from exc
             raise UncertainUsage('Provider call failed; usage must be reconciled before releasing the reservation.') from exc
