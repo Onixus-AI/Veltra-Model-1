@@ -15,7 +15,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
   ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, Layers3,
-  Plus, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, X, MessageSquare, Code2, Plug, Mail, Users,
+  Plus, Palette, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, X, MessageSquare, Code2, Plug, Mail, Users,
 } from "lucide-react";
 import ChatTools from "@/components/chat-tools";
 import {connectionRequest} from "@/lib/connections-client";
@@ -88,6 +88,8 @@ export default function VeltraWorkspace() {
   function changeWorkspaceMode(value:"personal"|"work"){setWorkspaceMode(value);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
   const [sidebarOpen,setSidebarOpen]=useState(true);
   const [canvasVisible,setCanvasVisible]=useState(false);
+  const [beeConnected,setBeeConnected]=useState(false);
+  useEffect(()=>{let live=true;const refresh=()=>{void gatewayAuthorizationHeaders().then(headers=>fetch("/api/bee/status",{headers,cache:"no-store"})).then(r=>r.ok?r.json():null).then(s=>{if(live)setBeeConnected(s?.connected===true);}).catch(()=>{if(live)setBeeConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
   const [shopifyOpen,setShopifyOpen]=useState(false);
   const [tmsOpen,setTmsOpen]=useState(false);
   const [buildOpen,setBuildOpen]=useState(false),[crmOpen,setCrmOpen]=useState(false),[crmConnected,setCrmConnected]=useState(false);
@@ -325,27 +327,30 @@ export default function VeltraWorkspace() {
         <button className="header-icon sidebar-toggle" aria-label={sidebarOpen?"Collapse sidebar":"Expand sidebar"} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={19}/>:<PanelLeftOpen size={19}/>}</button>
         <Link href="/" className="workspace-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra</strong><small>by Onixus</small></span></Link>
         <nav className="workspace-modes" aria-label="Workspace mode"><button disabled={sending} aria-pressed={workspaceMode==="personal"} onClick={()=>changeWorkspaceMode("personal")}>Personal</button><button disabled={sending} aria-pressed={workspaceMode==="work"} onClick={()=>changeWorkspaceMode("work")}>Work</button></nav>
-        <button className="new-chat-button topbar-coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}>Super Coder</button>
-        <button className="header-icon" aria-label="Open canvas" onClick={()=>{setCanvasVisible(true);setMobileView("canvas");}}><PanelRightOpen size={18}/></button><WorkspaceAppearance/>
+
+
         <span className="workspace-repository" title={codeOpen?repository:undefined}>{codeOpen?(repository||"Code workspace"):""}</span>
-        <Link href="/settings" className="header-icon" aria-label="Settings"><Settings2 size={17}/><span>Settings</span></Link>
+
       </header>
       <nav className="mobile-workspace-tabs" aria-label="Workspace view">
         <button aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")}>Chat</button>
         <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>{shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"CRM":codeOpen?"Code":mailOpen?"Mail":"Canvas"}</button>
       </nav>
       <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
-        <nav aria-label="Workspace tools">
+        <nav aria-label="Workspace tools"><button title={sidebarOpen?"Collapse navigation":"Expand navigation"} aria-label={sidebarOpen?"Collapse navigation":"Expand navigation"} onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={17}/>:<PanelLeftOpen size={17}/>}<span>Collapse navigation</span></button>
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Chat</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
           <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>
           {<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
-          <Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link>
-          <Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>
+          <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
+          <WorkspaceAppearance navigation/>
+          <Link href="/design" title="Design"><Palette size={17}/><span>Design</span></Link>
+          {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
           <Link href="/settings/connections" title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
+        <nav className="sidebar-settings" aria-label="Workspace settings"><Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link></nav>
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Veltra workspace</span></div>
       </aside>
       <section className="chat-panel">

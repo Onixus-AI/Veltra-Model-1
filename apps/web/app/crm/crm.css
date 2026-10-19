@@ -5,3 +5,14 @@
 .crm-shell{--bg:#080b0d;--panel:#10181d;--line:#26363e;--accent:#9ae8ed;--muted:#a3b5bd;--text:#e0eaee;background:var(--bg)}.crm-shell .crm-sidebar,.crm-shell .crm-top{background:#080b0d}.crm-shell .crm-brand,.crm-shell .crm-sidebar nav button.active{color:var(--accent)}
 
 .crm-automation{display:grid;gap:20px}.crm-outreach-form{display:grid;gap:14px;max-width:900px}.crm-outreach-form label{display:grid;gap:6px}.crm-audience{max-height:250px;overflow:auto;display:grid;gap:10px}.crm-audience .crm-check{display:flex;align-items:center;gap:10px}.crm-audience small{display:block}.crm-message{padding:20px 0;border-bottom:1px solid var(--line,#ddd)}.crm-message pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;line-height:1.6}.crm-message h3{margin-bottom:4px}.crm-message .crm-actions{margin-top:12px}
+
+/* Exact Chat palette and controls, shared with standalone CRM and Mail. */
+.crm-shell{--base:var(--veltra-bg);--bg:var(--veltra-bg);--panel:var(--veltra-panel);--line:var(--veltra-line);--text:var(--veltra-text);--muted:var(--veltra-muted);--accent:var(--veltra-accent);background:var(--veltra-bg);font:14px/1.6 var(--veltra-font)}
+.crm-shell .crm-sidebar,.crm-shell .crm-top{background:var(--veltra-sidebar);border-color:var(--veltra-line)}
+.crm-shell h1,.crm-shell h2,.crm-shell h3,.crm-shell .crm-brand{font-family:var(--veltra-heading)}
+.crm-shell button,.crm-shell input,.crm-shell select,.crm-shell textarea{border-radius:var(--veltra-radius);border-color:var(--veltra-line);background:var(--veltra-panel);box-shadow:none}
+.crm-shell .crm-sidebar nav button[aria-current=page],.crm-shell .crm-sidebar nav button:hover{background:var(--veltra-tint);color:var(--veltra-accent)}
+.crm-shell .primary{background:var(--veltra-accent);color:#000;border-color:var(--veltra-accent)}
+.crm-shell .crm-avatar,.crm-shell .crm-stage,.crm-shell .crm-chart .crm-bar-row>div{background:var(--veltra-tint);color:var(--veltra-accent)}
+.crm-shell .crm-chart .crm-bar-row i{background:var(--veltra-accent)}
+.crm-shell .crm-brand img{object-fit:contain}

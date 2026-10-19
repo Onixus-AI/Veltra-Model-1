@@ -55,6 +55,20 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(result['review']['tests_executed'])
         self.assertEqual(len(result['receipts']), 4)
 
+    async def test_design_keeps_full_source_for_builder_and_bounds_planning_context(self):
+        reference='x'*12000
+        seen={}
+        async def call(role, system, content, limit):
+            seen[role]=(json.loads(content),limit)
+            if role=='planner':text='Plan a polished site.'
+            elif role=='coder':text=json.dumps({'files':[{'path':'index.html','content':'<h1>Site</h1>'}]})
+            else:text=json.dumps({'approved':True,'summary':'Reviewed','issues':[]})
+            return text,{'role':role,'credits':1}
+        await build_graph(call,AsyncMock(),{'task':'Build a studio site','context':reference,'mode':'design'}).ainvoke({})
+        self.assertEqual(len(seen['planner'][0]['reference']),2500)
+        self.assertEqual(seen['coder'][0]['reference'],reference)
+        self.assertEqual(seen['coder'][1],8000)
+
     async def test_rejected_review_cannot_trigger_image_tool(self):
         async def call(role, *_):
             text = 'plan' if role == 'planner' else json.dumps({'files': [{'path': 'x.js', 'content': 'bad'}]}) if role == 'coder' else json.dumps({'approved': False, 'issues': ['Not correct']})

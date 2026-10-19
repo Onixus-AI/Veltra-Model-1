@@ -1,6 +1,7 @@
 import { CalendarDays, Megaphone, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
 
 const brandAssets: Record<string, string> = {
+  "Veltra Mail": "veltra-mail.svg", "Veltra CRM": "veltra-crm.png",
   "LiveAskew / Bee": "liveaskew.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
   n8n: "n8n.svg", Railway: "railway.svg", Gmail: "gmail.png",
@@ -25,7 +26,7 @@ export default function ToolLogo({ name }: { name: string }) {
   const Icon = workspaceIcons[name as keyof typeof workspaceIcons] ?? Plug;
   return <span className={`hub-tool-icon brand-logo ${veltra ? "veltra-tool-logo" : ""}`} aria-hidden="true">
     {file || veltra
-      ? <img src={veltra ? "/veltra-logo.png" : `/brands/${file}`} alt="" width={24} height={24} loading="lazy" />
+      ? <img src={file ? `/brands/${file}` : "/veltra-logo.png"} alt="" width={24} height={24} loading="lazy" />
       : <Icon size={20} />}
   </span>;
 }
