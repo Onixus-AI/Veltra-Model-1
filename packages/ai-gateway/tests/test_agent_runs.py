@@ -65,15 +65,30 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         reference='x'*12000
         seen={}
         async def call(role, system, content, limit):
-            seen[role]=(json.loads(content),limit)
+            seen[role]=(json.loads(content) if role=='planner' else content,limit)
             if role=='planner':text='Plan a polished site.'
             elif role=='coder':text='<!doctype html><html><body><h1>Site</h1></body></html>'
             else:text=json.dumps({'approved':True,'summary':'Reviewed','issues':[]})
             return text,{'role':role,'credits':1}
         await build_graph(call,AsyncMock(),{'task':'Build a studio site','context':reference,'mode':'design'}).ainvoke({})
         self.assertEqual(len(seen['planner'][0]['reference']),2500)
-        self.assertEqual(seen['coder'][0]['reference'],reference)
-        self.assertEqual(seen['coder'][1],8000)
+        self.assertIn(reference,seen['coder'][0])
+        self.assertEqual(seen['coder'][1],5000)
+
+    async def test_design_finishes_a_truncated_document_once_and_keeps_both_receipts(self):
+        builders=0
+        async def call(role, system, content, limit):
+            nonlocal builders
+            if role=='planner':text='Plan'
+            elif role=='coder':
+                builders+=1
+                text='<html><body><h1>Site</h1>' if builders==1 else '</body></html>'
+            else:text=json.dumps({'approved':True,'summary':'Reviewed','issues':[]})
+            return text,{'role':role,'credits':1}
+        result=await build_graph(call,AsyncMock(),{'task':'Build a site','mode':'design'}).ainvoke({})
+        self.assertEqual(builders,2)
+        self.assertTrue(result['artifacts']['files'][0]['content'].endswith('</body></html>'))
+        self.assertEqual(len(result['receipts']),4)
 
     async def test_rejected_review_cannot_trigger_image_tool(self):
         async def call(role, *_):
