@@ -318,6 +318,8 @@ async def execute_run(row, worker_id, database, models):
                 timeout=100, num_retries=0,
                 **({'extra_body': {'reasoning': {'enabled': False}}} if role == 'coder' and payload.get('mode') == 'design' else {}),
                 **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {})), lambda: live('waiting for provider'))
+        except Cancelled:
+            raise
         except Exception as exc:
             logger.warning('Coding provider step rejected: role=%s model=%s status=%s', role, model, getattr(exc, 'status_code', 'unknown'))
             if getattr(exc, 'status_code', None) in (400, 401, 402, 403, 404, 422, 429):
