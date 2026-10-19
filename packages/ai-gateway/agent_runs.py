@@ -186,6 +186,13 @@ def create_router(authenticate, bearer, database) -> APIRouter:
     return router
 
 
+def design_artifacts(text):
+    source = re.sub(r'^```(?:html)?\s*|\s*```$', '', text.strip(), flags=re.I).strip()
+    if not re.search(r'<html(?:\s|>)', source, re.I) or not re.search(r'</html>\s*$', source, re.I):
+        raise ValueError('The website response was incomplete. No partial website was installed.')
+    return validate_artifacts({'summary': 'Website generated from your brief.', 'files': [{'path': 'index.html', 'content': source}], 'browser_actions': []})
+
+
 def build_graph(call, checkpoint, payload, make_image=None):
     """Callbacks keep model calls and durable receipts testable without provider spend."""
     async def vision(state):
@@ -206,9 +213,11 @@ def build_graph(call, checkpoint, payload, make_image=None):
         return out
 
     async def code(state):
-        text, receipt = await call('coder', 'Implement the task as reviewable project files. Return ONLY JSON: {"summary":"...","files":[{"path":"index.html","content":"..."}],"image_prompt":"optional image description","browser_actions":[{"type":"click","selector":"#example"}]}. Use 1–12 relative files, no hidden files or secrets. Include a useful test when possible. For simple web requests prefer self-contained index.html. Add up to ten useful browser checks as click/fill actions with CSS selectors and optional text. When an image is requested use assets/generated.png in the page. Do not claim execution or deployment. Never change authorization to make a task pass.',
+        design = payload.get('mode') == 'design'
+        instructions = 'Return ONLY a complete HTML document, beginning with <!doctype html> and ending with </html>. No JSON or Markdown. Keep the complete source under 16000 characters using concise CSS and JavaScript, while preserving polished typography, original composition, all requested sections and working interactions. Use inline SVG and no remote dependencies. Never claim deployment or real form submission.' if design else 'Implement the task as reviewable project files. Return ONLY JSON: {"summary":"...","files":[{"path":"index.html","content":"..."}],"image_prompt":"optional image description","browser_actions":[{"type":"click","selector":"#example"}]}. Use 1–12 relative files, no hidden files or secrets. Include a useful test when possible. For simple web requests prefer self-contained index.html. Add up to ten useful browser checks as click/fill actions with CSS selectors and optional text. When an image is requested use assets/generated.png in the page. Do not claim execution or deployment. Never change authorization to make a task pass.'
+        text, receipt = await call('coder', instructions,
             json.dumps({'task': payload['task'], 'plan': state['plan'], 'reference': payload.get('context', ''), 'observations': state.get('observations', ''), 'create_image': payload.get('create_image', False)}), 8000 if payload.get('mode') == 'design' else 3000)
-        artifacts = validate_artifacts(json_object(text))
+        artifacts = design_artifacts(text) if design else validate_artifacts(json_object(text))
         out = {'artifacts': artifacts, 'receipts': state.get('receipts', []) + [receipt]}
         await checkpoint('building', {**state, **out})
         return out
@@ -279,7 +288,7 @@ async def execute_run(row, worker_id, database, models):
             response = await litellm.acompletion(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
                 api_base='https://openrouter.ai/api/v1', messages=messages, max_tokens=output_limit, temperature=0.2,
                 timeout=100, num_retries=0,
-                **({'response_format': {'type': 'json_object'}} if role in ('coder', 'reviewer') else {}))
+                **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {}))
         except Exception as exc:
             if getattr(exc, 'status_code', None) in (400, 401, 402, 403, 404, 422, 429):
                 raise ValueError('The model provider rejected this step. Check provider availability, funding, or rate limits; unused task credits are returned.') from exc

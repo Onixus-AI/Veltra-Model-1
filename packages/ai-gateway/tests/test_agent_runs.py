@@ -9,10 +9,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.security import HTTPBearer
 from fastapi.testclient import TestClient
 
-from agent_runs import TaskRequest, build_graph, create_router, execute_run, safe_path, validate_artifacts
+from agent_runs import TaskRequest, design_artifacts, build_graph, create_router, execute_run, safe_path, validate_artifacts
 
 
 class ValidationTests(unittest.TestCase):
+    def test_design_accepts_raw_html_and_rejects_partial_output(self):
+        page='<!doctype html><html><body><h1>Website</h1></body></html>'
+        self.assertEqual(design_artifacts('```html\n'+page+'\n```')['files'][0]['content'],page)
+        with self.assertRaises(ValueError):
+            design_artifacts('<!doctype html><html><body>incomplete')
+
     def test_paths_cannot_escape_or_overwrite_private_files(self):
         for path in ['../x.py', '/tmp/x.py', '.env', 'src/.env', 'a//b.js', 'src/../x.js', 'node_modules/x.js', 'secrets/token']:
             with self.subTest(path=path), self.assertRaises(ValueError):
@@ -61,7 +67,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         async def call(role, system, content, limit):
             seen[role]=(json.loads(content),limit)
             if role=='planner':text='Plan a polished site.'
-            elif role=='coder':text=json.dumps({'files':[{'path':'index.html','content':'<h1>Site</h1>'}]})
+            elif role=='coder':text='<!doctype html><html><body><h1>Site</h1></body></html>'
             else:text=json.dumps({'approved':True,'summary':'Reviewed','issues':[]})
             return text,{'role':role,'credits':1}
         await build_graph(call,AsyncMock(),{'task':'Build a studio site','context':reference,'mode':'design'}).ainvoke({})
