@@ -20,3 +20,10 @@ test('campaign draft forces selected workspace and creates only a paused draft r
 test('failed provider actions never produce a success receipt',async()=>{
  await assert.rejects(executeCrmAction(owner(),'user',workspace,{action:'mail_connect'},{authorization:'Bearer fixture',mailOrigin:'https://mail.test',operation:id,fetcher:async()=>Response.json({error:'Connect Mail first'},{status:409})}),/Connect Mail first/);
 });
+
+test('customer-friendly commands use the saved conversation, never a guessed customer',async()=>{
+ assert.deepEqual(crmActionIntent("Research this customer's website"),{action:'research',customer:'current',website:''});
+ assert.deepEqual(crmActionIntent('Add a task for this customer: Confirm pickup'),{action:'task',customer:'current',title:'Confirm pickup',due:null});
+ assert.deepEqual(crmActionIntent('Save a CRM note: Prefers written quotes'),{action:'memory',customer:'current',content:'Prefers written quotes'});
+ await assert.rejects(executeCrmAction(owner(),'user',workspace,{action:'research',customer:'current',website:''},{authorization:'Bearer fixture',operation:id}),/Open this customer/);
+});

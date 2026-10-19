@@ -54,3 +54,10 @@ The subscription-free company-site worker is also deployed in the accessible Cha
 application at /api/crm/contact-worker. Its one-use job capability authenticates
 each request before any company site is read. The standalone CRM project's Vercel
 protection remains unchanged; scheduled requests use the accessible suite endpoint.
+
+In a saved customer conversation, clients can also say “Research this customer's
+website”, “Show this customer's contact research”, “Add a task for this customer:
+Confirm pickup”, or “Save a CRM note: Prefers written quotes”. The server uses the
+customer from that authorized conversation and rejects the action if none is
+selected. Tasks without a stated due date are saved without an invented deadline.
+“Connect Mail to this business” uses the selected authorized business workspace.
