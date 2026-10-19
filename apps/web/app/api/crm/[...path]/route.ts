@@ -1,11 +1,14 @@
+import {contactWorker} from '@/lib/crm/contact-worker';
 import {runDiscovery} from "@/lib/crm/discovery";
 import {crmUser,crmError,crmContext} from '@/lib/crm/server';
 import {checkedMessages} from '@/lib/crm/suite-domain';
 export const runtime='nodejs';
+export const maxDuration=120;
 type Context={params:Promise<{path:string[]}>};
 const uuid=(s:unknown)=>typeof s==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s);
 async function handle(request:Request,context:Context){try{
  const {path}=await context.params;
+ if(path.length===1&&path[0]==='contact-worker'){if(request.method!=='POST')return Response.json({error:'Method not allowed'},{status:405});return contactWorker(request);}
  const {client,user}=await crmUser(request),url=new URL(request.url),method=request.method;
  const ok=(data:unknown)=>Response.json(data,{headers:{'Cache-Control':'no-store'}});
  const body=async()=>{const raw=await request.text();if(raw.length>500000)throw new Error('413:Request is too large.');try{return JSON.parse(raw);}catch{throw new Error('400:Invalid JSON.');}};

@@ -49,3 +49,8 @@ connected label does not imply permission to write to the provider.
 Customer memories remain proposed until reviewed. A contact-source confirmation
 is an explicit owner attestation of company identity, not proof of deliverability
 or outreach consent. Contact discovery/enrichment never enrolls or sends campaigns.
+
+The subscription-free company-site worker is also deployed in the accessible Chat
+application at /api/crm/contact-worker. Its one-use job capability authenticates
+each request before any company site is read. The standalone CRM project's Vercel
+protection remains unchanged; scheduled requests use the accessible suite endpoint.
