@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.security import HTTPBearer
 from fastapi.testclient import TestClient
 
-from agent_runs import TaskRequest, design_artifacts, build_graph, create_router, execute_run, safe_path, validate_artifacts
+from agent_runs import TaskRequest, design_artifacts, build_graph, create_router, execute_run, provider_completion, safe_path, validate_artifacts
 
 
 class ValidationTests(unittest.TestCase):
@@ -89,6 +89,19 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(builders,2)
         self.assertTrue(result['artifacts']['files'][0]['content'].endswith('</body></html>'))
         self.assertEqual(len(result['receipts']),4)
+
+    async def test_confirmed_rate_limit_retries_once_but_unknown_failure_does_not(self):
+        class Limited(Exception):
+            status_code=429
+        waiting=AsyncMock()
+        with patch('agent_runs.asyncio.sleep',new_callable=AsyncMock) as sleep, patch('agent_runs.litellm.acompletion',new=AsyncMock(side_effect=[Limited(), 'result'])) as model:
+            self.assertEqual(await provider_completion({},waiting),'result')
+            self.assertEqual(model.await_count,2)
+            sleep.assert_awaited_once()
+        with patch('agent_runs.asyncio.sleep',new_callable=AsyncMock) as sleep, patch('agent_runs.litellm.acompletion',new=AsyncMock(side_effect=TimeoutError)) as model:
+            with self.assertRaises(TimeoutError):await provider_completion({},waiting)
+            self.assertEqual(model.await_count,1)
+            sleep.assert_not_awaited()
 
     async def test_rejected_review_cannot_trigger_image_tool(self):
         async def call(role, *_):
