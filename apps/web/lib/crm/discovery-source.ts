@@ -1,3 +1,9 @@
+/** Published organizational inboxes only; never derive an address or import a person's inbox. */
+export function publishedBusinessEmail(value:unknown):string|null{
+ if(typeof value!=='string')return null;
+ const email=value.trim().toLowerCase();
+ return /^(?:info|sales|dispatch|contact|office|support|hello|enquiries|inquiries|quotes|rates|freight|shipping|logistics|operations|customerservice|customer-service|service|admin|general|booking|bookings|warehouse)@[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?\.[a-z]{2,63}$/.test(email)&&email.length<=254?email:null;
+}
 export type Bounds=[number,number,number,number];
 export const categories={logistics:['office','logistics'],warehouses:['industrial','warehouse'],manufacturers:['man_made','works'],retailers:['shop','*'],offices:['office','*']} as const;
 export type Category=keyof typeof categories;
@@ -26,7 +32,7 @@ export function sourcePage(raw:unknown,phase:number,cursor:number){
  const leads=page.flatMap(e=>{
   const t=e.tags??{},company=(t.name??'').trim().slice(0,200);if(!company)return [];
   const rawEmail=(t['contact:email']??t.email??'').trim().toLowerCase();
-  const email=/^[^\s@;,]+@[^\s@;,]+\.[^\s@;,]+$/.test(rawEmail)?rawEmail:null;
+  const email=publishedBusinessEmail(rawEmail);
   let website='';try{const u=new URL(t['contact:website']??t.website??'');if(['https:','http:'].includes(u.protocol)&&!u.username&&!u.password)website=u.href.slice(0,1000);}catch{}
   return [{source_key:expected+'/'+e.id,source_url:'https://www.openstreetmap.org/'+expected+'/'+e.id,company,email,website,phone:(t['contact:phone']??t.phone??'').slice(0,80),location:[t['addr:city'],t['addr:state'],t['addr:postcode']].filter(Boolean).join(', ').slice(0,200)}];
  });
@@ -41,7 +47,8 @@ export async function discoverPage(job:{provider?:string;category:string;bounds:
  return sourcePage(JSON.parse(text),job.phase,job.cursor);
 }
 export const registries={
- fmcsa:{name:'FMCSA transport companies',host:'data.transportation.gov',dataset:'az4n-8mr2',id:'dot_number',select:'dot_number,legal_name,dba_name,phy_state,status_code',industry:'Transportation registrant'},
+ fmcsa:{name:'FMCSA transport companies',host:'data.transportation.gov',dataset:'az4n-8mr2',id:'dot_number',select:'dot_number,legal_name,dba_name,phy_state,status_code,email_address',industry:'Transportation registrant'},
+ fmcsa_contacts:{name:'FMCSA published business inboxes',host:'data.transportation.gov',dataset:'az4n-8mr2',id:'dot_number',select:'dot_number,legal_name,dba_name,phy_state,status_code,email_address',industry:'Transportation registrant'},
  ny_registry:{name:'New York business registry',host:'data.ny.gov',dataset:'n9v6-gdp6',id:'dos_id',select:'dos_id,current_entity_name,county,jurisdiction,entity_type',industry:'Business registry'}
 } as const;
 export type Registry=keyof typeof registries;
@@ -49,7 +56,8 @@ export function registryQuery(provider:string,cursor:number){
  const r=registries[provider as Registry];if(!r||!Number.isSafeInteger(cursor)||cursor<0)throw Error('Invalid registry continuation.');
  const field=provider==='ny_registry'?'dos_id::number':r.id;
  const url=new URL('https://'+r.host+'/resource/'+r.dataset+'.json');
- url.search=new URLSearchParams({'$select':r.select,'$where':field+' > '+cursor,'$order':field+' ASC','$limit':'101'}).toString();
+ const roleFilter=provider==='fmcsa_contacts'?" AND ("+['info','sales','dispatch','contact','office','support','quotes','rates','freight','shipping','logistics','operations','customerservice','service','booking','warehouse'].map(role=>"lower(email_address) like '"+role+"@%'").join(' OR ')+")":'';
+ url.search=new URLSearchParams({'$select':r.select,'$where':field+' > '+cursor+roleFilter,'$order':field+' ASC','$limit':'101'}).toString();
  return url.href;
 }
 export function registryPage(provider:string,raw:unknown,cursor:number){
@@ -59,9 +67,9 @@ export function registryPage(provider:string,raw:unknown,cursor:number){
  for(const row of rows){const id=Number(row[r.id]);if(!Number.isSafeInteger(id)||id<=previous)throw Error('Registry continuation is not strictly ordered.');previous=id;}
  const page=rows.slice(0,100);
  const leads=page.flatMap(row=>{
-  const company=(provider==='fmcsa'?row.legal_name:row.current_entity_name)?.trim().slice(0,200);if(!company)return [];
+  const company=(provider==='ny_registry'?row.current_entity_name:row.legal_name)?.trim().slice(0,200);if(!company)return [];
   const id=Number(row[r.id]);
-  return [{source_key:provider+'/'+id,source_url:'https://'+r.host+'/resource/'+r.dataset+'.json?'+r.id+'='+id,company,email:null,website:'',phone:'',location:provider==='fmcsa'?(row.phy_state??''):([row.county,row.jurisdiction].filter(Boolean).join(', ')).slice(0,200)}];
+  return [{source_key:(provider==='fmcsa_contacts'?'fmcsa':provider)+'/'+id,source_url:'https://'+r.host+'/resource/'+r.dataset+'.json?'+r.id+'='+id,company,email:provider!=='ny_registry'?publishedBusinessEmail(row.email_address):null,website:'',phone:'',location:provider!=='ny_registry'?(row.phy_state??''):([row.county,row.jurisdiction].filter(Boolean).join(', ')).slice(0,200)}];
  });
  return {leads,next_phase:rows.length>100?0:3,next_cursor:page.length?Number(page.at(-1)![r.id]):cursor,exhausted:rows.length<=100};
 }
