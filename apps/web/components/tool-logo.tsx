@@ -1,7 +1,7 @@
 import { CalendarDays, Megaphone, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
 
 const brandAssets: Record<string, string> = {
-  "Veltra Mail": "veltra-mail.png", "Veltra CRM": "veltra-crm.png",
+  "Veltra Mail": "veltra-mail.svg", "Veltra CRM": "veltra-crm.png",
   "LiveAskew / Bee": "liveaskew.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
   n8n: "n8n.svg", Railway: "railway.svg", Gmail: "gmail.png",
