@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
-type SettingsTab = "usage" | "keys" | "subscription";
+type SettingsTab = "usage" | "keys" | "subscription" | "account";
 
 type ConsumptionDay = { date: string; credits: number };
 type Account = {
@@ -33,7 +33,8 @@ type CreatedKey = ApiKey & { api_key: string };
 const tabs: { id: SettingsTab; label: string; icon: typeof Wallet }[] = [
   { id: "usage", label: "Usage & Analytics", icon: TrendingDown },
   { id: "keys", label: "Developer API Keys", icon: KeyRound },
-  { id: "subscription", label: "Subscription", icon: CreditCard },
+  { id: "subscription", label: "Plans & billing", icon: CreditCard },
+  { id: "account", label: "Account & privacy", icon: AlertTriangle },
 ];
 
 async function authorizationHeaders(): Promise<HeadersInit> {
@@ -176,7 +177,7 @@ export default function SettingsPage() {
   }
 
   const activeBalance = account?.credits_remaining ?? 0;
-  const balancePercent = Math.max(0, Math.min(100, (activeBalance / 10_000) * 100));
+  const balancePercent = Math.max(0, Math.min(100, (activeBalance / Math.max(1,account?.monthly_credit_allowance??1)) * 100));
 
   return (
     <main className="settings-page">
@@ -215,24 +216,32 @@ export default function SettingsPage() {
           <div className="settings-loading"><LoaderCircle size={19} className="spin" /> Loading your settings…</div>
         ) : (
           <>
+            {activeTab === "account" && <section id="settings-panel-account" className="settings-tab-panel settings-card" role="tabpanel" aria-labelledby="settings-tab-account">
+              <h2>Account, security & privacy</h2><p>Manage access and request help with your account data.</p>
+              <p><Link href="/settings/connections">Manage and disconnect connected apps →</Link></p>
+              <p><Link href="/settings/keys">Manage developer access →</Link></p>
+              <h3>Export your data</h3><p>Request an export of your account and server records from your account email.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20data%20export%20request">Request data export</a>
+              <h3>Delete or close your account</h3><p>Request deletion from your account email. Support verifies ownership, confirms affected records and explains any required retention before closing the account. Separate provider subscriptions must be cancelled with those providers.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20account%20deletion%20request">Request account deletion</a>
+              <p><Link href="/privacy">Privacy policy</Link> · <Link href="/eula">Terms</Link> · <a href="mailto:info@onixus.xyz?subject=Veltra%20support">Contact support</a></p>
+            </section>}
             {activeTab === "usage" && (
               <section id="settings-panel-usage" className="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-usage">
                 <div className="balance-grid">
                   <article className="settings-card balance-card balance-primary">
                     <span className="balance-icon"><Wallet size={16} /></span>
                     <p>Active Balance</p>
-                    <strong>{account ? `${activeBalance.toLocaleString()} / 10,000` : "— / 10,000"}</strong>
-                    <span className="balance-caption">max credits</span>
+                    <strong>{account ? `${activeBalance.toLocaleString()}` : "Unavailable"}</strong>
+                    <span className="balance-caption">credits available</span>
                     <div className="credit-track"><div className="credit-fill" style={{ width: `${balancePercent}%` }} /></div>
                   </article>
                 </div>
                 <div className="credit-rollover-banner" role="note">
-                  Your credits never expire while your subscription is active! Max rollover balance cap: 10,000 credits.
+                  Your current balance and allowance come from your account. Purchase terms determine renewal, expiration and rollover.
                 </div>
                 <section className="settings-card chart-card">
                   <ConsumptionChart consumption={account?.consumption ?? []} />
                 </section>
-                <p className="settings-note">Your monthly 3,000-credit allocation rolls over up to a maximum balance of 10,000 credits.</p>
+                <p className="settings-note">Monthly allowance: {account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits.</p>
               </section>
             )}
 
@@ -297,21 +306,23 @@ export default function SettingsPage() {
                 <section className="settings-card subscription-card">
                   <div className="subscription-top">
                     <div className="subscription-symbol"><Sparkles size={20} /></div>
-                    <span className="plan-status"><i /> ACTIVE PLAN</span>
+                    <span className="plan-status">{account?.plan_name??"Plan unavailable"}</span>
                   </div>
                   <span className="eyebrow">YOUR SUBSCRIPTION</span>
-                  <h2>Veltra Business OS</h2>
+                  <h2>{account?.plan_name??"Your plan"}</h2>
                   <p>Everything your team needs to think, build, and move faster.</p>
-                  <div className="subscription-price"><strong>$59</strong><span>/ month</span></div>
+                  <div className="subscription-price"><strong>{account?new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(account.monthly_price_cents/100):"Unavailable"}</strong><span>/ month</span></div>
                   <div className="subscription-rule" />
+                  <h3>Manage billing</h3><p>For plan changes, invoices, payment methods, cancellation or refunds, contact billing from your account email. Self-service checkout is not connected yet.</p>
+                  <a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20billing%20request">Contact billing</a>
                   <div className="allocation-row">
-                    <div><span>Monthly credit allocation</span><strong>{account?.monthly_credit_allowance.toLocaleString() ?? "3,000"} credits</strong></div>
+                    <div><span>Monthly credit allocation</span><strong>{account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits</strong></div>
                     <div><span>Active balance</span><strong>{account?.credits_remaining.toLocaleString() ?? "—"} credits</strong></div>
                   </div>
                   <div className="allocation-track"><div style={{ width: `${balancePercent}%` }} /></div>
                   <p className="renewal-date">{account?.billing_period_end ? `Billing period ends ${new Date(account.billing_period_end).toLocaleDateString()}` : "Your credit allocation is on a rolling 30-day basis."}</p>
                 </section>
-                <div className="subscription-footnote"><Check size={14} /><span>Credits roll over monthly up to a 10,000-credit balance cap.</span></div>
+                <div className="subscription-footnote"><Check size={14} /><span>Review your accepted purchase terms for renewal and rollover details.</span></div>
               </section>
             )}
           </>

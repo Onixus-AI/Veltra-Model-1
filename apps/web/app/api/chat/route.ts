@@ -1,3 +1,4 @@
+import {connectionIntent,connectionSummary} from "@/lib/chat-connections";
 import {beeIntent,beeChatResponse} from "@/lib/bee-chat";
 import { VELOCITY_CONVERSATION_STYLE } from "@/lib/conversation-style";
 import { NextRequest } from "next/server";
@@ -16,6 +17,18 @@ export async function POST(request: NextRequest) {
     return Response.json({detail:"Send a valid conversation."},{status:400});
   }
   const last=payload.messages.at(-1);
+  const connection=last?.role==='user'&&typeof last.content==='string'?connectionIntent(last.content):null;
+  if(connection){
+    if(!authorization)return Response.json({detail:'Sign in to use connected tools.'},{status:401});
+    const base=process.env.VELTRA_MAIL_URL;
+    if(!base)return Response.json({detail:'Connections are not configured.'},{status:503});
+    try{
+      const response=await fetch(base.replace(/\/$/,'')+'/chat/connections/'+(connection==='status'?'':connection),{headers:{Authorization:authorization},redirect:'error',cache:'no-store',signal:AbortSignal.timeout(25000)});
+      const data=await response.json();
+      if(!response.ok)return Response.json({detail:data.error??'The connected tool could not complete this request.'},{status:response.status});
+      return beeChatResponse(connectionSummary(connection,data),payload.stream===true);
+    }catch{return Response.json({detail:'Connected tools are temporarily unavailable.'},{status:502});}
+  }
   const bee=last?.role==='user'&&typeof last.content==='string'?beeIntent(last.content):null;
   if(bee){
     if(!authorization)return Response.json({detail:'Sign in to use Bee.'},{status:401});
