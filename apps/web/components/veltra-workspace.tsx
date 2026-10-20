@@ -34,6 +34,8 @@ import {browserSupabase} from '@/lib/supabase';
 type ChatMessage = { role: "user" | "assistant"; content: string; image?: string; imageId?: string; attachments?: string[] };
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const VISION_MODEL = "veltra-vision";
+// Only models on OpenRouter that support tool calls can run connected-tool turns.
+const TOOL_MODEL = "veltra-agent";
 function friendlyChatError(message: string) {
   if (/credit|wallet|deduct|supabase|token usage/i.test(message)) {
     return /insufficient credits/i.test(message)
@@ -284,7 +286,7 @@ export default function VeltraWorkspace() {
       ];
       const answer = await runAgentTurn(
         gatewayMessages,
-        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : "veltra-logic",
+        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : TOOL_MODEL,
         { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
