@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {operationAlerts,researchState,type Operations,type ResearchSource} from '../lib/crm/operations.ts';
+import {operationAlerts,researchState,type Operations,type ResearchSource} from '../lib/crm/operations';
 const source:ResearchSource={id:'s',label:'Published businesses',enabled:true,imported:4,enriched:2,last_error:null,last_run_at:null,next_run_at:'2026-10-21T09:00:00Z',exhausted_at:null};
 const empty:Operations={sources:[],events:[],customers:null,openTasks:null,proposals:null,outreach:null,checkedAt:'2026-10-20T12:00:00Z',unavailable:['Outreach']};
 test('an enabled source is scheduled, never assumed running',()=>{assert.equal(researchState(source),'Scheduled');assert.equal(researchState({...source,enabled:false}),'Paused');assert.equal(researchState({...source,exhausted_at:'2026-10-20'}),'Source complete');assert.equal(researchState({...source,last_error:'Retry needed'}),'Needs attention');});

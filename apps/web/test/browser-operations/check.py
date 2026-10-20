@@ -32,7 +32,7 @@ with sync_playwright() as p:
   state['requests'].append(req.url)
   second=query['workspace_id']==['eq.'+W2]
   headers={'access-control-allow-origin':'*','access-control-expose-headers':'content-range','content-range':'0-0/'+('0' if second else '3')}
-  if table=='crm_discovery_sources' and state['failed']:return route.fulfill(status=503,json={'message':'unavailable'},headers=headers)
+  if table=='crm_discovery_sources' and state['failed']:return route.fulfill(status=403,json={'message':'unavailable'},headers=headers)
   rows=[]
   if not second and table=='crm_discovery_sources':rows=[{'id':'s','label':'Published business research','enabled':True,'imported':18,'enriched':7,'last_error':'Research provider needs attention' if state['research_error'] else None,'last_run_at':'2026-10-20T12:00:00Z','next_run_at':'2026-10-21T09:00:00Z','exhausted_at':None}]
   if not second and table=='crm_activity':rows=[{'id':'event-1','title':'Acme Studio customer record updated','kind':'customer_update','created_at':'2026-10-20T12:00:00Z'}]
