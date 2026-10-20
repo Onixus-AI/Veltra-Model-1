@@ -32,3 +32,8 @@
 .workspace.unified-workspace .workspace-modes button[aria-pressed=true]:active{transform:translateY(0);box-shadow:inset 0 1px 0 #caffff,0 2px 0 #08707a,0 4px 8px #000b}
 .workspace.unified-workspace .workspace-modes button:focus-visible{outline:2px solid #7cffff;outline-offset:4px}
 @media(prefers-reduced-motion:reduce){.workspace.unified-workspace .workspace-modes button{transition:none}}
+
+/* Clear-coat edge reflections on a jet-black canvas. */
+.workspace.unified-workspace .canvas-panel{background-color:#000;border-color:#343c42;box-shadow:inset 0 1px 0 #ffffff30,inset 1px 0 0 #ffffff0d,0 14px 28px #000b}
+.workspace.unified-workspace .canvas-topbar{background-color:#000;background-image:linear-gradient(115deg,transparent 48%,#ffffff0a 57%,#ffffff14 59%,transparent 68%);border-bottom-color:#30383e}
+.workspace.unified-workspace .canvas-workarea,.workspace.unified-workspace .canvas-status{background:#000}
