@@ -58,8 +58,9 @@ export async function runToolCall(call: ToolCall): Promise<ToolOutcome> {
     if (name === "github_read_file") {
       const path = String(args.path ?? "");
       if (!path || path.includes("..")) return { content: "Invalid file path." };
+      // The connection already caps files at 300 KB, so the full content is kept: a rewrite must not drop lines.
       const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`);
-      return { content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content.slice(0, 60000) }) };
+      return { content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content }) };
     }
     if (name === "github_propose_commit") {
       const path = String(args.path ?? "");
@@ -113,7 +114,7 @@ export async function runAgentTurn(
     const message = data.choices?.[0]?.message ?? {};
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) return typeof message.content === "string" ? message.content : "";
-    convo.push({ role: "assistant", content: message.content ?? null, tool_calls: calls });
+    convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
       onStatus(`Using ${call.function.name.replaceAll("_", " ")}…`);
       const outcome = await runToolCall(call);
