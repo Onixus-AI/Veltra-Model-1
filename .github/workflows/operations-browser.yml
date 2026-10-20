@@ -1,0 +1,35 @@
+name: Operations browser verification
+on: [pull_request, workflow_dispatch]
+jobs:
+  operations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: pip install playwright==1.64.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Bundle the real operations component with fixture services
+        run: |
+          mkdir -p work/operations-browser
+          npx --yes --package=esbuild@0.25.12 esbuild test/browser-operations/main.tsx --bundle --jsx=automatic --alias:@=. --define:process.env.NEXT_PUBLIC_SUPABASE_URL='"https://fixture.supabase.co"' --define:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='"fixture-public-key"' --outfile=work/operations-browser/app.js
+          cp test/browser-operations/index.html work/operations-browser/index.html
+      - name: Verify real browser interactions
+        run: |
+          python -m http.server 3188 --bind 127.0.0.1 --directory work/operations-browser > /tmp/operations-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python test/browser-operations/check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operations-screenshots
+          path: apps/web/work/operations-screenshots

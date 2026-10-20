@@ -1,4 +1,5 @@
 "use client";
+import OperationsCenter from '@/components/crm/operations-center';
 import type {CrmHostScope} from '@/lib/crm/host-context';
 import ToolLogo from "./tool-logo";
 
@@ -385,6 +386,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
+        {workspaceMode==='work'&&<OperationsCenter compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={()=>openTool('crm')}/>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
