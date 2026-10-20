@@ -99,7 +99,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <img className="auth-logo" src="/veltra-logo.png" alt="Veltra" />
         <span className="eyebrow">VELTRA WORKSPACE</span>
         <h1>{recovering ? "Choose a new password." : resetMode ? "Reset your password." : "Welcome back."}</h1>
-        <p>{recovering ? "Enter and confirm your new Veltra password." : resetMode ? "We’ll email you a link to reset your Veltra password." : "Sign in to your Veltra account to start chatting."}</p>
+        <p>{recovering ? "Enter and confirm your new Veltra password." : resetMode ? "We’ll email you a link to reset your Veltra password." : "Sign in once to open Chat, Mail and CRM."}</p>
         {!recovering && <>
         <label htmlFor="login-email">Email</label>
         <input id="login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required />

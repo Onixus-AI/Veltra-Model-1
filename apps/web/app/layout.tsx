@@ -7,7 +7,7 @@ import AuthGate from "@/components/auth-gate";
 export const metadata: Metadata = {
   icons: { icon: "/veltra-logo.png", apple: "/veltra-logo.png" },
   title: "Veltra — Think at the speed of now",
-  description: "Your AI workspace for ideas, code, and everything in between.",
+  description: "Chat, email and customer relationships in one connected Veltra workspace.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
