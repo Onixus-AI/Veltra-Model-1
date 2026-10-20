@@ -9,7 +9,13 @@ export async function inspectPage(job,chromium){
   let blocked=0,requests=0;
   await context.route('**/*',async route=>{
    const request=route.request();let allowed=false;try{const u=new URL(request.url());allowed=u.origin===target.origin&&['GET','HEAD'].includes(request.method())&&++requests<=100;}catch{}
-   if(!allowed){blocked++;return route.abort('blockedbyclient');}return route.continue();
+   if(!allowed){blocked++;return route.abort('blockedbyclient');}
+   // Chromium redirect chains can bypass subsequent route callbacks. Fetch the first
+   // response without following redirects and reject redirects before the browser sees them.
+   try{const response=await route.fetch({maxRedirects:0,timeout:15000});
+    if(response.status()>=300&&response.status()<400&&response.headers().location){blocked++;return route.abort('blockedbyclient');}
+    return route.fulfill({response});
+   }catch{blocked++;return route.abort('failed');}
   });
   await context.routeWebSocket('**/*',socket=>{blocked++;socket.close();});
   context.on('page',page=>{if(context.pages().length>1)void page.close();});
