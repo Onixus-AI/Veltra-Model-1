@@ -7,7 +7,6 @@ import dynamic from "next/dynamic";
 import VoiceInput from "@/components/voice-input";
 import WorkspaceAppearance from "@/components/workspace-appearance";
 import {crmConnection} from "@/lib/crm-connection";
-const BuildTeam=dynamic(()=>import("@/components/build-team"));
 const ShopifyCanvas=dynamic(()=>import("@/components/shopify-canvas"));
 const TmsCanvas=dynamic(()=>import("@/components/tms-canvas"));
 const CrmCanvas=dynamic(()=>import("@/components/crm-canvas"));
@@ -26,6 +25,8 @@ import ArtifactCanvas, { Artifact } from "@/components/artifact-canvas";
 import ProjectKnowledge, { KnowledgeDocument } from "@/components/project-knowledge";
 import { loadImage, saveImage } from "@/lib/image-store";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
+import { runAgentTurn, type WriteProposal } from "@/lib/chat-tools";
+import { createPullRequest } from "@/lib/chat-tools";
 
 import CrmChatBar, {crmRequest,type CloudConversation} from '@/components/crm-chat-bar';
 import {browserSupabase} from '@/lib/supabase';
@@ -202,6 +203,15 @@ export default function VeltraWorkspace() {
     if (accepted.length) setPendingImages((current) => [...current, ...accepted]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+  const [toolStatus,setToolStatus]=useState("");
+  const [writeProposal,setWriteProposal]=useState<WriteProposal|null>(null);
+  const writeResolver=useRef<((approved:boolean)=>void)|null>(null);
+  function requestWriteApproval(proposal:WriteProposal){
+    return new Promise<boolean>((resolve)=>{writeResolver.current=resolve;setWriteProposal(proposal);});
+  }
+  function answerWriteProposal(approved:boolean){
+    setWriteProposal(null);writeResolver.current?.(approved);writeResolver.current=null;
+  }
   async function sendMessage(event?: FormEvent) {
     event?.preventDefault();
     const prompt = input.trim();
@@ -235,7 +245,7 @@ export default function VeltraWorkspace() {
         setMessages(savedMessages);
         return;
       }
-      if(buildOpen || /^(?:super coder|vibe code)\s*:/i.test(prompt)){
+      if(workspaceMode==='work' && /^(?:super coder|vibe code)\s*:/i.test(prompt)){
         let repositoryContext=codeContext?`Reference data only: ${codeContext.repository}/${codeContext.path}\n${codeContext.content}`.slice(0,8000):'';
         if(!repositoryContext){
           try{
@@ -250,7 +260,7 @@ export default function VeltraWorkspace() {
         }
         const result=await fetch('/api/agent-runs',{method:'POST',headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:JSON.stringify({id:crypto.randomUUID(),task:prompt.slice(0,4000),context:repositoryContext.slice(0,8000),budget:6000,create_image:false})});
         const run=await result.json();if(!result.ok)throw new Error(run.detail??'Super Coder could not start.');
-        savedMessages=[...nextMessages,{role:'assistant',content:`Super Coder started task ${run.id}. Open the task in Super Coder to follow its progress, inspect files and run checks. 6,000 credits reserved; unused credits return after settlement. Repository changes require review before a draft pull request is created.`}];setMessages(savedMessages);try{sessionStorage.setItem('veltra-active-coder-run',run.id);}catch{}openTool('build');window.dispatchEvent(new CustomEvent('veltra-coder-run',{detail:run}));return;
+        savedMessages=[...nextMessages,{role:'assistant',content:`Super Coder started task ${run.id}. Open the task in Super Coder to follow its progress, inspect files and run checks. 6,000 credits reserved; unused credits return after settlement. Repository changes require review before a draft pull request is created.`}];setMessages(savedMessages);try{sessionStorage.setItem('veltra-active-coder-run',run.id);}catch{}return;
       }
       let commerceContext='';
       if(shopifyOpen){try{const r=await fetch('/api/mail/shopify/catalog',{method:'POST',headers:{...await gatewayAuthorizationHeaders(),'Content-Type':'application/json'},body:'{}',cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error();commerceContext=JSON.stringify({observed_at:new Date().toISOString(),shop:d.shop,products:d.products});}catch{commerceContext='Shopify catalog unavailable. Do not infer a store connection or current products.';}}
@@ -271,53 +281,14 @@ export default function VeltraWorkspace() {
           ? { role, content: [...(content ? [{ type: "text", text: content }] : []), ...images.map((url) => ({ type: "image_url", image_url: { url } }))] }
           : { role, content }),
       ];
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-        body: JSON.stringify({ model: nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : activeModel.model, messages: gatewayMessages, stream: true,mail_request_key:crypto.randomUUID(),...(savedCloud?{conversation_id:savedCloud.id}: {}) }),
-      });
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        throw new Error(data.detail ?? `Request failed (${response.status}).`);
-      }
-      if (!response.body) throw new Error("The gateway returned an empty response stream.");
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let answer = "";
-      let streamError = "";
-      const updateAnswer = (addition: string) => {
-        answer += addition;
-        savedMessages=[...nextMessages,{role:"assistant",content:answer}];
-        setMessages(savedMessages);
-      };
-      while (true) {
-        const { done, value } = await reader.read();
-        buffer += decoder.decode(value, { stream: !done });
-        const events = buffer.split(/\r?\n\r?\n/);
-        buffer = events.pop() ?? "";
-        for (const eventChunk of events) {
-          const lines = eventChunk.split(/\r?\n/);
-          const eventType = lines.find((line) => line.startsWith("event:"))?.slice(6).trim();
-          const data = lines.filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
-          if (!data || data === "[DONE]") continue;
-          if (eventType === "error") {
-            try { streamError = JSON.parse(data).error ?? "Streaming request failed."; }
-            catch { streamError = data; }
-            continue;
-          }
-          try {
-            const chunk = JSON.parse(data);
-            const addition = chunk.choices?.[0]?.delta?.content;
-            if (typeof addition === "string") updateAnswer(addition);
-          } catch {
-            throw new Error("The gateway returned an invalid streaming response.");
-          }
-        }
-        if (done) break;
-      }
-      if (streamError) throw new Error(streamError);
+      const answer = await runAgentTurn(
+        gatewayMessages,
+        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : activeModel.model,
+        { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}) },
+        requestWriteApproval,
+        (status) => setToolStatus(status),
+      );
+      setMessages([...nextMessages, { role: "assistant", content: answer }]);
       const nextArtifact = findArtifact(answer);
       if (nextArtifact) {setArtifact(nextArtifact);if(nextArtifact.kind!=="markdown")setCanvasVisible(true);}
     } catch (cause) {
@@ -368,7 +339,6 @@ export default function VeltraWorkspace() {
         <nav aria-label="Workspace tools"><button title={sidebarOpen?"Collapse navigation":"Expand navigation"} aria-label={sidebarOpen?"Collapse navigation":"Expand navigation"} onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={17}/>:<PanelLeftOpen size={17}/>}<span>Collapse navigation</span></button>
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Chat</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
-          <button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>
           <button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>
           {<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
           <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
@@ -443,6 +413,13 @@ export default function VeltraWorkspace() {
         </div>
         <div className="composer-area">
           {error && <div className="chat-error"><ShieldCheck size={14} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
+          {writeProposal&&<div className="context-chip" role="dialog" aria-label="Confirm commit">
+            <FileText size={12}/>
+            <span style={{whiteSpace:"pre-line"}}>Commit and open a draft pull request?{"\n"}{writeProposal.summary}</span>
+            <button type="button" onClick={()=>answerWriteProposal(true)}>Confirm</button>
+            <button type="button" onClick={()=>answerWriteProposal(false)}>Cancel</button>
+          </div>}
+          {sending&&toolStatus&&<p className="settings-note">{toolStatus}</p>}
           {codeOpen&&codeContext&&<div className="context-chip"><FileText size={12}/>{codeContext.path}<button type="button" aria-label="Remove file from chat context" onClick={()=>setCodeContext(null)}>×</button></div>}
           {tmsOpen&&<div className="context-chip">Onixus TMS · Read-only context checked when you send</div>}
           {documents.length > 0 && <div className="context-chip"><FileText size={12} /> {documents.length} project {documents.length === 1 ? "file" : "files"} in context</div>}
@@ -478,7 +455,7 @@ export default function VeltraWorkspace() {
             <button className="canvas-add-button" onClick={() => { setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : buildOpen ? <BuildTeam embedded onReviewFile={file=>{setProposedFile(file);openTool("code");setCodeTool("github");}}/> : crmOpen ? <CrmCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 
