@@ -24,3 +24,11 @@
 .workspace-sidebar{display:flex!important}
 @media(max-width:760px){.workspace-sidebar{position:static;width:auto;grid-column:1;grid-row:2;box-shadow:none;flex-direction:row;overflow:auto;padding:8px;gap:8px}.workspace-sidebar nav{display:flex;gap:5px}.workspace-sidebar nav a,.workspace-sidebar nav button{flex-shrink:0}.workspace-sidebar nav span,.workspace-sidebar .sidebar-history,.workspace-sidebar .sidebar-footer{display:none}.workspace-sidebar .sidebar-settings{margin-left:auto;margin-top:0}.workspace.unified-workspace{grid-template-rows:58px 56px 38px minmax(0,1fr)}.unified-workspace .mobile-workspace-tabs{grid-row:3}.unified-workspace .chat-panel,.unified-workspace .canvas-column,.unified-workspace.mobile-canvas .canvas-column{grid-row:4}.workspace.unified-workspace.canvas-closed{grid-template-rows:58px 56px minmax(0,1fr)}.canvas-closed .chat-panel{grid-row:3}.workspace-sidebar .header-icon span{display:none}}
 .sidebar-collapsed .workspace-sidebar nav .hub-tool-icon,.workspace-sidebar nav .hub-tool-icon{display:grid}
+
+/* Selected workspace mode is a raised, solid cyan control. */
+.workspace.unified-workspace .workspace-modes{background:#000;border-color:#26373b;padding:5px;gap:5px;overflow:visible}
+.workspace.unified-workspace .workspace-modes button{border:1px solid transparent;transition:box-shadow 120ms ease,transform 120ms ease}
+.workspace.unified-workspace .workspace-modes button[aria-pressed=true]{background:#00e5ef;color:#000;border-color:#7cffff;font-weight:700;transform:translateY(-2px);box-shadow:inset 0 1px 0 #caffff,0 4px 0 #08707a,0 7px 13px #000b}
+.workspace.unified-workspace .workspace-modes button[aria-pressed=true]:active{transform:translateY(0);box-shadow:inset 0 1px 0 #caffff,0 2px 0 #08707a,0 4px 8px #000b}
+.workspace.unified-workspace .workspace-modes button:focus-visible{outline:2px solid #7cffff;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){.workspace.unified-workspace .workspace-modes button{transition:none}}
