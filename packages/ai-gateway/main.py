@@ -19,6 +19,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 from agent_runs import create_router as agent_router, run_worker
+from usage_report import build_usage_report
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -356,15 +357,31 @@ async def get_account(
     transactions = await supabase_request(
         "credit_transactions",
         params={
-            "select": "amount,created_at",
+            "select": "amount,description,created_at",
             "organization_id": f"eq.{principal['organization_id']}",
-            "amount": "lt.0",
             "created_at": f"gte.{(now - timedelta(days=30)).isoformat()}",
             "order": "created_at.asc",
+            "limit": "2000",
         },
     )
+    try:
+        usage_logs = await supabase_request(
+            "usage_logs",
+            params={
+                "select": "category,credits_deducted,created_at",
+                "organization_id": f"eq.{principal['organization_id']}",
+                "created_at": f"gte.{(now - timedelta(days=30)).isoformat()}",
+                "order": "created_at.asc",
+                "limit": "2000",
+            },
+        )
+    except HTTPException as error:
+        logger.error("Usage log lookup failed: %s", error.detail)
+        usage_logs = []
     daily_consumption: dict[str, int] = {}
-    for transaction in transactions:
+    for transaction in transactions or []:
+        if transaction["amount"] >= 0:
+            continue
         day = datetime.fromisoformat(
             transaction["created_at"].replace("Z", "+00:00")
         ).date().isoformat()
@@ -381,6 +398,7 @@ async def get_account(
             {"date": day, "credits": daily_consumption[day]}
             for day in sorted(daily_consumption)
         ],
+        "usage": build_usage_report(usage_logs or [], transactions or [], today=now),
     }
 
 
