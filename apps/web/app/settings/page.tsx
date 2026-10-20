@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, ArrowLeft, Check, Copy, CreditCard, KeyRound, LoaderCircle,
   Sparkles, TrendingDown, Wallet, X,
 } from "lucide-react";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
+import { browserSupabase } from "@/lib/supabase";
+import UsageBoard, { usageFromAccount, type UsageReport } from "@/components/usage-board";
 
 type SettingsTab = "usage" | "keys" | "subscription" | "account";
 
@@ -19,6 +21,7 @@ type Account = {
   monthly_price_cents: number;
   billing_period_end: string;
   consumption: ConsumptionDay[];
+  usage?: UsageReport;
 };
 type ApiKey = {
   id: string;
@@ -51,48 +54,6 @@ async function responseData<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-function ConsumptionChart({ consumption }: { consumption: ConsumptionDay[] }) {
-  const points = useMemo(() => {
-    const amounts = new Map(consumption.map(({ date, credits }) => [date, credits]));
-    const today = new Date();
-    const lastThirtyDays = Array.from({ length: 30 }, (_, index) => {
-      const day = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 29 + index));
-      const date = day.toISOString().slice(0, 10);
-      return { date, credits: amounts.get(date) ?? 0 };
-    });
-    const max = Math.max(1, ...lastThirtyDays.map(({ credits }) => credits));
-    return lastThirtyDays.map(({ date, credits }, index) => ({
-      date,
-      credits,
-      x: 12 + (index * 576) / 29,
-      y: 170 - (credits / max) * 145,
-    }));
-  }, [consumption]);
-  const areaPath = `M ${points[0].x} 170 ${points.map(({ x, y }) => `L ${x} ${y}`).join(" ")} L ${points[points.length - 1].x} 170 Z`;
-  const linePath = points.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
-
-  return (
-    <div className="analytics-chart">
-      <div className="analytics-chart-heading">
-        <div><h3>Credit consumption</h3><p>Daily usage over the last 30 days</p></div>
-        <span><i /> Credits used</span>
-      </div>
-      <svg viewBox="0 0 600 210" role="img" aria-label="Area chart of daily credit consumption over the past 30 days">
-        <defs>
-          <linearGradient id="usage-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#a995ff" stopOpacity=".35" />
-            <stop offset="100%" stopColor="#a995ff" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[25, 73, 121, 170].map((y) => <line key={y} x1="12" x2="588" y1={y} y2={y} className="chart-gridline" />)}
-        <path d={areaPath} fill="url(#usage-area)" />
-        <path d={linePath} className="chart-line" />
-      </svg>
-      <div className="chart-dates"><span>{points[0].date}</span><span>Today</span></div>
-    </div>
-  );
-}
-
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>("usage");
   const [account, setAccount] = useState<Account | null>(null);
@@ -104,6 +65,42 @@ export default function SettingsPage() {
   const [revokingId, setRevokingId] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [billingStatus, setBillingStatus] = useState("");
+  const [billingError, setBillingError] = useState("");
+  const [billingBusy, setBillingBusy] = useState("");
+
+  useEffect(() => {
+    setBillingStatus(new URLSearchParams(window.location.search).get("billing") ?? "");
+  }, []);
+
+  async function logOut() {
+    await browserSupabase()?.auth.signOut();
+    sessionStorage.removeItem("veltra-api-key");
+    window.location.assign("/");
+  }
+
+  async function openBilling(action: "checkout" | "portal") {
+    setBillingBusy(action);
+    setBillingError("");
+    try {
+      const response = await fetch("/api/billing", {
+        method: "POST",
+        headers: { ...await authorizationHeaders(), "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok && typeof data.url === "string") {
+        window.location.assign(data.url);
+        return;
+      }
+      setBillingError(typeof data.detail === "string" ? data.detail : "Billing could not be opened. Please try again.");
+    } catch {
+      setBillingError("Billing could not be opened. Please try again.");
+    } finally {
+      setBillingBusy("");
+    }
+  }
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -183,7 +180,10 @@ export default function SettingsPage() {
     <main className="settings-page">
       <header className="settings-header">
         <Link href="/" className="back-link"><ArrowLeft size={16} /> Back to workspace</Link>
-        <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Veltra V logo" /></span> veltra</div>
+        <div className="settings-header-end">
+          <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Veltra V logo" /></span> veltra</div>
+          <button className="button button-secondary settings-logout" type="button" onClick={() => void logOut()}>Log out</button>
+        </div>
       </header>
 
       <section className="settings-content settings-dashboard">
@@ -220,6 +220,7 @@ export default function SettingsPage() {
               <h2>Account, security & privacy</h2><p>Manage access and request help with your account data.</p>
               <p><Link href="/settings/connections">Manage and disconnect connected apps →</Link></p>
               <p><Link href="/settings/keys">Manage developer access →</Link></p>
+              <button className="button button-secondary settings-logout" type="button" onClick={() => void logOut()}>Log out</button>
               <h3>Export your data</h3><p>Request an export of your account and server records from your account email.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20data%20export%20request">Request data export</a>
               <h3>Delete or close your account</h3><p>Request deletion from your account email. Support verifies ownership, confirms affected records and explains any required retention before closing the account. Separate provider subscriptions must be cancelled with those providers.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20account%20deletion%20request">Request account deletion</a>
               <p><Link href="/privacy">Privacy policy</Link> · <Link href="/eula">Terms</Link> · <a href="mailto:info@onixus.xyz?subject=Veltra%20support">Contact support</a></p>
@@ -238,9 +239,7 @@ export default function SettingsPage() {
                 <div className="credit-rollover-banner" role="note">
                   Your current balance and allowance come from your account. Purchase terms determine renewal, expiration and rollover.
                 </div>
-                <section className="settings-card chart-card">
-                  <ConsumptionChart consumption={account?.consumption ?? []} />
-                </section>
+                <UsageBoard usage={usageFromAccount(account)} />
                 <p className="settings-note">Monthly allowance: {account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits.</p>
               </section>
             )}
@@ -314,7 +313,13 @@ export default function SettingsPage() {
                   <div className="subscription-price"><strong>{account?new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(account.monthly_price_cents/100):"Unavailable"}</strong><span>/ month</span></div>
                   <div className="subscription-rule" />
                   <h3>Manage billing</h3><p>For plan changes, invoices, payment methods, cancellation or refunds, contact billing from your account email. Self-service checkout is not connected yet.</p>
-                  <a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20billing%20request">Contact billing</a>
+                  <div className="billing-actions">
+                    <button className="button button-primary" type="button" disabled={Boolean(billingBusy)} onClick={() => void openBilling("checkout")}>Continue to checkout</button>
+                    <button className="button button-secondary" type="button" disabled={Boolean(billingBusy)} onClick={() => void openBilling("portal")}>Manage subscription</button>
+                  </div>
+                  {billingStatus === "success" && <p className="billing-notice">Billing updated.</p>}
+                  {billingStatus === "cancel" && <p className="billing-notice">Checkout was cancelled.</p>}
+                  {billingError && <p className="settings-error" role="alert">{billingError}</p>}
                   <div className="allocation-row">
                     <div><span>Monthly credit allocation</span><strong>{account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits</strong></div>
                     <div><span>Active balance</span><strong>{account?.credits_remaining.toLocaleString() ?? "—"} credits</strong></div>
