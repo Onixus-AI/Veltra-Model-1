@@ -73,6 +73,23 @@ with sync_playwright() as p:
  assert page.get_by_role('heading',name='Work receipts').count()==0
  page.get_by_role('button',name='Show activity details').click();expect(page.get_by_role('heading',name='Work receipts')).to_be_visible()
  page.screenshot(path=str(out/'compact.png'),full_page=True)
+ page.set_viewport_size({'width':1440,'height':1100})
+ page.goto('http://127.0.0.1:3188/?dashboard');page.wait_for_load_state('networkidle')
+ expect(page.get_by_role('heading',name='Business command center')).to_be_visible()
+ expect(page.get_by_text('$4,700',exact=True)).to_be_visible()
+ page.screenshot(path=str(out/'dashboard-desktop.png'),full_page=True)
+ page.get_by_label('Industry',exact=True).select_option('Design services')
+ expect(page.get_by_text('$3,500',exact=True).first).to_be_visible()
+ page.get_by_role('button',name='proposal',exact=False).click()
+ expect(page.get_by_role('region',name='proposal deals')).to_be_visible()
+ page.get_by_role('button',name='Website and launch support',exact=False).click()
+ expect(page.locator('#destination')).to_have_text('a')
+ page.get_by_text('Forecast assumptions',exact=True).click()
+ page.get_by_label('proposal closing probability').fill('0')
+ expect(page.get_by_text('$0',exact=True).first).to_be_visible()
+ page.set_viewport_size({'width':390,'height':844})
+ page.screenshot(path=str(out/'dashboard-mobile.png'),full_page=True)
+ assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Dashboard must fit mobile'
  assert not errors, errors
  assert state['requests']
  browser.close()
