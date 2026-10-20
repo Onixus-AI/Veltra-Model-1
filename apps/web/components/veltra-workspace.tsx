@@ -293,7 +293,7 @@ export default function VeltraWorkspace() {
         { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
-        (item) => { setArtifact({ kind: "markdown", title: item.title, content: item.content }); setCanvasVisible(true); },
+        (item) => { setArtifact({ kind: item.kind??"markdown", title: item.title, content: item.content }); setCanvasVisible(true); },
       );
       savedMessages=[...nextMessages, { role: "assistant", content: answer }];
       setMessages(savedMessages);

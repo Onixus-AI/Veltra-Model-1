@@ -33,3 +33,15 @@ jobs:
           cache-dependency-path: packages/ai-gateway/requirements.txt
       - run: pip install -r requirements.txt
       - run: python -m unittest discover -s tests -p 'test_*.py'
+  browser-worker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm install --prefix "$RUNNER_TEMP/veltra-browser" --ignore-scripts --no-audit --no-fund playwright@1.64.1
+      - run: '"$RUNNER_TEMP/veltra-browser/node_modules/.bin/playwright" install --with-deps chromium'
+      - run: node --test apps/web/test/browser-worker.integration.mjs
+        env:
+          PLAYWRIGHT_MODULE: ${{ runner.temp }}/veltra-browser/node_modules/playwright/index.mjs
