@@ -80,7 +80,10 @@ class ContentPart(BaseModel):
 
 class ChatMessage(BaseModel):
     role: str
-    content: str | list[ContentPart]
+    content: str | list[ContentPart] | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
 
 
 class ChatCompletionRequest(BaseModel):
@@ -89,6 +92,8 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = Field(default=None, gt=0)
     temperature: float | None = Field(default=None, ge=0, le=2)
     stream: bool = False
+    tools: list[dict[str, Any]] | None = Field(default=None, max_length=32)
+    tool_choice: str | dict[str, Any] | None = None
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -442,6 +447,11 @@ async def create_chat_completion(
         params["max_tokens"] = request.max_tokens
     if request.temperature is not None:
         params["temperature"] = request.temperature
+    if request.tools:
+        # Tool definitions are supplied by the web app's allowlisted connector tools.
+        params["tools"] = request.tools
+        if request.tool_choice is not None:
+            params["tool_choice"] = request.tool_choice
 
     if request.stream:
         params["stream"] = True
