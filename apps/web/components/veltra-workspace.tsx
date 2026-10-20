@@ -287,6 +287,7 @@ export default function VeltraWorkspace() {
         { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
+        (item) => { setArtifact({ kind: "markdown", title: item.title, content: item.content }); setCanvasVisible(true); },
       );
       setMessages([...nextMessages, { role: "assistant", content: answer }]);
       const nextArtifact = findArtifact(answer);
