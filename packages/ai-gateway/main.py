@@ -407,6 +407,18 @@ async def revoke_api_key(
         raise HTTPException(status_code=404, detail="API key not found")
 
 
+async def call_model(params: dict[str, Any]) -> Any:
+    """Turn provider failures into a readable 502 instead of an unhandled 500."""
+    try:
+        return await litellm.acompletion(**params)
+    except Exception as error:
+        logger.error("Model provider request failed: %s", error)
+        raise HTTPException(
+            status_code=502,
+            detail="The model provider could not complete this request. Try again, or choose another model.",
+        ) from error
+
+
 @app.post("/v1/chat/completions", response_model=None)
 async def create_chat_completion(
     request: ChatCompletionRequest,
@@ -456,7 +468,7 @@ async def create_chat_completion(
     if request.stream:
         params["stream"] = True
         params["stream_options"] = {"include_usage": True}
-        response = await litellm.acompletion(**params)
+        response = await call_model(params)
 
         async def stream_response():
             total_tokens: int | None = None
@@ -486,7 +498,7 @@ async def create_chat_completion(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    response = await litellm.acompletion(**params)
+    response = await call_model(params)
     result = response.model_dump()
     usage = result.get("usage")
     total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
