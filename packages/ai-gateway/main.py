@@ -464,6 +464,10 @@ async def create_chat_completion(
         params["tools"] = request.tools
         if request.tool_choice is not None:
             params["tool_choice"] = request.tool_choice
+        params["models"] = ["google/gemini-2.5-flash", "inclusionai/ling-3.0-flash", "deepseek/deepseek-chat"]
+        params["extra_body"] = {"provider": {"require_parameters": True, "allow_fallbacks": True}}
+
+    logger.info("chat completion alias=%s provider_model=%s tools=%d stream=%s", request.model, model_config["model"], len(request.tools or []), request.stream)
 
     if request.stream:
         params["stream"] = True
