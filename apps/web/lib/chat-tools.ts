@@ -31,7 +31,18 @@ export type WriteProposal = {
   change: { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
 };
 
-export type ToolOutcome = { content: string; proposal?: WriteProposal };
+export type CanvasItem = { title: string; content: string };
+export type ToolOutcome = { content: string; proposal?: WriteProposal; canvas?: CanvasItem };
+
+/** Wraps file text in a fence longer than any backtick run inside it, so it renders as code. */
+function codeBlock(text: string, language: string) {
+  const fence = "`".repeat(Math.max(3, (text.match(/`+/g) ?? []).reduce((max, run) => Math.max(max, run.length + 1), 3)));
+  return `${fence}${language}\n${text}\n${fence}`;
+}
+
+function languageFor(path: string) {
+  return path.split(".").pop()?.replace(/[^a-z0-9]/gi, "") ?? "";
+}
 
 const READS: Record<string, () => Promise<unknown>> = {
   github_list_files: () => connectionRequest("github/tree"),
@@ -60,7 +71,10 @@ export async function runToolCall(call: ToolCall): Promise<ToolOutcome> {
       if (!path || path.includes("..")) return { content: "Invalid file path." };
       // The connection already caps files at 300 KB, so the full content is kept: a rewrite must not drop lines.
       const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`);
-      return { content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content }) };
+      return {
+        content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content }),
+        canvas: { title: file.path, content: `${file.repository} · ${file.branch}\n\n${codeBlock(file.content, languageFor(file.path))}` },
+      };
     }
     if (name === "github_propose_commit") {
       const path = String(args.path ?? "");
@@ -71,11 +85,19 @@ export async function runToolCall(call: ToolCall): Promise<ToolOutcome> {
       const operation = crypto.randomUUID();
       return {
         content: "Waiting for the user to confirm this commit and pull request. Do not claim it was made.",
+        canvas: { title: `Proposed: ${file.path}`, content: `${file.repository} · ${file.branch} → new branch\n\n${title}\n\n${codeBlock(content, languageFor(file.path))}` },
         proposal: {
           id: operation,
           summary: `${file.repository} · ${file.path}\n${title}`,
           change: { repository: file.repository, branch: file.branch, connection_version: file.connection_version, path: file.path, sha: file.sha, content, title, operation },
         },
+      };
+    }
+    if (name === "github_list_files") {
+      const tree = await connectionRequest<{ repository: string; branch: string; files: { path: string }[] }>("github/tree");
+      return {
+        content: JSON.stringify(tree).slice(0, 60000),
+        canvas: { title: "Repository files", content: `${tree.repository} · ${tree.branch}\n\n${tree.files.map((file) => `- ${file.path}`).join("\n")}` },
       };
     }
     const read = READS[name];
@@ -101,6 +123,7 @@ export async function runAgentTurn(
   extraBody: Record<string, unknown>,
   confirmWrite: (proposal: WriteProposal) => Promise<boolean>,
   onStatus: (status: string) => void,
+  onCanvas: (item: CanvasItem) => void,
 ): Promise<string> {
   const convo = [...messages];
   for (let step = 0; step < 6; step += 1) {
@@ -118,6 +141,7 @@ export async function runAgentTurn(
     for (const call of calls) {
       onStatus(`Using ${call.function.name.replaceAll("_", " ")}…`);
       const outcome = await runToolCall(call);
+      if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
       if (outcome.proposal) {
         onStatus("Waiting for your confirmation…");
