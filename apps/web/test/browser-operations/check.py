@@ -86,7 +86,7 @@ with sync_playwright() as p:
  expect(page.locator('#destination')).to_have_text('a')
  page.get_by_text('Forecast assumptions',exact=True).click()
  page.get_by_label('proposal closing probability').fill('0')
- expect(page.get_by_text('$0',exact=True).first).to_be_visible()
+ expect(page.locator('.command-scoreboard article').nth(2).locator('strong')).to_have_text('$0')
  page.set_viewport_size({'width':390,'height':844})
  page.screenshot(path=str(out/'dashboard-mobile.png'),full_page=True)
  assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Dashboard must fit mobile'
