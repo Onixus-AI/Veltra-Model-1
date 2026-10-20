@@ -42,7 +42,7 @@ function friendlyChatError(message: string) {
   }
   if (/session|bearer|unauthorized/i.test(message)) return "Please sign in again to continue chatting.";
   // Show the real reason so it can be fixed; the message comes from our own API routes, not the model.
-  return message && message.length < 300 ? `Veltra couldn’t complete this reply: ${message}` : "Veltra couldn’t complete this reply. Please try again.";
+  return message ? `Veltra couldn’t complete this reply: ${message.slice(0, 600)}` : "Veltra couldn’t complete this reply. Please try again.";
 }
 
 type ModelMode = "velocity" | "deep" | "agent";
