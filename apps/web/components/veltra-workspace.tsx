@@ -284,7 +284,7 @@ export default function VeltraWorkspace() {
       ];
       const answer = await runAgentTurn(
         gatewayMessages,
-        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : activeModel.model,
+        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : "veltra-logic",
         { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
