@@ -7,7 +7,7 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import httpx
@@ -36,6 +36,9 @@ MODELS = {
     model["model_name"]: model["litellm_params"]
     for model in MODEL_CONFIG["model_list"]
 }
+
+# Models that accept image_url content parts. All other models are text-only.
+VISION_MODELS = {"veltra-vision"}
 
 VELTRA_SYSTEM_PROMPT = (
     "Veltra Model 1 by Onixus. You are Veltra Model 1, a business intelligence "
@@ -69,9 +72,18 @@ app = FastAPI(title="Veltra AI Gateway", version="0.2.0", lifespan=gateway_lifes
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+class ContentPart(BaseModel):
+    type: Literal["text", "image_url"]
+    text: str | None = None
+    image_url: dict[str, str] | None = None
+
+
 class ChatMessage(BaseModel):
     role: str
-    content: str
+    content: str | list[ContentPart] | None = None
+    tool_calls: list[dict[str, Any]] | None = None
+    tool_call_id: str | None = None
+    name: str | None = None
 
 
 class ChatCompletionRequest(BaseModel):
@@ -80,6 +92,8 @@ class ChatCompletionRequest(BaseModel):
     max_tokens: int | None = Field(default=None, gt=0)
     temperature: float | None = Field(default=None, ge=0, le=2)
     stream: bool = False
+    tools: list[dict[str, Any]] | None = Field(default=None, max_length=32)
+    tool_choice: str | dict[str, Any] | None = None
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -195,6 +209,50 @@ async def deduct_credits(organization_id: str, credits: int, model: str) -> None
     if type(deducted) is not int or deducted != credits:
         logger.error("Unexpected credit deduction result")
         raise HTTPException(status_code=503, detail="Your account is temporarily unavailable. Please try again shortly.")
+
+
+async def settle_credits(organization_id: str, tokens: int, model: str) -> None:
+    if tokens <= 0:
+        return
+    try:
+        await deduct_credits(organization_id, tokens, model)
+    except HTTPException as error:
+        if error.status_code != 402:
+            raise
+        wallet = await get_wallet(organization_id)
+        remaining = wallet.get("credits_remaining") if wallet else 0
+        if not isinstance(remaining, int) or remaining <= 0:
+            raise
+        charge = min(tokens, remaining)
+        logger.info("credit bill capped tokens=%s charged=%s model=%s", tokens, charge, model)
+        await deduct_credits(organization_id, charge, model)
+
+
+def trim_messages_to_budget(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+    credits_remaining: Any,
+) -> list[dict[str, Any]]:
+    if not isinstance(credits_remaining, int) or credits_remaining <= 0:
+        return messages
+    budget = credits_remaining - 800
+
+    def estimate(items: list[dict[str, Any]]) -> int:
+        return len(json.dumps({"messages": items, "tools": tools or []}, default=str)) // 4
+
+    kept = list(messages)
+    while estimate(kept) > budget:
+        # Oldest removable message: not a system message, and never the latest message.
+        candidates = [i for i, m in enumerate(kept[:-1]) if m.get("role") != "system"]
+        if not candidates:
+            break
+        start = candidates[0]
+        end = start + 1
+        # Drop tool messages that directly follow the removed message, but never the latest message.
+        while end < len(kept) - 1 and kept[end].get("role") == "tool":
+            end += 1
+        del kept[start:end]
+    return kept
 
 
 async def get_authenticated_principal(
@@ -393,6 +451,18 @@ async def revoke_api_key(
         raise HTTPException(status_code=404, detail="API key not found")
 
 
+async def call_model(params: dict[str, Any]) -> Any:
+    """Turn provider failures into a readable 502 instead of an unhandled 500."""
+    try:
+        return await litellm.acompletion(**params)
+    except Exception as error:
+        logger.error("Model provider request failed: %s", error)
+        raise HTTPException(
+            status_code=502,
+            detail="The model provider could not complete this request. Try again, or choose another model.",
+        ) from error
+
+
 @app.post("/v1/chat/completions", response_model=None)
 async def create_chat_completion(
     request: ChatCompletionRequest,
@@ -408,9 +478,23 @@ async def create_chat_completion(
     if model_config is None:
         raise HTTPException(status_code=400, detail="Unsupported model")
 
+    has_images = any(
+        isinstance(message.content, list)
+        and any(part.type == "image_url" for part in message.content)
+        for message in request.messages
+    )
+    if has_images and request.model not in VISION_MODELS:
+        raise HTTPException(status_code=400, detail="Images require a vision model")
+
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="Model provider is not configured")
+
+    history = trim_messages_to_budget(
+        [message.model_dump(exclude_none=True) for message in request.messages],
+        request.tools,
+        wallet.get("credits_remaining"),
+    )
 
     params: dict[str, Any] = {
         "model": model_config["model"],
@@ -418,18 +502,27 @@ async def create_chat_completion(
         "api_key": api_key,
         "messages": [
             {"role": "system", "content": VELTRA_SYSTEM_PROMPT},
-            *(message.model_dump() for message in request.messages),
+            *history,
         ],
     }
     if request.max_tokens is not None:
         params["max_tokens"] = request.max_tokens
     if request.temperature is not None:
         params["temperature"] = request.temperature
+    if request.tools:
+        # Tool definitions are supplied by the web app's allowlisted connector tools.
+        params["tools"] = request.tools
+        if request.tool_choice is not None:
+            params["tool_choice"] = request.tool_choice
+        params["models"] = ["google/gemini-2.5-flash", "inclusionai/ling-3.0-flash", "deepseek/deepseek-chat"]
+        params["extra_body"] = {"provider": {"require_parameters": True, "allow_fallbacks": True}}
+
+    logger.info("chat completion alias=%s provider_model=%s tools=%d stream=%s", request.model, model_config["model"], len(request.tools or []), request.stream)
 
     if request.stream:
         params["stream"] = True
         params["stream_options"] = {"include_usage": True}
-        response = await litellm.acompletion(**params)
+        response = await call_model(params)
 
         async def stream_response():
             total_tokens: int | None = None
@@ -447,7 +540,7 @@ async def create_chat_completion(
                 return
 
             try:
-                await deduct_credits(organization_id, total_tokens, request.model)
+                await settle_credits(organization_id, total_tokens, request.model)
             except HTTPException as error:
                 yield f"event: error\ndata: {json.dumps({'error': error.detail})}\n\n"
                 return
@@ -459,7 +552,7 @@ async def create_chat_completion(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    response = await litellm.acompletion(**params)
+    response = await call_model(params)
     result = response.model_dump()
     usage = result.get("usage")
     total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
@@ -469,7 +562,7 @@ async def create_chat_completion(
             detail="Model provider returned invalid token usage",
         )
 
-    await deduct_credits(organization_id, total_tokens, request.model)
+    await settle_credits(organization_id, total_tokens, request.model)
     return result
 
 

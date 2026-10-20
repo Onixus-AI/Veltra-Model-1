@@ -39,7 +39,7 @@ model_list:
   # Agentic workflow execution and tool calling
   - model_name: veltra-agent
     litellm_params:
-      model: openrouter/nvidia/nemotron-3-super-120b-a12b
+      model: openrouter/xiaomi/mimo-v2.6-flash
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -53,6 +53,13 @@ model_list:
   - model_name: veltra-ling
     litellm_params:
       model: openrouter/inclusionai/ling-3.0-flash
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # Image understanding for chat attachments (requires image_url content parts)
+  - model_name: veltra-vision
+    litellm_params:
+      model: openrouter/qwen/qwen2.5-vl-72b-instruct
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
