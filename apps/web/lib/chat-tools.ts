@@ -116,6 +116,13 @@ export async function createPullRequest(change: WriteProposal["change"]): Promis
 
 export type GatewayMessage = { role: string; content?: unknown; tool_calls?: ToolCall[]; tool_call_id?: string };
 
+/** FastAPI validation errors put the reason in a list of { msg } objects. */
+function errorText(detail: unknown): string {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) return detail.map((item) => (typeof item?.msg === "string" ? item.msg : JSON.stringify(item))).join("; ");
+  return "";
+}
+
 /** Runs a model turn, executing read tools and waiting for confirmation before any write. */
 export async function runAgentTurn(
   messages: GatewayMessage[],
@@ -133,7 +140,7 @@ export async function runAgentTurn(
       body: JSON.stringify({ ...extraBody, model, messages: convo, tools: CHAT_TOOLS, stream: false }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.detail ?? `Request failed (${response.status}).`);
+    if (!response.ok) throw new Error(errorText(data.detail) || `Request failed (${response.status}).`);
     const message = data.choices?.[0]?.message ?? {};
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) return typeof message.content === "string" ? message.content : "";
