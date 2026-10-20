@@ -41,7 +41,8 @@ function friendlyChatError(message: string) {
       : "Your account is temporarily unavailable. Please try again shortly.";
   }
   if (/session|bearer|unauthorized/i.test(message)) return "Please sign in again to continue chatting.";
-  return "Veltra couldn’t complete this reply. Please try again.";
+  // Show the real reason so it can be fixed; the message comes from our own API routes, not the model.
+  return message && message.length < 300 ? `Veltra couldn’t complete this reply: ${message}` : "Veltra couldn’t complete this reply. Please try again.";
 }
 
 type ModelMode = "velocity" | "deep" | "agent";
