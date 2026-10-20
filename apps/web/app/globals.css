@@ -500,3 +500,10 @@ body,.workspace.unified-workspace{background:var(--veltra-bg);color:var(--veltra
 .hub-card,.settings-card,.workspace .tms-canvas{box-shadow:var(--veltra-gloss);border-color:var(--veltra-line)}
 .settings-tab.is-active,.settings-page .subscription-symbol,.settings-page .balance-icon,.settings-page .card-icon{background:var(--veltra-accent);color:#000}
 .connection-status.connected i,.mail-status-dot{background:var(--veltra-lime)}
+
+.message-images { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.message-images img { max-width: 220px; max-height: 220px; border-radius: 10px; border: 1px solid var(--line); object-fit: cover; }
+.image-tray { display: flex; flex-wrap: wrap; gap: 8px; max-width: 760px; width: 100%; margin: 0 auto; padding: 8px 16px 0; }
+.image-thumb { position: relative; display: inline-block; }
+.image-thumb img { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; display: block; }
+.image-thumb button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; display: grid; place-items: center; border: 0; border-radius: 999px; background: #17181e; color: #ddd; cursor: pointer; }
