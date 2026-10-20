@@ -1,6 +1,7 @@
 export type ResearchSource = {id:string;label:string;enabled:boolean;imported:number;enriched:number;last_error:string|null;last_run_at:string|null;next_run_at:string;exhausted_at:string|null};
 export type OperationEvent = {id:string;title:string;kind:string;created_at:string};
-export type OutreachState = {campaigns:{id:string;name:string;status:string}[];messages:{id:string;company:string;subject:string;status:string;due_at:string;last_error:string|null}[]};
+export type DailyOutreach={day:string;time_zone:string;sent_today:number;approved_due:number;awaiting_review:number;awaiting_receipt:number;needs_attention:number};
+export type OutreachState = {daily?:DailyOutreach;campaigns:{id:string;name:string;status:string}[];messages:{id:string;company:string;subject:string;status:string;due_at:string;last_error:string|null}[]};
 export type Operations = {sources:ResearchSource[]|null;events:OperationEvent[]|null;customers:number|null;openTasks:number|null;proposals:number|null;outreach:OutreachState|null;checkedAt:string;unavailable:string[]};
 export type OperationAlert = {id:string;title:string;detail:string;destination:'Sources'|'Automation'|'Memory'|'Customers'};
 export function operationAlerts(data:Operations):OperationAlert[]{

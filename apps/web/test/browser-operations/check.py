@@ -40,12 +40,13 @@ with sync_playwright() as p:
  def outreach(route):
   assert route.request.method=='GET'
   second=W2 in route.request.url
-  route.fulfill(json={'campaigns':[],'messages':[] if second else [{'id':'draft','company':'Acme Studio','subject':'Introduction','status':'draft','due_at':'2026-10-21T09:00:00Z','last_error':None}]})
+  route.fulfill(json={'daily':{'day':'2026-10-20','time_zone':'UTC','sent_today':0 if second else 12,'approved_due':3,'awaiting_review':1,'awaiting_receipt':0,'needs_attention':0},'campaigns':[],'messages':[] if second else [{'id':'draft','company':'Acme Studio','subject':'Introduction','status':'draft','due_at':'2026-10-21T09:00:00Z','last_error':None}]})
  context.route('https://fixture.supabase.co/**',database)
  context.route('**/api/crm/outreach?*',outreach)
  page=context.new_page();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto('http://127.0.0.1:3188');page.wait_for_load_state('networkidle')
  expect(page.get_by_text('Acme Studio customer record updated',exact=True)).to_be_visible()
+ expect(page.get_by_role('region',name='Daily outreach KPIs')).to_contain_text('12')
  expect(page.get_by_text('1 messages await approval',exact=True)).to_be_visible()
  assert page.locator('.ops-toast').count()==0, 'Existing alerts must not flood popups on arrival'
  expect(page.get_by_text('Scheduled · 18 imported · 7 enriched',exact=True)).to_be_visible()
@@ -77,6 +78,8 @@ with sync_playwright() as p:
  page.goto('http://127.0.0.1:3188/?dashboard');page.wait_for_load_state('networkidle')
  expect(page.get_by_role('heading',name='Business command center')).to_be_visible()
  expect(page.get_by_text('$4,700',exact=True)).to_be_visible()
+ expect(page.get_by_role('link',name='Veltra Mail',exact=False)).to_have_attribute('target','_top')
+ expect(page.get_by_role('heading',name='Ads & social lead conversion')).to_be_visible()
  page.screenshot(path=str(out/'dashboard-desktop.png'),full_page=True)
  page.get_by_label('Industry',exact=True).select_option('Design services')
  expect(page.get_by_text('$3,500',exact=True).first).to_be_visible()
