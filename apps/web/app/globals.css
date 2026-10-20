@@ -257,6 +257,25 @@ a { color: inherit; text-decoration: none; }
 .allocation-track { height: 5px; overflow: hidden; margin-top: 15px; border-radius: 5px; background: #000000; }
 .allocation-track > div { height: 100%; border-radius: inherit; background: linear-gradient(90deg, #8971e9, #b5a2ff); }
 .subscription-card > .renewal-date { margin-top: 10px; color: #73727d; font-size: 9px; }
+.usage-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px; margin-top: 11px; }
+.usage-metric { padding: 16px 14px 12px; min-width: 0; }
+.usage-metric h3 { margin: 0; color: #b7b5c0; font: 600 12px "Manrope", sans-serif; }
+.usage-metric > strong { display: block; margin-top: 12px; color: #f2f0f6; font: 600 28px/1 "Manrope", sans-serif; letter-spacing: -1px; }
+.usage-metric > p { margin: 6px 0 0; color: #7d7c86; font-size: 10px; }
+.usage-bars { display: flex; align-items: flex-end; gap: 2px; height: 88px; margin-top: 16px; }
+.usage-bar { flex: 1 1 0; display: flex; flex-direction: column; justify-content: flex-end; height: 100%; min-width: 0; }
+.usage-bar > span { display: block; width: 100%; border-radius: 2px 2px 0 0; }
+.usage-bar-empty { height: 2px; background: rgba(255,255,255,.08); }
+.usage-legend { display: grid; gap: 6px; margin: 14px 0 0; padding: 0; list-style: none; }
+.usage-legend li { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #a7a5b0; font-size: 11px; }
+.usage-legend span { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.usage-legend i { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; }
+.usage-legend b { color: #dedce4; font-weight: 600; font-variant-numeric: tabular-nums; }
+.settings-header-end { display: flex; align-items: center; gap: 16px; }
+.settings-logout { width: auto; height: 32px; padding: 0 12px; color: #d5d3dc; border: 1px solid rgba(255,255,255,.12); background: #000; }
+.billing-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.billing-actions .button-primary { width: auto; height: 36px; margin-top: 0; padding: 0 14px; }
+.billing-notice { margin-top: 12px; color: #a8dfc4; }
 .subscription-footnote { display: flex; justify-content: center; align-items: center; gap: 7px; margin-top: 14px; color: #8c8a96; font-size: 10px; }
 .subscription-footnote svg { color: #71d7aa; }
 
@@ -272,6 +291,7 @@ a { color: inherit; text-decoration: none; }
   .balance-card > .balance-caption { grid-column: 2; margin: 0; }
   .balance-primary .credit-track { grid-column: 1 / -1; margin-top: 12px; }
   .balance-primary > .balance-caption:last-child { grid-column: 1 / -1; }
+ .usage-board { grid-template-columns: 1fr; }
   .chart-card, .keys-panel, .subscription-card { padding: 15px; }
   .analytics-chart svg { height: 165px; }
   .create-key-form .key-input-row { flex-wrap: nowrap; }
