@@ -211,6 +211,50 @@ async def deduct_credits(organization_id: str, credits: int, model: str) -> None
         raise HTTPException(status_code=503, detail="Your account is temporarily unavailable. Please try again shortly.")
 
 
+async def settle_credits(organization_id: str, tokens: int, model: str) -> None:
+    if tokens <= 0:
+        return
+    try:
+        await deduct_credits(organization_id, tokens, model)
+    except HTTPException as error:
+        if error.status_code != 402:
+            raise
+        wallet = await get_wallet(organization_id)
+        remaining = wallet.get("credits_remaining") if wallet else 0
+        if not isinstance(remaining, int) or remaining <= 0:
+            raise
+        charge = min(tokens, remaining)
+        logger.info("credit bill capped tokens=%s charged=%s model=%s", tokens, charge, model)
+        await deduct_credits(organization_id, charge, model)
+
+
+def trim_messages_to_budget(
+    messages: list[dict[str, Any]],
+    tools: list[dict[str, Any]] | None,
+    credits_remaining: Any,
+) -> list[dict[str, Any]]:
+    if not isinstance(credits_remaining, int) or credits_remaining <= 0:
+        return messages
+    budget = credits_remaining - 800
+
+    def estimate(items: list[dict[str, Any]]) -> int:
+        return len(json.dumps({"messages": items, "tools": tools or []}, default=str)) // 4
+
+    kept = list(messages)
+    while estimate(kept) > budget:
+        # Oldest removable message: not a system message, and never the latest message.
+        candidates = [i for i, m in enumerate(kept[:-1]) if m.get("role") != "system"]
+        if not candidates:
+            break
+        start = candidates[0]
+        end = start + 1
+        # Drop tool messages that directly follow the removed message, but never the latest message.
+        while end < len(kept) - 1 and kept[end].get("role") == "tool":
+            end += 1
+        del kept[start:end]
+    return kept
+
+
 async def get_authenticated_principal(
     credentials: HTTPAuthorizationCredentials | None,
 ) -> dict[str, Any]:
@@ -446,13 +490,19 @@ async def create_chat_completion(
     if not api_key:
         raise HTTPException(status_code=503, detail="Model provider is not configured")
 
+    history = trim_messages_to_budget(
+        [message.model_dump(exclude_none=True) for message in request.messages],
+        request.tools,
+        wallet.get("credits_remaining"),
+    )
+
     params: dict[str, Any] = {
         "model": model_config["model"],
         "api_base": model_config["api_base"],
         "api_key": api_key,
         "messages": [
             {"role": "system", "content": VELTRA_SYSTEM_PROMPT},
-            *(message.model_dump(exclude_none=True) for message in request.messages),
+            *history,
         ],
     }
     if request.max_tokens is not None:
@@ -490,7 +540,7 @@ async def create_chat_completion(
                 return
 
             try:
-                await deduct_credits(organization_id, total_tokens, request.model)
+                await settle_credits(organization_id, total_tokens, request.model)
             except HTTPException as error:
                 yield f"event: error\ndata: {json.dumps({'error': error.detail})}\n\n"
                 return
@@ -512,7 +562,7 @@ async def create_chat_completion(
             detail="Model provider returned invalid token usage",
         )
 
-    await deduct_credits(organization_id, total_tokens, request.model)
+    await settle_credits(organization_id, total_tokens, request.model)
     return result
 
 
