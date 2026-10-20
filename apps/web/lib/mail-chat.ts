@@ -23,14 +23,15 @@ export function mailReceipt(tool:string,value:any):string{
  const lines=items.slice(0,25).map((x:any)=>`- **${plain(x.subject??x.sender_name??x.label??'Mail record',160)}** — ${plain(x.from??x.to??x.address??'')}\n  ${tool==='quote_feedback'?`Status: ${plain(x.status)}; reason: ${plain(x.reason)}; source: ${plain(x.reason_source)}. ${plain(x.evidence)}`:plain(x.snippet??x.quote_excerpt??x.body??x.label)}`);
  return `${heading}\n\n${lines.length?lines.join('\n'):'No matching records on this page.'}\n\n${scope}${value?.next_cursor||items.length>25?' More records are available; open Mail for additional pages.':''}${tool==='quote_feedback'?' No response stays unknown. Customer-stated reasons and owner assessments are separate.':''}`;
 }
-export async function executeMailIntent(intent:MailIntent,authorization:string,origin:string,fetcher:typeof fetch=fetch):Promise<string>{
+export async function executeMailTool(intent:MailIntent,authorization:string,origin:string,fetcher:typeof fetch=fetch):Promise<unknown>{
  const url=new URL(origin);if(url.protocol!=='https:'||url.username||url.password)throw new Error('503:Mail connection is not configured correctly.');
  const response=await fetcher(url.origin+'/chat/mail-mcp',{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:crypto.randomUUID(),method:'tools/call',params:{name:intent.tool,arguments:intent.arguments}}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(55000)});
  if(!response.ok)throw new Error(`${[401,409,429,503].includes(response.status)?response.status:502}:${response.status===409?'Connect Veltra Mail in Connections first.':response.status===401?'Sign in to Veltra again.':'Mail could not complete this command. Open Mail to check the connection.'}`);
  const rpc=await response.json();if(rpc.error||rpc.result?.isError)throw new Error('502:Mail could not complete this command. Open Mail to check its connection.');
  const content=rpc.result?.content?.filter((x:any)=>x.type==='text').map((x:any)=>x.text).join('');if(!content)throw new Error('502:Mail returned no action receipt.');
- return mailReceipt(intent.tool,JSON.parse(content));
+ return JSON.parse(content);
 }
+export async function executeMailIntent(intent:MailIntent,authorization:string,origin:string,fetcher:typeof fetch=fetch):Promise<string>{return mailReceipt(intent.tool,await executeMailTool(intent,authorization,origin,fetcher));}
 export function mailChatResponse(content:string,stream:boolean){
  const chunk={id:'mail-'+crypto.randomUUID(),object:stream?'chat.completion.chunk':'chat.completion',choices:[{index:0,...(stream?{delta:{content}}:{message:{role:'assistant',content}}),finish_reason:stream?null:'stop'}]};
  if(!stream)return Response.json(chunk,{headers:{'Cache-Control':'no-store'}});

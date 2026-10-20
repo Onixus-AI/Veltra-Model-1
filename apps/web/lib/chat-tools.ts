@@ -2,6 +2,7 @@
 
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
+import {AGENT_TOOLS} from './agent-tool-catalog';
 
 /** Tools the model may call. Reads run immediately; writes wait for the user's confirmation. */
 export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
@@ -16,6 +17,7 @@ type FileResult = {
 };
 
 export const CHAT_TOOLS = [
+  ...AGENT_TOOLS,
   { type: "function", function: { name: "github_list_files", description: "List files in the connected GitHub repository.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "github_read_file", description: "Read one file from the connected GitHub repository.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_commit", description: "Commit new content for one existing file to a new branch and open a draft pull request. The user must confirm before it runs. Read the file first and pass the full new content.", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, title: { type: "string" } }, required: ["path", "content", "title"], additionalProperties: false } } },
@@ -28,7 +30,8 @@ export const CHAT_TOOLS = [
 export type WriteProposal = {
   id: string;
   summary: string;
-  change: { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
+  change?: { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
+  agent_review?: {target:'crm'|'brain'|'mail';id:string};
 };
 
 export type CanvasItem = { title: string; content: string };
@@ -62,10 +65,11 @@ function parseArgs(raw: string): Record<string, unknown> {
 }
 
 /** Runs one tool call. Reads return data; a write returns a proposal that needs confirmation. */
-export async function runToolCall(call: ToolCall): Promise<ToolOutcome> {
+export async function runToolCall(call: ToolCall,context:Record<string,unknown>={}): Promise<ToolOutcome> {
   const args = parseArgs(call.function.arguments);
   const name = call.function.name;
   try {
+    if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context);
     if (name === "github_read_file") {
       const path = String(args.path ?? "");
       if (!path || path.includes("..")) return { content: "Invalid file path." };
@@ -108,9 +112,14 @@ export async function runToolCall(call: ToolCall): Promise<ToolOutcome> {
   }
 }
 
-export async function createPullRequest(change: WriteProposal["change"]): Promise<string> {
+export async function createPullRequest(change: NonNullable<WriteProposal["change"]>): Promise<string> {
   const result = await connectionRequest<{ url: string }>("github/pull-request", "POST", change);
   return `Draft pull request created: ${result.url}. Review it before merging.`;
+}
+
+async function agentToolRequest(name:string,args:Record<string,unknown>,context:Record<string,unknown>,confirm?:WriteProposal['agent_review']):Promise<ToolOutcome>{
+ const response=await fetch('/api/agent/tools',{method:'POST',headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:JSON.stringify({name,args,...(context.conversation_id?{conversation_id:context.conversation_id}:{}),...(context.crm_scope?{crm_scope:context.crm_scope}:{}),...(confirm?{confirm}:{})}),cache:'no-store'});
+ const result=await response.json();if(!response.ok)throw Error(result.error||'The connected action could not complete.');return result;
 }
 
 
@@ -140,22 +149,23 @@ export async function runAgentTurn(
       body: JSON.stringify({ ...extraBody, model, messages: convo, tools: CHAT_TOOLS, stream: false }),
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(errorText(data.detail) || `Request failed (${response.status}).`);
+    if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
     const message = data.choices?.[0]?.message ?? {};
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) return typeof message.content === "string" ? message.content : "";
     convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
       onStatus(`Using ${call.function.name.replaceAll("_", " ")}…`);
-      const outcome = await runToolCall(call);
+      const outcome = await runToolCall(call,extraBody);
       if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
       if (outcome.proposal) {
         onStatus("Waiting for your confirmation…");
         const approved = await confirmWrite(outcome.proposal);
-        content = approved
-          ? await createPullRequest(outcome.proposal.change)
-          : "The user declined this commit. Do not create it.";
+        if(!approved)content='The user declined this action. Do not run it.';
+        else if(outcome.proposal.agent_review)content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review)).content;
+        else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change);
+        else throw Error('This proposal has no executable review. Request a new proposal.');
       }
       convo.push({ role: "tool", tool_call_id: call.id, content });
     }
