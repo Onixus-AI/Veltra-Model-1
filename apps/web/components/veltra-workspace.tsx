@@ -1,4 +1,5 @@
 "use client";
+import type {CrmHostScope} from '@/lib/crm/host-context';
 import ToolLogo from "./tool-logo";
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -111,6 +112,7 @@ export default function VeltraWorkspace() {
     if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("work");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
   const [cloud,setCloud]=useState<CloudConversation|null>(null);
+  const [crmScope,setCrmScope]=useState<CrmHostScope|null>(null);
   const cloudRef=useRef<CloudConversation|null>(null);
   const [cloudRequired,setCloudRequired]=useState(false);
   const [cloudReset,setCloudReset]=useState(0);
@@ -221,6 +223,7 @@ export default function VeltraWorkspace() {
     if ((!prompt && !pendingImages.length) || sending || !historyLoaded) return;
     if(cloudRequired&&!cloudRef.current){setError('Cloud history is not ready. Choose a conversation before sending.');return;}
     const savedCloud=cloudRef.current;
+    if(crmOpen&&crmScope&&(!savedCloud||savedCloud.workspace_id!==crmScope.workspace_id||(savedCloud.customer_id??null)!==crmScope.customer_id)){setError('CRM context is switching. Wait for the selected customer conversation to load.');return;}
     let savedMessages:ChatMessage[]=[];
     setError("");
     stickToBottom.current=true;
@@ -287,12 +290,13 @@ export default function VeltraWorkspace() {
       const answer = await runAgentTurn(
         gatewayMessages,
         nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : TOOL_MODEL,
-        { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}) },
+        { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
         (item) => { setArtifact({ kind: "markdown", title: item.title, content: item.content }); setCanvasVisible(true); },
       );
-      setMessages([...nextMessages, { role: "assistant", content: answer }]);
+      savedMessages=[...nextMessages, { role: "assistant", content: answer }];
+      setMessages(savedMessages);
       const nextArtifact = findArtifact(answer);
       if (nextArtifact) {setArtifact(nextArtifact);if(nextArtifact.kind!=="markdown")setCanvasVisible(true);}
     } catch (cause) {
@@ -304,6 +308,7 @@ export default function VeltraWorkspace() {
           : item,
       ));
     } finally {
+      if(crmOpen)window.dispatchEvent(new Event('veltra-crm-changed'));
       if(savedCloud&&savedMessages.length){try{const result=await crmRequest<{revision:number}>('conversations/'+savedCloud.id,'PUT',{revision:savedCloud.revision,messages:savedMessages.map(({role,content,imageId})=>({role,content,...(imageId?{imageId}: {})}))});const row={...savedCloud,revision:result.revision};cloudRef.current=row;setCloud(row);}catch(e){setError('Reply was not saved to cloud history. '+(e instanceof Error?e.message:'Please retry.'));}}
       setSending(false);
     }
@@ -353,7 +358,7 @@ export default function VeltraWorkspace() {
           {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
           <Link href="/settings/connections" title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
-        <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
+        <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar scope={crmOpen?crmScope:null} disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
         <nav className="sidebar-settings" aria-label="Workspace settings"><Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link></nav>
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Veltra workspace</span></div>
       </aside>
@@ -461,7 +466,7 @@ export default function VeltraWorkspace() {
             <button className="canvas-add-button" onClick={() => { setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas disabled={sending} onContextChange={setCrmScope}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 
