@@ -7,7 +7,7 @@ import os
 import secrets
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 import httpx
@@ -36,6 +36,9 @@ MODELS = {
     model["model_name"]: model["litellm_params"]
     for model in MODEL_CONFIG["model_list"]
 }
+
+# Models that accept image_url content parts. All other models are text-only.
+VISION_MODELS = {"veltra-vision"}
 
 VELTRA_SYSTEM_PROMPT = (
     "Veltra Model 1 by Onixus. You are Veltra Model 1, a business intelligence "
@@ -69,9 +72,15 @@ app = FastAPI(title="Veltra AI Gateway", version="0.2.0", lifespan=gateway_lifes
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
+class ContentPart(BaseModel):
+    type: Literal["text", "image_url"]
+    text: str | None = None
+    image_url: dict[str, str] | None = None
+
+
 class ChatMessage(BaseModel):
     role: str
-    content: str
+    content: str | list[ContentPart]
 
 
 class ChatCompletionRequest(BaseModel):
@@ -408,6 +417,14 @@ async def create_chat_completion(
     if model_config is None:
         raise HTTPException(status_code=400, detail="Unsupported model")
 
+    has_images = any(
+        isinstance(message.content, list)
+        and any(part.type == "image_url" for part in message.content)
+        for message in request.messages
+    )
+    if has_images and request.model not in VISION_MODELS:
+        raise HTTPException(status_code=400, detail="Images require a vision model")
+
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise HTTPException(status_code=503, detail="Model provider is not configured")
@@ -418,7 +435,7 @@ async def create_chat_completion(
         "api_key": api_key,
         "messages": [
             {"role": "system", "content": VELTRA_SYSTEM_PROMPT},
-            *(message.model_dump() for message in request.messages),
+            *(message.model_dump(exclude_none=True) for message in request.messages),
         ],
     }
     if request.max_tokens is not None:

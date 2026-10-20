@@ -56,6 +56,13 @@ model_list:
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
+  # Image understanding for chat attachments (requires image_url content parts)
+  - model_name: veltra-vision
+    litellm_params:
+      model: openrouter/qwen/qwen2.5-vl-72b-instruct
+      api_base: https://openrouter.ai/api/v1
+      api_key: os.environ/OPENROUTER_API_KEY
+
   # Free development and local test tier
   - model_name: veltra-dev
     litellm_params:
