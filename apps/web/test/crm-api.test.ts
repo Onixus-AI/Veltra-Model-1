@@ -22,6 +22,12 @@ test('CRM API verifies identity and workspace, returns a preview, and persists o
   const preview=await call({workspace_id:W,customer_id:C,message:'remember customer prefers mornings'});assert.equal(preview.status,200);const proposal=await preview.json();assert.equal(proposal.kind,'preview');assert.equal(tables.crm_memories.length,0);
   const confirmation=await call({workspace_id:W,customer_id:C,review_id:proposal.review_id});assert.equal(confirmation.status,200);assert.equal(tables.crm_memories.length,1);assert.equal(tables.crm_memories[0].status,'proposed');
   assert.equal((await call({workspace_id:W,customer_id:C,review_id:proposal.review_id})).status,409);assert.equal(tables.crm_memories.length,1);
+  tables.veltra_memories=[];
+  const brain=await (await call({workspace_id:W,message:'Remember for business: Support hours are 9–5 Eastern',source_app:'mail'})).json();assert.equal(brain.kind,'preview');assert.equal(tables.veltra_memories.length,0);
+  assert.equal((await call({workspace_id:W,review_id:brain.review_id,source_app:'mail'})).status,200);
+  assert.equal(tables.veltra_memories[0].source_app,'mail');assert.equal(tables.veltra_memories[0].status,'proposed');
+  const approval=await (await call({workspace_id:W,message:'Approve memory '+tables.veltra_memories[0].id})).json();assert.equal(approval.kind,'preview');
+  assert.equal((await call({workspace_id:W,review_id:approval.review_id})).status,200);assert.equal(tables.veltra_memories[0].status,'approved');
  }finally{
   if(previous[0]===undefined)delete process.env.NEXT_PUBLIC_SUPABASE_URL;else process.env.NEXT_PUBLIC_SUPABASE_URL=previous[0];
   if(previous[1]===undefined)delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY=previous[1];

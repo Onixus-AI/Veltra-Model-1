@@ -1,9 +1,10 @@
-const clean=(v:unknown)=>String(v??'').replace(/[\r\n<>\[\]`*_\\|]/g,' ').slice(0,2000);
-const actions:Record<string,string>={create_customer:'Add customer',create_task:'Add task',create_deal:'Add opportunity',propose_memory:'Propose customer memory',complete_task:'Complete task',update_stage:'Change opportunity stage',suppress:'Stop outreach to this customer',pause_campaign:'Pause campaign',activate_campaign:'Activate approved campaign delivery'};
+const clean=(v:unknown)=>String(v??'').replace(/[\r\n<>\[\]`*_\\|]/g,' ').slice(0,5000);
+const actions:Record<string,string>={brain_propose:'Propose shared memory',brain_approve:'Approve shared memory for recall',brain_correct:'Correct shared memory and request approval again',brain_forget:'Forget saved memory',create_customer:'Add customer',create_task:'Add task',create_deal:'Add opportunity',propose_memory:'Propose customer memory',complete_task:'Complete task',update_stage:'Change opportunity stage',suppress:'Stop outreach to this customer',pause_campaign:'Pause campaign',activate_campaign:'Activate approved campaign delivery'};
 function record(value:unknown):string{
  if(!value||typeof value!=='object')return clean(value);
  const row=value as Record<string,unknown>;
- const parts=['company','name','email','title','content','subject','body','stage','status','due_at','source','kind','created_at'].filter(key=>row[key]!==undefined&&row[key]!==null&&row[key]!=='').map(key=>`${key==='due_at'?'Due':key==='created_at'?'Recorded':key.replaceAll('_',' ')}: ${clean(row[key])}`);
+ const parts=['company','name','email','title','content','subject','body','stage','status','due_at','source','kind','source_app','source_ref','revision','expires_at','created_at'].filter(key=>row[key]!==undefined&&row[key]!==null&&row[key]!=='').map(key=>`${key==='due_at'?'Due':key==='created_at'?'Recorded':key.replaceAll('_',' ')}: ${clean(row[key])}`);
+ if(row.source_app&&row.id)parts.unshift('Memory ID: '+clean(row.id));
  if(typeof row.value_cents==='number')parts.push(`Value: ${(row.value_cents/100).toFixed(2)} ${clean(row.currency??'USD')}`);
  if(row.suppressed===true)parts.push('Outreach stopped');
  return parts.join(' · ')||'Saved record';
@@ -12,7 +13,7 @@ export function formatCrmReply(result:{kind:string;reply:string;details?:unknown
  const details=result.details;if(!details)return result.reply;
  if(result.kind==='preview'&&typeof details==='object'){
   const d=details as Record<string,unknown>,lines=[actions[String(d.action)]??'Review CRM change'];
-  for(const key of ['company','name','email','title','content','due_at','stage'])if(d[key])lines.push(`${key==='due_at'?'Due':key}: ${clean(d[key])}`);
+  for(const key of ['company','name','email','title','content','kind','source','scope','expires_at','due_at','stage'])if(d[key])lines.push(`${key==='due_at'?'Due':key}: ${clean(d[key])}`);
   if(typeof d.value_cents==='number')lines.push(`Value: ${(d.value_cents/100).toFixed(2)} ${clean(d.currency??'USD')}`);
   if(d.before)lines.push('Current record: '+record(d.before));
   return result.reply+'\n\n'+lines.join('\n');

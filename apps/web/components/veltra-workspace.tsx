@@ -424,9 +424,9 @@ export default function VeltraWorkspace() {
         </div>
         <div className="composer-area">
           {error && <div className="chat-error"><ShieldCheck size={14} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
-          {writeProposal&&<div className="context-chip" role="dialog" aria-label="Confirm commit">
+          {writeProposal&&<div className="context-chip" role="dialog" aria-label={writeProposal.agent_review?'Review connected action':'Confirm commit'}>
             <FileText size={12}/>
-            <span style={{whiteSpace:"pre-line"}}>Commit and open a draft pull request?{"\n"}{writeProposal.summary}</span>
+            <span style={{whiteSpace:"pre-line"}}>{writeProposal.agent_review?'Apply the exact change below?':'Commit and open a draft pull request?'}{"\n"}{writeProposal.summary}</span>
             <button type="button" onClick={()=>answerWriteProposal(true)}>Confirm</button>
             <button type="button" onClick={()=>answerWriteProposal(false)}>Cancel</button>
           </div>}
