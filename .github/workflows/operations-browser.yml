@@ -24,6 +24,8 @@ jobs:
           cp test/browser-operations/index.html work/operations-browser/index.html
           mkdir -p work/operations-browser/brands
           cp public/brands/veltra-crm.png work/operations-browser/brands/veltra-crm.png
+          mkdir -p work/operations-browser/brands
+          cp public/brands/stripe.svg public/brands/googlemaps.png public/brands/linkedin.svg work/operations-browser/brands/
       - name: Verify real browser interactions
         run: |
           python -m http.server 3188 --bind 127.0.0.1 --directory work/operations-browser > /tmp/operations-server.log 2>&1 &
@@ -33,6 +35,7 @@ jobs:
           python test/browser-operations/outreach.py
           python test/browser-operations/customer-dialog.py
           python test/browser-operations/record-navigation.py
+          python test/browser-operations/context-clarity.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

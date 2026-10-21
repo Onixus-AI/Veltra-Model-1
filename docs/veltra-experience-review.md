@@ -62,6 +62,22 @@ Remaining CRM review includes actual record navigation, other forms/dialogs, pip
 - [x] Code: focus the record title on entry and return focus to the source row/deal on Back, retaining search and pipeline stage filters.
 - [x] Code: replace the squeezed six-column pipeline with a responsive 3/2/1-column board and controlled stage filter.
 - [x] Code: show per-stage deal counts and separate totals by recorded currency; no currency conversion is inferred.
-- [ ] Verify return paths, empty search, currency separation and responsive layouts in both CRM products before release.
+- [x] Verify return paths, empty search, currency separation and responsive layouts in both CRM products before release. Workspace PR58 and CRM PR16 are deployed.
 
 Opportunity cards open the existing customer record and its opportunities. This pass does not add drag-and-drop, alter deal stages automatically, or change outreach behavior.
+
+## Context clarity increment
+
+- [x] Code: memory search, state filters, source and expiry, with excluded/expired facts clearly marked unavailable for customer context.
+- [x] Code: distinguish Mail status loading, errors, workspace binding and actual disconnected state; disable writes when state cannot be verified.
+- [x] Code: research provider-check status, selected source, request state and source-page counts.
+- [x] Code: integration roadmap separated from account connection health, with sourced product logos.
+- [ ] Verify context states and connection failures in both CRM products before release.
+
+## Task-scoped AI app access — confirmed user requirement
+
+- [ ] A new AI task must request Allow/Deny from each app it needs, even when the account is already connected.
+- [ ] Allow applies only to the current task and named app; Deny blocks the requested access without disconnecting the account.
+- [ ] Mail and other existing background automations continue under their existing authorization.
+- [ ] Access consent remains separate from approvals to send, delete, publish or change records.
+- [ ] Enforce access at the server/tool boundary; task completion, expiry or cancellation must end the grant. Show the requested purpose and an accurate receipt.
