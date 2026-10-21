@@ -11,3 +11,5 @@
 .workspace.spatial-workspace .workspace-topbar .sidebar-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 
 @media(max-width:760px){.workspace.spatial-workspace .workspace-modes button{padding:7px 12px}.connector-mode-pills{max-width:100%;flex-wrap:wrap}.connector-mode-pills button{padding:8px 12px}}
+/* Sidebar line icons use Veltra cyan, including collapsed navigation. */
+.workspace.spatial-workspace .workspace-sidebar nav svg{color:#00e5ef}.workspace.spatial-workspace .workspace-sidebar nav button:hover,.workspace.spatial-workspace .workspace-sidebar nav a:hover{background:#103239;color:#e0f5f8}
