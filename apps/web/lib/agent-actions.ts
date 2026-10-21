@@ -71,7 +71,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   // Verify the linked mailbox now, before offering a review, without preparing any drafts.
   const identity=await mail('mail_identity',{});
   const id=crypto.randomUUID(),r=await client.from('crm_conversations').insert({id,user_id:user,workspace_id:scope.workspace_id??null,customer_id:scope.customer_id??null,title:'Mail tool review',messages:[{role:'assistant',content:JSON.stringify({type:'prepare_quote_followups',identity,expires_at:Date.now()+600000})}]}).select('id').single();if(r.error)throw r.error;
-  return {content:'No drafts prepared yet. Waiting for review.',proposal:{id,summary:JSON.stringify(identity)+'\nPrepare overdue quote follow-up drafts in your connected Mail account. Review them in Mail before sending. No email will be sent by this action.',agent_review:{target:'mail' as const,id}}};
+  return {content:'No drafts prepared yet. Waiting for review.',proposal:{id,summary:JSON.stringify(identity)+'\nMailbox-wide overdue quote scan: up to five candidates in this pass. The selected CRM customer does not filter this action. Review resulting drafts in Mail before sending. No email will be sent by this action.',agent_review:{target:'mail' as const,id}}};
  }
  throw Error('400:That tool is not available.');
 }

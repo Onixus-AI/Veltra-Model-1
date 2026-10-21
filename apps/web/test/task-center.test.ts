@@ -19,11 +19,11 @@ test('candidate matching requires a unique exact email and preserves bounded pag
 });
 test('follow-up workflow requires a separate review, uses actual receipts, and stops safely on denial, failure or cancellation',async t=>{
  const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
- try{for(const mode of ['approve','decline','read-fails','stop','malformed-receipt']){
+ try{for(const mode of ['approve','decline','empty','read-fails','stop','malformed-receipt']){
   let writes=0,stopped=false,run=fresh();const events:TaskEvent[]=[];
   const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{assert.equal(input,'/api/agent/tools');const b=JSON.parse(String(init?.body));
    if(b.name==='crm_read')return Response.json({content:'Customer read receipt',data:[{company:'Fixture',email:'customer@example.test'}]});
-   if(b.name==='mail_find_followups'){if(mode==='read-fails')return Response.json({error:'Mail unavailable'},{status:503});return Response.json({content:JSON.stringify({items:[{subject:'Quote',to:'customer@example.test'}],scope:'One page only',next_cursor:'more'})});}
+   if(b.name==='mail_find_followups'){if(mode==='read-fails')return Response.json({error:'Mail unavailable'},{status:503});return Response.json({content:JSON.stringify({items:mode==='empty'?[]:[{subject:'Quote',to:'customer@example.test'}],scope:'One page only',next_cursor:'more'})});}
    if(b.name==='mail_prepare_followups')return Response.json({content:'Nothing prepared',proposal:{id:'review',summary:'Verify mailbox',agent_review:{target:'mail',id:'review'}}});
    assert.equal(b.name,'confirm');assert.deepEqual(b.confirm,{target:'mail',id:'review'});writes++;return Response.json({content:JSON.stringify(mode==='malformed-receipt'?{}:{drafted:['draft-1'],scope:'Mail scan'})});
   });
@@ -31,7 +31,7 @@ test('follow-up workflow requires a separate review, uses actual receipts, and s
   const access=new TaskAccessClient('Follow-ups',async()=>{throw Error('Fixture does not request access');});
   const promise=runFollowupTask({crm_scope:{workspace_id:'business',customer_id:null}},async p=>{assert.equal(writes,0);assert.match(p.summary,/not restricted to the CRM matches/);assert.equal(run.state,'review');return mode!=='decline';},access,observer);
   if(['read-fails','stop','malformed-receipt'].includes(mode))await assert.rejects(promise,mode==='read-fails'?/Mail unavailable/:mode==='stop'?/stopped/:/could not be confirmed/);
-  else {const answer=await promise;assert.match(answer,mode==='decline'?/declined/:/1 draft receipt/);}
+  else {const answer=await promise;assert.match(answer,mode==='decline'?/declined/:mode==='empty'?/No draft preparation was requested/:/1 draft receipt/);}
   assert.equal(writes,['approve','malformed-receipt'].includes(mode)?1:0);assert.equal(events.filter(e=>e.type==='result'&&e.id==='drafts'&&e.state==='completed').length,mode==='approve'?1:0);mock.mock.restore();
  }
  const access=new TaskAccessClient('Customer',async()=>false);await assert.rejects(()=>runFollowupTask({crm_scope:{customer_id:'selected'}},async()=>true,access,{event:()=>{},cancelled:()=>false}),/All customers/);

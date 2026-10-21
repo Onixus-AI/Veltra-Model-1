@@ -158,7 +158,7 @@ export async function runAgentTurn(
     for (const call of calls) {
       if(observer?.cancelled())throw Error('Pending task work was stopped.');
       const progressId=`tool-${step}-${call.id}`;const presentation=toolPresentation(call.function.name);observer?.event({type:'step',id:progressId,...presentation});
-      onStatus(`Using ${call.function.name.replaceAll("_", " ")}…`);
+      onStatus(presentation.title+"…");
       const outcome = await runToolCall(call,extraBody,access);
       if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
