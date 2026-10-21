@@ -109,6 +109,8 @@ export default function VeltraWorkspace() {
   useEffect(() => {
     const query=new URLSearchParams(location.search);
     try{if(localStorage.getItem("veltra-workspace-mode")==="work")setWorkspaceMode("work");}catch{}
+    if(query.get("mode")==="work"||query.get("crm_workspace"))setWorkspaceMode("work");
+    const draft=query.get("prompt");if(draft)setInput(draft.slice(0,2000));
     if(["mail","crm","build","tms","shopify"].includes(query.get("canvas")??""))openTool(query.get("canvas") as "mail"|"crm"|"build"|"tms"|"shopify");
     if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("work");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
