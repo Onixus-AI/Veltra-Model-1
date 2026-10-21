@@ -44,7 +44,7 @@ jobs:
           cp test/browser-workspace/index.html work/workspace-browser/index.html
           cp public/veltra-logo.png work/workspace-browser/veltra-logo.png
           mkdir -p work/workspace-browser/brands
-          cp public/brands/veltra-mail.svg public/brands/veltra-crm.png work/workspace-browser/brands/
+          cp public/brands/veltra-mail.svg public/brands/veltra-crm.png public/brands/github.svg public/brands/vercel.svg public/brands/supabase.svg public/brands/railway.svg public/brands/n8n.svg public/brands/liveaskew.png work/workspace-browser/brands/
       - name: Verify workspace layout and command navigation
         run: |
           python -m http.server 3187 --bind 127.0.0.1 --directory work/workspace-browser > /tmp/workspace-server.log 2>&1 &
