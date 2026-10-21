@@ -1,7 +1,7 @@
 import {crmUser,crmError} from '@/lib/crm/server';
 import {agentAction,agentScope} from '@/lib/agent-actions';
 export const runtime='nodejs';
-export const maxDuration=90;
+export const maxDuration=300;
 export async function POST(request:Request){try{
  const raw=await request.text();if(raw.length>20000)throw Error('413:Tool request is too large.');
  let b;try{b=JSON.parse(raw);}catch{throw Error('400:Invalid tool request.');}if(!b||typeof b!=='object'||Array.isArray(b)||typeof b.name!=='string'||!b.args||typeof b.args!=='object'||Array.isArray(b.args))throw Error('400:Invalid tool request.');

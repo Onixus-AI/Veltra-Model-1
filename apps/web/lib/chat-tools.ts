@@ -34,7 +34,7 @@ export type WriteProposal = {
   agent_review?: {target:'crm'|'brain'|'mail';id:string};
 };
 
-export type CanvasItem = { title: string; content: string };
+export type CanvasItem = { title: string; content: string;kind?:'markdown'|'image' };
 export type ToolOutcome = { content: string; proposal?: WriteProposal; canvas?: CanvasItem };
 
 /** Wraps file text in a fence longer than any backtick run inside it, so it renders as code. */

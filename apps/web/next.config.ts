@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
     {key:'Permissions-Policy',value:'camera=(), geolocation=(), microphone=(self)'},
   ]}];},
   outputFileTracingRoot: path.resolve(__dirname),
+  outputFileTracingIncludes: {'/api/agent/tools':['./lib/browser/inspect-page.mjs']},
   serverExternalPackages: ["pdfjs-dist"],
 };
 
