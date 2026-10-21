@@ -38,7 +38,7 @@ with sync_playwright() as p:
   status=state['status']
   route.fulfill(json={'campaigns':[{'id':'campaign','name':'Launch','status':state['campaign'],'config':{'daily_limit':10,'timezone':'America/New_York'}}],'messages':[{'id':'message','campaign_id':'campaign','company':'Northstar Studio','email':'alex@example.com','subject':'Introduction','body':'A draft for review.','step':0,'status':status,'due_at':'2026-10-21T09:00:00Z','provider_id':'receipt-1' if status=='sent' else None,'last_error':None}],'daily':{'day':'2026-10-21','time_zone':'UTC','sent_today':1 if status=='sent' else 0,'awaiting_review':1 if status=='draft' else 0,'needs_attention':0,'approved_due':0,'awaiting_receipt':0}})
  context.route('**/api/crm/outreach**',outreach)
- page=context.new_page();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+ page=context.new_page();page.clock.install();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto('http://127.0.0.1:3188/?outreach');page.wait_for_load_state('networkidle')
  expect(page.get_by_text('1 selected',exact=False)).to_be_visible()
  results=page.get_by_role('region',name='Outreach results')
@@ -50,7 +50,7 @@ with sync_playwright() as p:
  expect(results).to_contain_text('Watch the next delivery receipt')
  assert state['actions']==['approve','activate']
  state['status']='sent'
- page.get_by_role('button',name='Refresh automation').click()
+ page.clock.fast_forward(21000)
  expect(page.get_by_text('Provider receipt: receipt-1')).to_be_visible()
  page.screenshot(path=str(out/'outreach-results.png'),full_page=True)
  state['failed']=True
