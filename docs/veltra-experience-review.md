@@ -72,7 +72,7 @@ Opportunity cards open the existing customer record and its opportunities. This 
 - [x] Code: distinguish Mail status loading, errors, workspace binding and actual disconnected state; disable writes when state cannot be verified.
 - [x] Code: research provider-check status, selected source, request state and source-page counts.
 - [x] Code: integration roadmap separated from account connection health, with sourced product logos.
-- [ ] Verify context states and connection failures in both CRM products before release.
+- [x] Verify context states and connection failures in both CRM products before release. Workspace PR59 and CRM PR17 merged after all checks passed.
 
 ## Task-scoped AI app access — confirmed user requirement
 
@@ -81,3 +81,15 @@ Opportunity cards open the existing customer record and its opportunities. This 
 - [ ] Mail and other existing background automations continue under their existing authorization.
 - [ ] Access consent remains separate from approvals to send, delete, publish or change records.
 - [ ] Enforce access at the server/tool boundary; task completion, expiry or cancellation must end the grant. Show the requested purpose and an accurate receipt.
+
+## Task-access implementation receipt
+
+Task permissions are stored separately from connections and are scoped to the authenticated owner, task and app. New tasks ask again. The app-branded native dialog offers Allow for this task or Deny, with Deny as initial keyboard focus. App tools and direct Chat commands check permission before provider execution; normal background automation and manual app navigation retain their existing behavior. A one-hour maximum bounds abandoned tasks, and completion/end-access closes the task. Record mutation, message and publishing reviews remain separate.
+
+Database migration and transactionally rolled-back ownership/denial/completion tests have passed on the Workspace and CRM projects. UI/API changes still require release checks; this is not yet a live permission-layer completion claim.
+
+## Permission rollout safeguard
+
+The user requested that existing behavior not be disrupted. Task access is therefore opt-in behind the server setting `VELTRA_TASK_ACCESS_ENABLED=true`, disabled by default. Disabled mode preserves the existing app paths and does not create grants or prompt users. Enabling production is deferred until Mail's own CRM-chat handoff and every delegated path are compatible and verified. Database tables are additive and independent of background workers. The feature must not be described as live while this rollout flag remains off.
+
+Validation checkpoint: Workspace TypeScript check and all 62 unit/API tests passed with the opt-in flag implementation. Production activation remains deferred; standalone Mail CRM-chat compatibility and browser consent verification are still open. These passing checks do not establish that all app surfaces are ready.

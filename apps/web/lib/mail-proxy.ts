@@ -1,3 +1,5 @@
+import {requireTaskAccess} from './task-access';
+import {crmError} from './crm/server';
 import { NextRequest } from "next/server";
 
 export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "tms" | "shopify" | `shopify/${string}`) {
@@ -6,6 +8,7 @@ export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ")) return Response.json({ error: "Sign in to Chat first." }, { status: 401 });
   try {
+    const task=request.headers.get('x-veltra-task');if(task){const permission=await requireTaskAccess(request,task,[path.startsWith('shopify')?'shopify':path==='tms'?'tms':'mail']);if(permission)return permission;}
     const upstream = await fetch(`${origin.replace(/\/$/, "")}/chat/${path}`, {
       method: request.method,
       headers: { Authorization: authorization, "Content-Type": "application/json" },
@@ -13,7 +16,8 @@ export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(15_000),
     });
     return new Response(upstream.body, { status: upstream.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
-  } catch {
+  } catch(error) {
+    if(error instanceof Error&&/^\d{3}:/.test(error.message))return crmError(error);
     return Response.json({ error: "Veltra Mail is temporarily unavailable. Please try again." }, { status: 502 });
   }
 }
