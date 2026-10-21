@@ -103,7 +103,8 @@ Validation checkpoint: Workspace TypeScript check and all 62 unit/API tests pass
 - [x] Workspace browser navigation regression passes.
 - [x] Implement Mail's own CRM-chat task handoff in Mail PR32; preserves owner-bound encrypted sign-in, permission challenges, Allow/Deny, reviewed changes and legacy disabled behavior.
 - [x] Verify Mail disconnect ends the pending task before the CRM session is cleared.
-- [ ] Audit remaining delegated-app paths and verify the integrated preview before enabling production.
+- [x] Audit existing delegated app tool paths and verify combined Mail → Workspace/standalone CRM server flows with fixture identity/data.
+- [ ] Run a signed-in hosted-preview smoke test against the intended staging identity/data before enabling production.
 
 Prototype review: Workspace PR60 and CRM PR18 are draft and not merged. Browser receipts: [Workspace](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39680559082), [CRM](https://github.com/Onixus-AI/Veltra-CRM/actions/runs/39680563296). Production permission activation remains OFF. We can continue other roadmap work without activating this prototype.
 
@@ -112,3 +113,11 @@ Prototype review: Workspace PR60 and CRM PR18 are draft and not merged. Browser 
 Mail PR32 adds a fixed-destination task-access proxy through the existing sealed CRM session and a solid black/cyan consent dialog in Mail's CRM assistant. Task identity follows the original request and its reviewed change; scope changes, dismissal and disconnect end access. Disconnect ends the task before clearing CRM credentials. Existing Mail-mode commands and background workers are unchanged.
 
 Both Mail type checks and all 119 tests pass, including new account/CSRF isolation, allow/deny, completed task and disabled-rollout cases. Final a764be7 passed both Mail CI and browser verification, including disconnect order. Browser checks use the real Mail assistant with fixture services, not live mailbox actions. Receipts: [CI](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335842), [browser](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335845). No feature setting has been enabled, and the three permission PRs remain draft.
+
+## Combined app-flow verification
+
+The explicit cross-repository runner at `apps/web/test/integration/combined-task-access.mjs` passed for both CRM hosts. It sends real HTTP requests through Mail's encrypted CRM-session proxy into the actual task/assistant handlers and Supabase SDK. Workspace direct-chat CRM access also passes. Identity, task RPC and table responses are fixtures; no live customer data is changed. Read → separate brain consent → memory preview → explicit one-use confirmation persists a proposed memory attributed to Mail. Deny cannot be silently changed; ended/expired tasks are blocked, and disabled mode makes no task-permission calls. Reproduction and scope limits are recorded beside the runner.
+
+Workspace TypeScript and all 65 tests pass, including named-app checks for GitHub, Vercel, Supabase, Railway, n8n, connection-status metadata, Shopify, TMS and Mail. Denied Bee/browser calls do not contact their providers; capability discovery does not probe app connections. Manual navigation is intentionally separate from task-marked AI calls. The client-module directive in chat-tools was restored to the first statement.
+
+No production setting has changed. Workspace PR60, CRM PR18 and Mail PR32 remain draft. Hosted staging identity/provider behavior still requires a signed-in smoke test; the isolated integration runner is not a claim of that live test.

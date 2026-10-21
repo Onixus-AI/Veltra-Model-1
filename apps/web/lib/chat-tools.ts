@@ -1,5 +1,5 @@
-import type {TaskAccessClient} from './task-access-client';
 "use client";
+import type {TaskAccessClient} from './task-access-client';
 
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
