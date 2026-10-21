@@ -1,4 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "../components/crm/operations.css";
+@import "../components/crm/command-dashboard.css";
 
 @tailwind base;
 @tailwind components;
@@ -427,7 +429,7 @@ body, .workspace, .auth-page { background: #000000; }
 
 .hub-tool-icon.brand-logo { background:#000000; border-color:#2a3440; overflow:hidden; }
 .hub-tool-icon.brand-logo img { display:block; width:23px; height:23px; object-fit:contain; filter:none; }
-.hub-tool-icon.veltra-tool-logo { background:#000000; }
+.hub-tool-icon.veltra-tool-logo { background:transparent; border:0; border-radius:0; box-shadow:none; overflow:visible; }
 .hub-google > .brand-logo { width:34px; height:34px; border-radius:8px; flex-shrink:0; }
 @media(max-width:760px){.hub-tool-icon.brand-logo img{width:21px;height:21px}}
 

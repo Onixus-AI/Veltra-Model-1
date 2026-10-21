@@ -1,0 +1,57 @@
+name: Operations browser verification
+on: [pull_request, workflow_dispatch]
+jobs:
+  operations:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: pip install playwright==1.64.0
+      - run: python -m playwright install --with-deps chromium
+      - name: Bundle the real operations component with fixture services
+        run: |
+          mkdir -p work/operations-browser
+          npx --yes --package=esbuild@0.25.12 esbuild test/browser-operations/main.tsx --bundle --jsx=automatic --alias:@=. --define:process.env.NEXT_PUBLIC_SUPABASE_URL='"https://fixture.supabase.co"' --define:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='"fixture-public-key"' --outfile=work/operations-browser/app.js
+          cp test/browser-operations/index.html work/operations-browser/index.html
+          mkdir -p work/operations-browser/brands
+          cp public/brands/veltra-crm.png work/operations-browser/brands/veltra-crm.png
+      - name: Verify real browser interactions
+        run: |
+          python -m http.server 3188 --bind 127.0.0.1 --directory work/operations-browser > /tmp/operations-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python test/browser-operations/check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: operations-screenshots
+          path: apps/web/work/operations-screenshots
+
+      - name: Bundle the real workspace shell
+        run: |
+          mkdir -p work/workspace-browser
+          npx --yes --package=esbuild@0.25.12 esbuild test/browser-workspace/main.tsx --bundle --jsx=automatic --alias:@=. --loader:.woff=file --loader:.woff2=file --define:process.env.NEXT_PUBLIC_SUPABASE_URL='"https://fixture.supabase.co"' --define:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='"fixture-public-key"' --outfile=work/workspace-browser/app.js
+          cp test/browser-workspace/index.html work/workspace-browser/index.html
+          cp public/veltra-logo.png work/workspace-browser/veltra-logo.png
+          mkdir -p work/workspace-browser/brands
+          cp public/brands/veltra-mail.svg public/brands/veltra-crm.png work/workspace-browser/brands/
+      - name: Verify workspace layout and command navigation
+        run: |
+          python -m http.server 3187 --bind 127.0.0.1 --directory work/workspace-browser > /tmp/workspace-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python test/browser-workspace/check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: workspace-screenshots
+          path: apps/web/work/workspace-screenshots
