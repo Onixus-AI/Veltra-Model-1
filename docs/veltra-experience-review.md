@@ -93,3 +93,14 @@ Database migration and transactionally rolled-back ownership/denial/completion t
 The user requested that existing behavior not be disrupted. Task access is therefore opt-in behind the server setting `VELTRA_TASK_ACCESS_ENABLED=true`, disabled by default. Disabled mode preserves the existing app paths and does not create grants or prompt users. Enabling production is deferred until Mail's own CRM-chat handoff and every delegated path are compatible and verified. Database tables are additive and independent of background workers. The feature must not be described as live while this rollout flag remains off.
 
 Validation checkpoint: Workspace TypeScript check and all 62 unit/API tests passed with the opt-in flag implementation. Production activation remains deferred; standalone Mail CRM-chat compatibility and browser consent verification are still open. These passing checks do not establish that all app surfaces are ready.
+
+## Permission verification — October 21, 2026
+
+- [x] Workspace: TypeScript and all 63 unit/API tests pass, including the off-by-default path making zero permission-service calls.
+- [x] Standalone CRM: TypeScript and all 41 tests pass.
+- [x] Unmodified Mail: six focused CRM integration/sign-in/suppression/outage tests pass.
+- [x] CI browser suites pass for both products: task Allow/Deny, first focus on Deny, Escape denial, new task prompts, mobile bounds, task completion, and no mocked provider execution on Deny. These are real component interactions against fixture services, not live mailbox actions.
+- [x] Workspace browser navigation regression passes.
+- [ ] Implement and verify Mail's own CRM-chat task handoff and remaining delegated-app paths before enabling.
+
+Prototype review: Workspace PR60 and CRM PR18 are draft and not merged. Browser receipts: [Workspace](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39680559082), [CRM](https://github.com/Onixus-AI/Veltra-CRM/actions/runs/39680563296). Production permission activation remains OFF. We can continue other roadmap work without activating this prototype.
