@@ -10,7 +10,7 @@ with sync_playwright() as p:
  trigger=page.get_by_role('button',name='Add test customer',exact=True)
  trigger.click()
  dialog=page.get_by_role('dialog',name='Add a customer',exact=True)
- company=dialog.get_by_label(re.compile('Company'))
+ company=dialog.get_by_role('textbox',name='Company Required',exact=True)
  expect(company).to_be_focused()
  assert dialog.evaluate('(el)=>el.matches(":modal")'),'Customer entry must be a native modal'
  assert dialog.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
