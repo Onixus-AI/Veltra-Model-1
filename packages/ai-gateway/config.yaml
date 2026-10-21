@@ -23,7 +23,7 @@ model_list:
   # Complex logic, deep reasoning, and code
   - model_name: veltra-logic
     litellm_params:
-      model: openrouter/deepseek/deepseek-chat
+      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.2
@@ -31,7 +31,7 @@ model_list:
   # Fast text, email triage, and CRM actions
   - model_name: veltra-fast
     litellm_params:
-      model: openrouter/qwen/qwen-2.5-coder-32b-instruct
+      model: openrouter/nvidia/nemotron-3.5-lightning
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.3
@@ -39,7 +39,7 @@ model_list:
   # Agentic workflow execution and tool calling
   - model_name: veltra-agent
     litellm_params:
-      model: openrouter/xiaomi/mimo-v2.6-flash
+      model: openrouter/nvidia/nemotron-3.5-super-vl
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -59,7 +59,7 @@ model_list:
   # Image understanding for chat attachments (requires image_url content parts)
   - model_name: veltra-vision
     litellm_params:
-      model: openrouter/qwen/qwen2.5-vl-72b-instruct
+      model: openrouter/nvidia/nemotron-3.5-super-vl
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -108,7 +108,22 @@ video_generation:
 
 # Bounded coding-team roles. Provider IDs can be overridden by server env vars.
 coding_team:
-  planner: deepseek/deepseek-chat
-  coder: qwen/qwen-2.5-coder-32b-instruct
-  reviewer: deepseek/deepseek-chat
-  vision: qwen/qwen3-vl-235b-a22b-instruct
+  planner: nvidia/nemotron-3-ultra-550b-a55b
+  coder: nvidia/nemotron-3.5-super-vl
+  reviewer: nvidia/nemotron-3.5-super-vl
+  vision: nvidia/nemotron-3.5-super-vl
+  design: nvidia/nemotron-3.5-super-vl
+
+# Ordered OpenRouter fallbacks. Never route normal customer data to :free trials.
+chat_fallbacks:
+  veltra-fast: [qwen/qwen-2.5-coder-32b-instruct, google/gemini-2.5-flash]
+  veltra-logic: [deepseek/deepseek-chat, google/gemini-2.5-flash]
+  veltra-agent: [xiaomi/mimo-v2.6-flash, google/gemini-2.5-flash, inclusionai/ling-3.0-flash, deepseek/deepseek-chat]
+  veltra-vision: [qwen/qwen2.5-vl-72b-instruct]
+
+coding_fallbacks:
+  planner: [deepseek/deepseek-chat]
+  coder: [qwen/qwen-2.5-coder-32b-instruct]
+  reviewer: [deepseek/deepseek-chat]
+  vision: [qwen/qwen3-vl-235b-a22b-instruct]
+  design: [qwen/qwen3.7-plus]
