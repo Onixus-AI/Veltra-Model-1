@@ -31,6 +31,7 @@ jobs:
           trap 'kill "$server_pid"' EXIT
           python test/browser-operations/check.py
           python test/browser-operations/outreach.py
+          python test/browser-operations/customer-dialog.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

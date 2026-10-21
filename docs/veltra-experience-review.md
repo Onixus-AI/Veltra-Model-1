@@ -41,6 +41,17 @@ References: https://developer.apple.com/design/human-interface-guidelines/layout
 - [x] Code: remove remaining tinted sidebar/composer and translucent mode/search surfaces in the shared spatial shell.
 - [x] Code: include orange and red in shared tokens and saved accent choices, preserving cyan as default.
 - [x] Code: ensure common navigation/header/dialog actions have 44px minimum touch targets on coarse pointers.
-- [ ] Verify foundation increment with browser screenshots, branding/palette assertions, and CI before release.
+- [x] Verify foundation increment with browser screenshots, branding/palette assertions, and CI before release. PR56 merged; production READY at ca068ce3f877e329775c70be03e180b953d63946.
 
 The complete section checklist remains open; this increment does not establish that CRM, Mail, Chat or Super Coder has passed the full experience review.
+
+## CRM customer-entry increment
+
+- [x] Code: replace the customer-entry overlay with a native modal; focus stays within the task and returns to Add customer on close.
+- [x] Code: support Escape, Cancel and a labelled close action; prevent dismissal during an in-flight save.
+- [x] Code: show save errors inside the dialog and preserve entered values after a failed save.
+- [x] Code: group relationship, contact and business details; retain all existing fields, validation and save operation.
+- [x] Code: use opaque black surfaces, cyan focus and clear red error borders, responsive fields and 44px form controls.
+- [ ] Verify keyboard, failed-save/retry, mobile layout and existing CRM regression checks in both products before release.
+
+Remaining CRM review includes actual record navigation, other forms/dialogs, pipeline, sources, memory and automation. This customer-entry increment does not mark the full CRM experience complete.
