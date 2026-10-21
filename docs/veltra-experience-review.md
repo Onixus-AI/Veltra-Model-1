@@ -72,7 +72,7 @@ Opportunity cards open the existing customer record and its opportunities. This 
 - [x] Code: distinguish Mail status loading, errors, workspace binding and actual disconnected state; disable writes when state cannot be verified.
 - [x] Code: research provider-check status, selected source, request state and source-page counts.
 - [x] Code: integration roadmap separated from account connection health, with sourced product logos.
-- [ ] Verify context states and connection failures in both CRM products before release.
+- [x] Verify context states and connection failures in both CRM products before release. Workspace PR59 and CRM PR17 merged after all checks passed.
 
 ## Task-scoped AI app access — confirmed user requirement
 
@@ -81,3 +81,45 @@ Opportunity cards open the existing customer record and its opportunities. This 
 - [ ] Mail and other existing background automations continue under their existing authorization.
 - [ ] Access consent remains separate from approvals to send, delete, publish or change records.
 - [ ] Enforce access at the server/tool boundary; task completion, expiry or cancellation must end the grant. Show the requested purpose and an accurate receipt.
+
+## Task-access implementation receipt
+
+Task permissions are stored separately from connections and are scoped to the authenticated owner, task and app. New tasks ask again. The app-branded native dialog offers Allow for this task or Deny, with Deny as initial keyboard focus. App tools and direct Chat commands check permission before provider execution; normal background automation and manual app navigation retain their existing behavior. A one-hour maximum bounds abandoned tasks, and completion/end-access closes the task. Record mutation, message and publishing reviews remain separate.
+
+Database migration and transactionally rolled-back ownership/denial/completion tests have passed on the Workspace and CRM projects. UI/API changes still require release checks; this is not yet a live permission-layer completion claim.
+
+## Permission rollout safeguard
+
+The user requested that existing behavior not be disrupted. Task access is therefore opt-in behind the server setting `VELTRA_TASK_ACCESS_ENABLED=true`, disabled by default. Disabled mode preserves the existing app paths and does not create grants or prompt users. Enabling production is deferred until Mail's own CRM-chat handoff and every delegated path are compatible and verified. Database tables are additive and independent of background workers. The feature must not be described as live while this rollout flag remains off.
+
+Validation checkpoint: Workspace TypeScript check and all 62 unit/API tests passed with the opt-in flag implementation. Production activation remains deferred; standalone Mail CRM-chat compatibility and browser consent verification are still open. These passing checks do not establish that all app surfaces are ready.
+
+## Permission verification — October 21, 2026
+
+- [x] Workspace: TypeScript and all 63 unit/API tests pass, including the off-by-default path making zero permission-service calls.
+- [x] Standalone CRM: TypeScript and all 41 tests pass.
+- [x] Unmodified Mail: six focused CRM integration/sign-in/suppression/outage tests pass.
+- [x] CI browser suites pass for both products: task Allow/Deny, first focus on Deny, Escape denial, new task prompts, mobile bounds, task completion, and no mocked provider execution on Deny. These are real component interactions against fixture services, not live mailbox actions.
+- [x] Workspace browser navigation regression passes.
+- [x] Implement Mail's own CRM-chat task handoff in Mail PR32; preserves owner-bound encrypted sign-in, permission challenges, Allow/Deny, reviewed changes and legacy disabled behavior.
+- [x] Verify Mail disconnect ends the pending task before the CRM session is cleared.
+- [x] Audit existing delegated app tool paths and verify combined Mail → Workspace/standalone CRM server flows with fixture identity/data.
+- [ ] Run a signed-in hosted-preview smoke test against the intended staging identity/data before enabling production.
+
+Prototype review: Workspace PR60 and CRM PR18 are draft and not merged. Browser receipts: [Workspace](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39680559082), [CRM](https://github.com/Onixus-AI/Veltra-CRM/actions/runs/39680563296). Production permission activation remains OFF. We can continue other roadmap work without activating this prototype.
+
+## Mail CRM-chat permission compatibility
+
+Mail PR32 adds a fixed-destination task-access proxy through the existing sealed CRM session and a solid black/cyan consent dialog in Mail's CRM assistant. Task identity follows the original request and its reviewed change; scope changes, dismissal and disconnect end access. Disconnect ends the task before clearing CRM credentials. Existing Mail-mode commands and background workers are unchanged.
+
+Both Mail type checks and all 119 tests pass, including new account/CSRF isolation, allow/deny, completed task and disabled-rollout cases. Final a764be7 passed both Mail CI and browser verification, including disconnect order. Browser checks use the real Mail assistant with fixture services, not live mailbox actions. Receipts: [CI](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335842), [browser](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335845). No feature setting has been enabled, and the three permission PRs remain draft.
+
+## Combined app-flow verification
+
+The explicit cross-repository runner at `apps/web/test/integration/combined-task-access.mjs` passed for both CRM hosts. It sends real HTTP requests through Mail's encrypted CRM-session proxy into the actual task/assistant handlers and Supabase SDK. Workspace direct-chat CRM access also passes. Identity, task RPC and table responses are fixtures; no live customer data is changed. Read → separate brain consent → memory preview → explicit one-use confirmation persists a proposed memory attributed to Mail. Deny cannot be silently changed; ended/expired tasks are blocked, and disabled mode makes no task-permission calls. Reproduction and scope limits are recorded beside the runner.
+
+Workspace TypeScript and all 65 tests pass, including named-app checks for GitHub, Vercel, Supabase, Railway, n8n, connection-status metadata, Shopify, TMS and Mail. Denied Bee/browser calls do not contact their providers; capability discovery does not probe app connections. Manual navigation is intentionally separate from task-marked AI calls. The client-module directive in chat-tools was restored to the first statement.
+
+No production setting has changed. Workspace PR60, CRM PR18 and Mail PR32 remain draft. Hosted staging identity/provider behavior still requires a signed-in smoke test; the isolated integration runner is not a claim of that live test.
+
+Final verification receipt for cd9bb66: all Workspace CI checks passed, including the 65-test suite, application build, operations/consent browser suite, workspace navigation, coding service and isolated browser worker. Receipts: [checks](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39685096036), [UI/browser](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39685096140). The matching hosted preview returned HTTP 200 through the existing Vercel connection after Deployment Protection authentication; no protection rule was changed. This confirms page availability, not an authenticated Veltra task. No real user session or live Mail provider was exercised in that hosted preview. Production activation remains off.

@@ -1,4 +1,5 @@
 "use client";
+import type {TaskAccessClient} from './task-access-client';
 
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
@@ -47,13 +48,7 @@ function languageFor(path: string) {
   return path.split(".").pop()?.replace(/[^a-z0-9]/gi, "") ?? "";
 }
 
-const READS: Record<string, () => Promise<unknown>> = {
-  github_list_files: () => connectionRequest("github/tree"),
-  vercel_list_deployments: () => connectionRequest("vercel/deployments"),
-  supabase_project: () => connectionRequest("supabase/project"),
-  railway_project: () => connectionRequest("railway/project"),
-  n8n_project: () => connectionRequest("n8n/project"),
-};
+const READS:Record<string,string>={vercel_list_deployments:'vercel/deployments',supabase_project:'supabase/project',railway_project:'railway/project',n8n_project:'n8n/project'};
 
 function parseArgs(raw: string): Record<string, unknown> {
   try {
@@ -65,16 +60,17 @@ function parseArgs(raw: string): Record<string, unknown> {
 }
 
 /** Runs one tool call. Reads return data; a write returns a proposal that needs confirmation. */
-export async function runToolCall(call: ToolCall,context:Record<string,unknown>={}): Promise<ToolOutcome> {
+export async function runToolCall(call: ToolCall,context:Record<string,unknown>={},access?:TaskAccessClient): Promise<ToolOutcome> {
   const args = parseArgs(call.function.arguments);
   const name = call.function.name;
   try {
-    if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context);
+    if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context,undefined,access);
+    if(!access)throw Error('Start a task with app permission before using a connected product.');
     if (name === "github_read_file") {
       const path = String(args.path ?? "");
       if (!path || path.includes("..")) return { content: "Invalid file path." };
       // The connection already caps files at 300 KB, so the full content is kept: a rewrite must not drop lines.
-      const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`);
+      const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`,"GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
       return {
         content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content }),
         canvas: { title: file.path, content: `${file.repository} · ${file.branch}\n\n${codeBlock(file.content, languageFor(file.path))}` },
@@ -85,7 +81,7 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
       const content = String(args.content ?? "");
       const title = String(args.title ?? "").trim();
       if (!path || !content || !title) return { content: "Commit needs a path, content, and title." };
-      const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`);
+      const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`,"GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
       const operation = crypto.randomUUID();
       return {
         content: "Waiting for the user to confirm this commit and pull request. Do not claim it was made.",
@@ -98,27 +94,28 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
       };
     }
     if (name === "github_list_files") {
-      const tree = await connectionRequest<{ repository: string; branch: string; files: { path: string }[] }>("github/tree");
+      const tree = await connectionRequest<{ repository: string; branch: string; files: { path: string }[] }>("github/tree","GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
       return {
         content: JSON.stringify(tree).slice(0, 60000),
         canvas: { title: "Repository files", content: `${tree.repository} · ${tree.branch}\n\n${tree.files.map((file) => `- ${file.path}`).join("\n")}` },
       };
     }
     const read = READS[name];
-    if (read) return { content: JSON.stringify(await read()).slice(0, 60000) };
+    if (read) {return {content:JSON.stringify(await connectionRequest(read,"GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined)).slice(0,60000)};}
     return { content: `Unknown tool ${name}.` };
   } catch (cause) {
     return { content: `Tool ${name} failed: ${cause instanceof Error ? cause.message : "unknown error"}. Tell the user; do not guess the result.` };
   }
 }
 
-export async function createPullRequest(change: NonNullable<WriteProposal["change"]>): Promise<string> {
-  const result = await connectionRequest<{ url: string }>("github/pull-request", "POST", change);
+export async function createPullRequest(change: NonNullable<WriteProposal["change"]>,access?:TaskAccessClient): Promise<string> {
+  if(!access)throw Error('Task access is required before creating a pull request.');
+  const result = await connectionRequest<{ url: string }>("github/pull-request", "POST", change,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
   return `Draft pull request created: ${result.url}. Review it before merging.`;
 }
 
-async function agentToolRequest(name:string,args:Record<string,unknown>,context:Record<string,unknown>,confirm?:WriteProposal['agent_review']):Promise<ToolOutcome>{
- const response=await fetch('/api/agent/tools',{method:'POST',headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:JSON.stringify({name,args,...(context.conversation_id?{conversation_id:context.conversation_id}:{}),...(context.crm_scope?{crm_scope:context.crm_scope}:{}),...(confirm?{confirm}:{})}),cache:'no-store'});
+async function agentToolRequest(name:string,args:Record<string,unknown>,context:Record<string,unknown>,confirm?:WriteProposal['agent_review'],access?:TaskAccessClient):Promise<ToolOutcome>{
+ const response=await (access?access.fetch.bind(access):fetch)('/api/agent/tools',{method:'POST',headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:JSON.stringify({name,args,...(access?{task_id:access.id}:{}),...(context.conversation_id?{conversation_id:context.conversation_id}:{}),...(context.crm_scope?{crm_scope:context.crm_scope}:{}),...(confirm?{confirm}:{})}),cache:'no-store'});
  const result=await response.json();if(!response.ok)throw Error(result.error||'The connected action could not complete.');return result;
 }
 
@@ -140,13 +137,14 @@ export async function runAgentTurn(
   confirmWrite: (proposal: WriteProposal) => Promise<boolean>,
   onStatus: (status: string) => void,
   onCanvas: (item: CanvasItem) => void,
+  access?:TaskAccessClient,
 ): Promise<string> {
   const convo = [...messages];
   for (let step = 0; step < 6; step += 1) {
-    const response = await fetch("/api/chat", {
+    const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ ...extraBody, model, messages: convo, tools: CHAT_TOOLS, stream: false }),
+      body: JSON.stringify({ ...extraBody,...(access?{task_id:access.id}:{}), model, messages: convo, tools: CHAT_TOOLS, stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
@@ -156,15 +154,15 @@ export async function runAgentTurn(
     convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
       onStatus(`Using ${call.function.name.replaceAll("_", " ")}…`);
-      const outcome = await runToolCall(call,extraBody);
+      const outcome = await runToolCall(call,extraBody,access);
       if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
       if (outcome.proposal) {
         onStatus("Waiting for your confirmation…");
         const approved = await confirmWrite(outcome.proposal);
         if(!approved)content='The user declined this action. Do not run it.';
-        else if(outcome.proposal.agent_review)content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review)).content;
-        else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change);
+        else if(outcome.proposal.agent_review)content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+        else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change,access);
         else throw Error('This proposal has no executable review. Request a new proposal.');
       }
       convo.push({ role: "tool", tool_call_id: call.id, content });

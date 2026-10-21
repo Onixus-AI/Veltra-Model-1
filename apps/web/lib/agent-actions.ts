@@ -1,3 +1,5 @@
+import {taskAccessEnabled} from './task-access-config';
+import type {AccessApp} from './task-access-policy';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {validId,type CrmScope,runCrmChat,validatePlan} from './crm/chat-actions';
 import {brainPlan,runBrain,type BrainScope} from './shared-brain';
@@ -20,17 +22,18 @@ export async function agentScope(client:SupabaseClient,user:string,context:Agent
  return scope;
 }
 /** One authenticated execution path for model tools. The model never supplies identity, table or destination. */
-export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail';id:string};app?:'chat'|'mail'|'crm'}):Promise<ToolOutcome>{
+export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
  const {client,user,scope,args}=o,app=o.app??'chat';
  if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
  const crm=async(plan?:unknown,review_id?:string)=>{
   if(!scope.workspace_id)throw Error('400:Select a business conversation to control CRM.');
   return runCrmChat({client,user,scope:scope as CrmScope,message:plan?'model tool request':undefined,review_id,plan:plan?async()=>validatePlan(plan):undefined,outreach:o.mailOrigin?async(body?:Record<string,unknown>)=>{
-   const u=new URL(o.mailOrigin!);if(u.protocol!=='https:')throw Error('503:Mail connection is unavailable.');
+   await o.appAccess?.(['mail']);const u=new URL(o.mailOrigin!);if(u.protocol!=='https:')throw Error('503:Mail connection is unavailable.');
    const r=await fetch(u.origin+'/chat/outreach'+(body?'':'?workspace='+encodeURIComponent(scope.workspace_id!)),{method:body?'POST':'GET',headers:{Authorization:o.authorization,'Content-Type':'application/json'},body:body?JSON.stringify({...body,workspace_id:scope.workspace_id}):undefined,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(25000)});const d=await r.json();if(!r.ok)throw Error('409:Outreach could not complete.');return d;
   }:undefined});
  };
  const mail=async(name:string,a:Record<string,unknown>)=>{if(!o.mailOrigin)throw Error('503:Mail connection is unavailable.');return executeMailTool({tool:name,arguments:a},o.authorization,o.mailOrigin);};
+ if(o.name==='veltra_capabilities'&&!o.confirm&&taskAccessEnabled())return {content:JSON.stringify({note:'These are supported tools, not observed connections. Every app needs Allow for this task before access. Use the relevant tool to request access; never infer a connection is active.',apps:['CRM','Mail','Shared brain','GitHub','Vercel','Supabase','Railway','n8n'],browser:{available:browserEnabled(),reads:['public HTTPS inspection'],writes:false},writes:'Task access does not replace the existing exact-action reviews.'})};
  if(o.name==='veltra_capabilities'&&!o.confirm){
   const observations=await Promise.allSettled([
    scope.workspace_id?client.from('crm_memberships').select('role').eq('workspace_id',scope.workspace_id).eq('user_id',user).maybeSingle().then(r=>r.error?null:r.data):Promise.resolve(null),

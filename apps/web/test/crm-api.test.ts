@@ -1,9 +1,9 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {POST} from '../app/api/crm/assistant/route';
-const W='00000000-0000-4000-8000-000000000001',C='00000000-0000-4000-8000-000000000002',U='00000000-0000-4000-8000-000000000003',OTHER='00000000-0000-4000-8000-000000000004';
+const W='00000000-0000-4000-8000-000000000001',C='00000000-0000-4000-8000-000000000002',U='00000000-0000-4000-8000-000000000003',OTHER='00000000-0000-4000-8000-000000000004',TASK='00000000-0000-4000-8000-000000000005';
 test('CRM API verifies identity and workspace, returns a preview, and persists only an explicitly confirmed action through the real SDK',async t=>{
  const previous=[process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY];process.env.NEXT_PUBLIC_SUPABASE_URL='https://crm-fixture.test';process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='fixture-public-key';
- const tables:Record<string,any[]>={crm_memberships:[{workspace_id:W,user_id:U,role:'owner'}],crm_customers:[{id:C,workspace_id:W,company:'Acme'}],crm_conversations:[],crm_memories:[]};
+ const tables:Record<string,any[]>={veltra_ai_tasks:[{id:TASK,user_id:U,expires_at:new Date(Date.now()+600000).toISOString(),completed_at:null}],veltra_ai_task_access:['crm','brain'].map(app=>({task_id:TASK,user_id:U,app,allowed:true})),crm_memberships:[{workspace_id:W,user_id:U,role:'owner'}],crm_customers:[{id:C,workspace_id:W,company:'Acme'}],crm_conversations:[],crm_memories:[]};
  t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
   const url=new URL(String(input)),headers=new Headers(init?.headers);assert.equal(url.origin,'https://crm-fixture.test');assert.equal(headers.get('authorization'),'Bearer fixture-user');
   if(url.pathname==='/auth/v1/user')return Response.json({id:U,aud:'authenticated',role:'authenticated',email:'owner@example.test',app_metadata:{},user_metadata:{}});
@@ -14,7 +14,7 @@ test('CRM API verifies identity and workspace, returns a preview, and persists o
   const fields=url.searchParams.get('select');rows=rows.map(row=>fields&&fields!=='*'?Object.fromEntries(fields.split(',').map(k=>[k,row[k]])):structuredClone(row));
   return Response.json(headers.get('accept')?.includes('vnd.pgrst.object')?(rows[0]??null):rows);
  });
- const call=(body:unknown,auth=true)=>POST(new Request('https://chat.test/api/crm/assistant',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer fixture-user'}:{})},body:JSON.stringify(body)}));
+ const call=(body:unknown,auth=true)=>POST(new Request('https://chat.test/api/crm/assistant',{method:'POST',headers:{'Content-Type':'application/json',...(auth?{Authorization:'Bearer fixture-user'}:{})},body:JSON.stringify({...(body as object),task_id:TASK})}));
  try{
   assert.equal((await call({workspace_id:W,message:'show customers'},false)).status,401);
   assert.equal((await call({workspace_id:OTHER,message:'show customers'})).status,403);
