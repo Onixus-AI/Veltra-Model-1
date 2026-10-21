@@ -44,7 +44,7 @@ with sync_playwright() as p:
  expect(page.get_by_role('dialog')).to_be_visible()
  box=page.get_by_role('dialog').bounding_box();assert box['x']>=0 and box['x']+box['width']<=390
  page.get_by_role('textbox',name='Find a workspace action').fill('nonsense')
- expect(page.get_by_role('status')).to_contain_text('No matching actions')
+ expect(page.get_by_role('dialog').get_by_role('status')).to_contain_text('No matching actions')
  page.screenshot(path=str(out/'workspace-search-mobile.png'))
  assert not errors,errors
  browser.close()
