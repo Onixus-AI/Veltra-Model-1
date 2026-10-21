@@ -9,3 +9,5 @@
 @media(prefers-reduced-motion:reduce){.workspace.spatial-workspace *{scroll-behavior:auto;transition:none!important;animation:none!important}}
 @media(prefers-reduced-transparency:reduce){.workspace.spatial-workspace .workspace-topbar{background:#000}.workspace-command-dialog::backdrop{backdrop-filter:none;background:#000d}}
 .workspace.spatial-workspace .workspace-topbar .sidebar-toggle{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+
+@media(max-width:760px){.workspace.spatial-workspace .workspace-modes button{padding:7px 12px}.connector-mode-pills{max-width:100%;flex-wrap:wrap}.connector-mode-pills button{padding:8px 12px}}
