@@ -52,3 +52,12 @@
 
 /* Keep the same solid header and visible page title on every CRM tab. */
 .crm-shell-overview .crm-heading>div:first-child{display:block}.crm-shell-overview .crm-heading{justify-content:space-between;min-height:44px;margin-bottom:14px}.crm-shell-overview .crm-top,.crm-shell-overview .crm-sidebar{background:#000;background-image:none;backdrop-filter:none}
+
+/* Customer entry: a native modal keeps focus and errors with the task. */
+.crm-shell dialog.crm-customer-dialog{position:fixed;inset:0;margin:auto;width:min(600px,calc(100vw - 32px));max-width:calc(100vw - 32px);max-height:calc(100dvh - 32px);padding:24px;background:#000;color:var(--veltra-text);border:1px solid var(--veltra-cyan,#00e5ef);box-shadow:none;overflow:auto}
+.crm-customer-dialog::backdrop{background:#000;backdrop-filter:none}
+.crm-shell .crm-dialog-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px}.crm-shell .crm-dialog-heading h2{margin:0;font-size:22px}.crm-shell .crm-dialog-heading p{margin:8px 0 0;max-width:44ch;font-size:13px}.crm-shell .crm-dialog-heading>button{min-width:44px;min-height:44px;flex-shrink:0;color:var(--veltra-cyan)}
+.crm-shell .crm-customer-dialog fieldset{min-width:0;margin:0;padding:16px 0;border:0;border-top:1px solid var(--veltra-line,#343434);display:grid;gap:14px}.crm-shell .crm-customer-dialog legend{padding:0 8px 0 0;color:var(--veltra-text);font-weight:600;font-size:14px}.crm-shell .crm-field-hint{color:var(--veltra-muted);font-size:12px;font-weight:400}.crm-shell .crm-dialog-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.crm-shell .crm-customer-dialog input,.crm-shell .crm-customer-dialog select{min-height:44px;font-size:16px;background:#000}.crm-shell .crm-dialog-error{padding:12px;border:1px solid #ff365a;border-radius:8px;color:var(--veltra-text)}
+.crm-shell .crm-dialog-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap;margin:0;padding:16px 0 0;border-top:1px solid var(--veltra-line,#343434)}.crm-shell .crm-dialog-actions>span{margin-right:auto;color:var(--veltra-cyan);font-size:12px}.crm-shell .crm-dialog-actions button{min-height:44px}
+@media(max-width:480px){.crm-shell dialog.crm-customer-dialog{padding:18px}.crm-shell .crm-dialog-fields{grid-template-columns:1fr}}
+@media(pointer:coarse){.crm-shell .crm-sidebar nav button,.crm-shell .crm-actions button,.crm-shell .crm-actions a,.crm-shell input:not([type=checkbox]),.crm-shell select,.crm-shell textarea{min-height:44px}}
