@@ -12,6 +12,7 @@ test('task state preserves failure without steps, review, skipped actions and la
  run=taskProgress(run,{type:'result',id:'one',state:'skipped',detail:'Declined'});run=taskProgress(run,{type:'finish'});assert.match(run.note!,/skipped/);
  run=taskProgress(taskProgress(fresh(),{type:'step',id:'late',title:'Read mail',app:'Mail'}),{type:'cancel'});assert.equal(run.steps[0].state,'skipped');
  run=taskProgress(run,{type:'result',id:'late',state:'completed',detail:'Actual late receipt'});assert.equal(run.state,'cancelled');assert.equal(run.steps[0].state,'completed');assert.equal(taskProgress(run,{type:'finish'}).state,'cancelled');
+ let long=fresh();for(let i=0;i<32;i++){long=taskProgress(long,{type:'step',id:String(i),title:'Read',app:'Mail'});long=taskProgress(long,{type:'result',id:String(i),state:i===0?'failed':'completed',detail:'Receipt'});}assert.equal(long.omitted,2);assert.equal(taskProgress(long,{type:'finish'}).state,'failed');
 });
 test('candidate matching requires a unique exact email and preserves bounded page limitations',()=>{
  const result=followupEvidence([{company:'A',email:'a@example.test'},{company:'Duplicate',email:'a@example.test'},{company:'B',email:'b@example.test'}],{items:[{to:'A <a@example.test>',subject:'Ambiguous'},{to:'b@example.test',subject:'Quote B'}],scope:'Current page',next_cursor:'more'});
