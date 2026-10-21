@@ -18,6 +18,7 @@ with sync_playwright() as p:
  assert not errors,errors
  expect(page.get_by_role('button',name='Expand sidebar',exact=True)).to_be_visible()
  assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
+ assert page.locator('.workspace-sidebar nav svg').first.evaluate('(el)=>getComputedStyle(el).color')=='rgb(0, 229, 239)','Sidebar line icons must use Veltra cyan'
  page.get_by_role('textbox',name='Message Veltra').fill('Business draft to keep')
  page.get_by_role('button',name='Creator',exact=True).click()
  expect(page.get_by_role('heading',name='What will you create?')).to_be_visible()
