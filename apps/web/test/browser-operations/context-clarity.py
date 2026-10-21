@@ -38,7 +38,10 @@ with sync_playwright() as p:
  page.goto('http://127.0.0.1:3188/?mail-connection');page.wait_for_load_state('domcontentloaded')
  expect(page.get_by_text('Checking connection…',exact=True)).to_be_visible()
  expect(page.get_by_role('button',name='Connect Mail',exact=True)).to_be_disabled()
- page.wait_for_timeout(50);assert held
+ for _ in range(50):
+  if held:break
+  page.wait_for_timeout(20)
+ assert held
  held.pop(0).fulfill(json={'connected':True,'workspace_id':'11111111-1111-4111-8111-111111111111','pending':2,'blocked':1})
  expect(page.get_by_text('Connected to this workspace',exact=True)).to_be_visible()
  failed['value']=True;page.get_by_role('button',name='Refresh status',exact=True).click()
