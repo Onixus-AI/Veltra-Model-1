@@ -33,14 +33,15 @@ with sync_playwright() as p:
  center=page.get_by_role('region',name='Veltra task center');start=center.get_by_role('button',name='Prepare follow-ups',exact=True)
  start.click();expect(center.get_by_role('status')).to_have_text('Working');page.wait_for_function('document.querySelectorAll(".task-step").length===2');assert counts['writes']==0
  assert center.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
+ assert 'sans-serif' in center.evaluate('(el)=>getComputedStyle(el).fontFamily')
  page.screenshot(path=str(out/'task-center-working.png'))
- release_quotes();review=page.get_by_role('dialog',name='Review draft preparation');expect(review).to_be_visible();expect(center.get_by_role('status')).to_have_text('Needs review');expect(review).to_contain_text('not restricted to the CRM matches')
- page.screenshot(path=str(out/'task-center-review.png'));review.get_by_role('button',name='Decline preparation').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==0
- settings['mode']='normal';start.click();expect(review).to_be_visible();review.get_by_role('button',name='Confirm preparation').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==1
+ release_quotes();review=page.get_by_role('dialog',name='Review connected action');expect(review).to_be_visible();expect(center.get_by_role('status')).to_have_text('Needs review');expect(review).to_contain_text('not restricted to the CRM matches')
+ page.screenshot(path=str(out/'task-center-review.png'));review.get_by_role('button',name='Cancel').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==0
+ settings['mode']='normal';start.click();expect(review).to_be_visible();review.get_by_role('button',name='Confirm').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==1
  expect(page.get_by_label('Task response')).to_contain_text('1 draft receipt');expect(center.get_by_role('button',name='Open Mail',exact=True)).to_be_visible()
  settings['mode']='failed';start.click();expect(center.get_by_role('status')).to_have_text('Needs attention');expect(center).to_contain_text('Mail unavailable');before=counts['tools'];center.get_by_role('button',name='Review request again').click();expect(page.get_by_label('Request to review')).to_contain_text('Find customers');assert counts['tools']==before;assert counts['writes']==1
  settings['mode']='held';start.click();page.wait_for_function('document.querySelectorAll(".task-step").length===2');center.get_by_role('button',name='Stop pending work').click();expect(center.get_by_role('status')).to_have_text('Stopped');release_quotes();expect(start).to_be_enabled();assert counts['writes']==1;expect(review).not_to_be_visible()
  settings['mode']='normal';settings['permission']=True;page.set_viewport_size({'width':390,'height':844});start.click();permission=page.get_by_role('dialog',name='Allow access to Veltra CRM?');expect(permission).to_be_visible();expect(center.get_by_role('status')).to_have_text('Needs permission');permission.get_by_role('button',name='Allow for this task',exact=True).click();expect(review).to_be_visible();expect(center.get_by_role('status')).to_have_text('Needs review');assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
- page.screenshot(path=str(out/'task-center-mobile.png'));review.get_by_role('button',name='Decline preparation').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==1
+ page.screenshot(path=str(out/'task-center-mobile.png'));review.get_by_role('button',name='Cancel').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==1
  assert not errors,errors
  browser.close()

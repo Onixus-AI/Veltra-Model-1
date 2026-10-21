@@ -1,5 +1,6 @@
 "use client";
 import TaskCenter from './task-center';
+import TaskReview from './task-review';
 import {taskProgress,type TaskRun,type TaskEvent} from '@/lib/task-progress';
 import {FOLLOWUP_PROMPT,runFollowupTask} from '@/lib/followup-task';
 import TaskAccessDialog from './task-access-dialog';
@@ -437,7 +438,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
-        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
+        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app,false)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
         {workspaceMode==='business'&&!businessOsOpen&&!crmOpen&&<details className="workspace-activity-drawer"><summary>Business activity</summary><OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/></details>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
@@ -476,12 +477,7 @@ export default function VeltraWorkspace() {
         </div>
         <div className="composer-area">
           {error && <div className="chat-error"><ShieldCheck size={14} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
-          {writeProposal&&<div className="context-chip" role="dialog" aria-label={writeProposal.agent_review?'Review connected action':'Confirm commit'}>
-            <FileText size={12}/>
-            <span style={{whiteSpace:"pre-line"}}>{writeProposal.agent_review?'Apply the exact change below?':'Commit and open a draft pull request?'}{"\n"}{writeProposal.summary}</span>
-            <button type="button" onClick={()=>answerWriteProposal(true)}>Confirm</button>
-            <button type="button" onClick={()=>answerWriteProposal(false)}>Cancel</button>
-          </div>}
+          {writeProposal&&<TaskReview proposal={writeProposal} onDecision={answerWriteProposal}/>}
           {sending&&toolStatus&&<p className="settings-note">{toolStatus}</p>}
           {codeOpen&&codeContext&&<div className="context-chip"><FileText size={12}/>{codeContext.path}<button type="button" aria-label="Remove file from chat context" onClick={()=>setCodeContext(null)}>×</button></div>}
           {tmsOpen&&<div className="context-chip">Onixus TMS · Read-only context checked when you send</div>}
