@@ -19,6 +19,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 from agent_runs import create_router as agent_router, run_worker
+from model_routing import routing_options
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -58,7 +59,7 @@ VELTRA_SYSTEM_PROMPT = (
 async def gateway_lifespan(app):
     task = None
     if os.environ.get('VELTRA_CODING_TEAM_ENABLED', 'true').lower() == 'true':
-        task = asyncio.create_task(run_worker(supabase_request, MODEL_CONFIG['coding_team']))
+        task = asyncio.create_task(run_worker(supabase_request, MODEL_CONFIG['coding_team'], MODEL_CONFIG.get('coding_fallbacks', {})))
     try:
         yield
     finally:
@@ -509,13 +510,15 @@ async def create_chat_completion(
         params["max_tokens"] = request.max_tokens
     if request.temperature is not None:
         params["temperature"] = request.temperature
+    params["extra_body"] = routing_options(
+        model_config["model"], MODEL_CONFIG.get("chat_fallbacks", {}).get(request.model, []),
+        tools=bool(request.tools),
+    )
     if request.tools:
         # Tool definitions are supplied by the web app's allowlisted connector tools.
         params["tools"] = request.tools
         if request.tool_choice is not None:
             params["tool_choice"] = request.tool_choice
-        params["models"] = ["google/gemini-2.5-flash", "inclusionai/ling-3.0-flash", "deepseek/deepseek-chat"]
-        params["extra_body"] = {"provider": {"require_parameters": True, "allow_fallbacks": True}}
 
     logger.info("chat completion alias=%s provider_model=%s tools=%d stream=%s", request.model, model_config["model"], len(request.tools or []), request.stream)
 

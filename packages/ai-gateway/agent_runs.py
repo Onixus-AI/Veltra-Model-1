@@ -12,6 +12,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import litellm
+from model_routing import routing_options
 from fastapi import APIRouter, HTTPException, Security
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field, field_validator
@@ -280,7 +281,7 @@ async def provider_completion(params, waiting):
             await waiting()
 
 
-async def execute_run(row, worker_id, database, models):
+async def execute_run(row, worker_id, database, models, fallbacks=None):
     used = 0
     state: TeamState = {}
     identifier = row['id']
@@ -304,7 +305,12 @@ async def execute_run(row, worker_id, database, models):
     async def call(role, instructions, content, limit):
         nonlocal used
         await live(role)
-        model = os.environ.get('VELTRA_DESIGN_MODEL', 'qwen/qwen3.7-plus') if role == 'coder' and payload.get('mode') == 'design' else os.environ.get(f'VELTRA_{role.upper()}_MODEL', models[role])
+        route = 'design' if role == 'coder' and payload.get('mode') == 'design' else role
+        override = os.environ.get(f'VELTRA_{route.upper()}_MODEL')
+        model = override or models.get(route, models[role])
+        options = routing_options(model, [] if override else (fallbacks or {}).get(route, []))
+        if route == 'design':
+            options['reasoning'] = {'enabled': False}
         messages = [{'role': 'system', 'content': instructions}, {'role': 'user', 'content': content}]
         estimate = litellm.token_counter(model='openrouter/' + model, messages=messages)
         image_hold = 100 if payload.get('create_image') else 0
@@ -316,7 +322,7 @@ async def execute_run(row, worker_id, database, models):
             response = await provider_completion(dict(model='openrouter/' + model, api_key=os.environ['OPENROUTER_API_KEY'],
                 api_base='https://openrouter.ai/api/v1', messages=messages, max_tokens=output_limit, temperature=0.2,
                 timeout=100, num_retries=0,
-                **({'extra_body': {'reasoning': {'enabled': False}}} if role == 'coder' and payload.get('mode') == 'design' else {}),
+                extra_body=options,
                 **({'response_format': {'type': 'json_object'}} if role == 'reviewer' or role == 'coder' and payload.get('mode') != 'design' else {})), lambda: live('waiting for provider'))
         except Cancelled:
             raise
@@ -335,7 +341,7 @@ async def execute_run(row, worker_id, database, models):
         text = result['choices'][0]['message'].get('content')
         if not isinstance(text, str) or not text.strip():
             raise ValueError('A team member returned no output.')
-        return text, {'role': role, 'model': model, 'credits': tokens, 'provider_request_id': result.get('id')}
+        return text, {'role': role, 'model': result.get('model') or model, 'requested_model': model, 'credits': tokens, 'provider_request_id': result.get('id')}
 
     async def make_image(prompt):
         nonlocal used
@@ -383,13 +389,13 @@ async def execute_run(row, worker_id, database, models):
         logger.error('Coding task settlement requires reconciliation: %s', identifier)
 
 
-async def run_worker(database, models):
+async def run_worker(database, models, fallbacks=None):
     worker_id = str(uuid4())
     while True:
         try:
             rows = await database('rpc/claim_agent_run', method='POST', params={}, payload={'p_worker': worker_id})
             if rows:
-                await execute_run(rows[0], worker_id, database, models)
+                await execute_run(rows[0], worker_id, database, models, fallbacks)
             else:
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
