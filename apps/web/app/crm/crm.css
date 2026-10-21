@@ -30,3 +30,20 @@
 .crm-shell .crm-alert{background:#000;border-color:var(--veltra-lemon);color:var(--veltra-text)}
 
 .crm-assistant{margin-top:24px}.crm-assistant [role="log"]{max-height:360px;overflow:auto}.crm-assistant pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:13px}.crm-chat-review{padding:12px;border:1px solid #ccc;border-radius:10px}.crm-host-chat-notice{padding:12px;font-size:13px}
+
+/* Overview keeps all navigation available in a compact horizontal app bar. */
+.crm-shell-overview{display:block;container-type:inline-size}
+.crm-shell-overview .crm-sidebar{padding:12px 22px;display:grid;grid-template-columns:auto minmax(120px,200px) 1fr;gap:10px 22px;border-right:0;border-bottom:1px solid var(--veltra-line,#23363c)}
+.crm-shell-overview .crm-workspace-label{display:none}.crm-shell-overview .crm-brand{grid-column:1;grid-row:1;font-size:20px}.crm-shell-overview .crm-brand img{width:30px;height:30px}
+.crm-shell-overview .crm-sidebar>select{grid-column:2;grid-row:1;padding:6px 10px;font-size:12px}
+.crm-shell-overview .crm-sidebar nav{grid-column:1/-1;display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
+.crm-shell-overview .crm-sidebar nav button{white-space:nowrap;flex-shrink:0;font-size:12px;padding:7px 11px;background:transparent;border-radius:6px}
+.crm-shell-overview .crm-sidebar nav svg{width:14px;height:14px}.crm-shell-overview .crm-suite{grid-column:3;grid-row:1;margin:0;padding:0;display:flex;justify-content:flex-end;align-items:center;gap:16px}.crm-shell-overview .crm-suite>span{display:none}.crm-shell-overview .crm-suite a{font-size:12px;gap:6px}
+.crm-shell-overview .crm-sidebar>button{grid-column:1/-1;justify-self:end;padding:2px 8px;font-size:11px}
+.crm-shell-overview .crm-content{padding:20px 24px;max-width:1700px}.crm-shell-overview .crm-top{padding:10px 24px;font-size:11px}
+.crm-shell-overview .crm-heading{margin-bottom:14px;align-items:center}.crm-shell-overview .crm-heading h1{font-size:16px;letter-spacing:0}.crm-shell-overview .crm-heading p{display:none}
+.crm-shell-overview .veltra-ops{margin-bottom:12px}.crm-shell-overview .ops-header{padding:10px 12px}.crm-shell-overview .ops-title h2{font-size:12px}.crm-shell-overview .ops-title p{font-size:10px;margin:2px 0 0}.crm-shell-overview .ops-controls button{padding:5px}.crm-shell-overview .ops-status{font-size:10px}
+.crm-shell-overview .crm-host-chat-notice{font-size:11px;color:var(--veltra-muted,#8fa5ad)}
+@container (max-width:620px){.crm-shell-overview .crm-sidebar{padding:12px;grid-template-columns:1fr 1fr;gap:10px}.crm-shell-overview .crm-suite{grid-column:1/-1;grid-row:auto;justify-content:flex-start}.crm-shell-overview .crm-content{padding:16px 12px}.crm-shell-overview .crm-top{padding:10px 12px}.crm-shell-overview .crm-heading{flex-wrap:wrap}.crm-shell-overview .crm-brand>span{font-size:17px}}
+
+.crm-shell-overview .crm-heading>div:first-child{display:none}.crm-shell-overview .crm-heading{justify-content:flex-end;margin-bottom:6px}.crm-shell-overview .crm-content{position:relative}

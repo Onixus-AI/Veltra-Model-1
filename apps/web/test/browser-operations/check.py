@@ -76,11 +76,12 @@ with sync_playwright() as p:
  page.screenshot(path=str(out/'compact.png'),full_page=True)
  page.set_viewport_size({'width':1440,'height':1100})
  page.goto('http://127.0.0.1:3188/?dashboard');page.wait_for_load_state('networkidle')
- expect(page.get_by_role('heading',name='Business command center')).to_be_visible()
+ expect(page.get_by_role('heading',name='Every relationship. In motion.')).to_be_visible()
  expect(page.get_by_text('$4,700',exact=True)).to_be_visible()
  expect(page.get_by_role('link',name='Veltra Mail',exact=False)).to_have_attribute('target','_top')
- expect(page.get_by_role('heading',name='Ads & social lead conversion')).to_be_visible()
- expect(page.get_by_role('heading',name='Pipeline & weighted outlook')).to_be_visible()
+ expect(page.get_by_role('heading',name='Lead sources → business outcomes')).to_be_visible()
+ expect(page.get_by_role('heading',name='Pipeline & forecast')).to_be_visible()
+ page.get_by_text('More business details · opportunities, follow-ups, intake & connections',exact=True).click()
  expect(page.get_by_role('heading',name='Top opportunities')).to_be_visible()
  page.screenshot(path=str(out/'dashboard-desktop.png'),full_page=True)
  page.get_by_label('Industry',exact=True).select_option('Design services')
@@ -95,6 +96,16 @@ with sync_playwright() as p:
  page.set_viewport_size({'width':390,'height':844})
  page.screenshot(path=str(out/'dashboard-mobile.png'),full_page=True)
  assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Dashboard must fit mobile'
+ page.set_viewport_size({'width':1440,'height':1000})
+ page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
+ expect(page.get_by_role('heading',name='Every relationship. In motion.')).to_be_visible()
+ expect(page.get_by_role('navigation',name='Main navigation')).to_be_visible()
+ assert page.locator('.command-scoreboard article').count()==6
+ assert page.locator('.crm-assistant').count()==0, 'Embedded CRM must use workspace Chat'
+ page.screenshot(path=str(out/'dashboard-shell-desktop.png'),full_page=True)
+ page.set_viewport_size({'width':590,'height':900})
+ page.screenshot(path=str(out/'dashboard-shell-split.png'),full_page=True)
+ assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'CRM must fit a narrow workspace area'
  assert not errors, errors
  assert state['requests']
  browser.close()

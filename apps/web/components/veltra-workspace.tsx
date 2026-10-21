@@ -96,7 +96,8 @@ export default function VeltraWorkspace() {
   const [codeTool,setCodeTool]=useState<Provider>("github");
   const [repository,setRepository]=useState("");
   const [codeContext,setCodeContext]=useState<{path:string;content:string;repository:string}|null>(null);
-  function changeWorkspaceMode(value:WorkspaceMode){if(value===workspaceMode)return;setWorkspaceMode(value);unavailableCloud();setCrmScope(null);setCanvasVisible(false);setPanelFull(false);setMobileView("chat");setShopifyOpen(false);setTmsOpen(false);setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setBusinessOsOpen(false);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
+  function changeWorkspaceMode(value:WorkspaceMode){if(value===workspaceMode)return;setWorkspaceMode(value);unavailableCloud();setCrmScope(null);setRetainedApps({crm:false,mail:false});setCanvasVisible(false);setPanelFull(false);setMobileView("chat");setShopifyOpen(false);setTmsOpen(false);setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setBusinessOsOpen(false);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
+  const [retainedApps,setRetainedApps]=useState({crm:false,mail:false});
   const [sidebarOpen,setSidebarOpen]=useState(true);
   const [canvasVisible,setCanvasVisible]=useState(false);
   const [panelFull,setPanelFull]=useState(false),[panelWidth,setPanelWidth]=useState(60),[businessOsOpen,setBusinessOsOpen]=useState(false);
@@ -105,7 +106,12 @@ export default function VeltraWorkspace() {
   const [shopifyOpen,setShopifyOpen]=useState(false);
   const [tmsOpen,setTmsOpen]=useState(false);
   const [buildOpen,setBuildOpen]=useState(false),[crmOpen,setCrmOpen]=useState(false),[crmConnected,setCrmConnected]=useState(false);
-  function openTool(tool:"mail"|"code"|"build"|"crm"|"tms"|"shopify"|"business"){setCanvasVisible(true);setPanelFull(false);setBusinessOsOpen(tool==="business");if(window.innerWidth<761)setSidebarOpen(false);setShopifyOpen(tool==="shopify");setTmsOpen(tool==="tms");setMailOpen(tool==="mail");setCodeOpen(tool==="code");setBuildOpen(tool==="build");setCrmOpen(tool==="crm");setMobileView("canvas");const nextMode=modeForTool(tool);if(nextMode){setWorkspaceMode(nextMode);try{localStorage.setItem("veltra-workspace-mode",nextMode);}catch{}}}
+  function openTool(tool:"mail"|"code"|"build"|"crm"|"tms"|"shopify"|"business",full=panelFull){setCanvasVisible(true);setPanelFull(full);if(tool==="crm"||tool==="mail")setRetainedApps(previous=>({...previous,[tool]:true}));setBusinessOsOpen(tool==="business");if(window.innerWidth<761)setSidebarOpen(false);setShopifyOpen(tool==="shopify");setTmsOpen(tool==="tms");setMailOpen(tool==="mail");setCodeOpen(tool==="code");setBuildOpen(tool==="build");setCrmOpen(tool==="crm");setMobileView("canvas");const nextMode=modeForTool(tool);if(nextMode){setWorkspaceMode(nextMode);try{localStorage.setItem("veltra-workspace-mode",nextMode);}catch{}}}
+  function selectArea(area:string){
+    if(area==='chat'){setCanvasVisible(false);setPanelFull(false);setMobileView('chat');return;}
+    if(area==='split'){setCanvasVisible(true);setPanelFull(false);setMobileView('canvas');return;}
+    if(area==='crm'||area==='mail')openTool(area,true);
+  }
   function toggleSidebar(){setSidebarOpen(value=>{try{localStorage.setItem("veltra-sidebar-v1",String(!value));}catch{}return !value;});}
   useEffect(()=>{let live=true;const refresh=()=>{void crmConnection().then(s=>{if(live)setCrmConnected(s.connected);}).catch(()=>{if(live)setCrmConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);try{const saved=localStorage.getItem("veltra-sidebar-v1");if(saved!==null)setSidebarOpen(saved==="true");else if(window.innerWidth<1100)setSidebarOpen(false);}catch{}return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
   const [mailOpen, setMailOpen] = useState(false);
@@ -343,6 +349,7 @@ export default function VeltraWorkspace() {
         <button className="header-icon sidebar-toggle" aria-label={sidebarOpen?"Collapse sidebar":"Expand sidebar"} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={19}/>:<PanelLeftOpen size={19}/>}</button>
         <Link href="/" className="workspace-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Veltra Workspace</strong><small>by Onixus</small></span></Link>
         <nav className="workspace-modes" aria-label="Workspace mode">{workspaceModes.map(item=><button key={item.id} disabled={sending} aria-pressed={workspaceMode===item.id} onClick={()=>changeWorkspaceMode(item.id)}>{item.label}</button>)}</nav>
+        <label className="workspace-area-picker"><span>View</span><select aria-label="Workspace area" value={!canvasVisible?'chat':!panelFull?'split':crmOpen?'crm':mailOpen?'mail':'tool'} onChange={event=>selectArea(event.target.value)}><option value="chat">Chat only</option><option value="split">Split view</option>{workspaceMode==='business'&&<option value="crm">CRM only</option>}{workspaceMode!=='dev'&&<option value="mail">Mail only</option>}{panelFull&&!crmOpen&&!mailOpen&&<option value="tool">App only</option>}</select></label>
         <Link className="mode-connectors" href={'/settings/connections?mode='+workspaceMode}><Plug size={15}/><span>{workspaceModes.find(item=>item.id===workspaceMode)?.label} connectors</span></Link>
 
 
@@ -396,7 +403,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
-        {workspaceMode==='business'&&!businessOsOpen&&<OperationsCenter compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/>}
+        {workspaceMode==='business'&&!businessOsOpen&&<OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
@@ -470,7 +477,7 @@ export default function VeltraWorkspace() {
         </div>
       </section>
 
-      <section className="canvas-column">
+      <section className="canvas-column" aria-label="Workspace app area">
         <div className="canvas-shell-head">
           <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{businessOsOpen?"Veltra Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"Veltra CRM":codeOpen?"Code":mailOpen?"Veltra Mail":"Canvas"}</strong></div></div>
           <div className="canvas-head-actions"><label className="panel-width-control">Width<input type="range" min="40" max="75" step="5" aria-label="Tool panel width" value={panelWidth} disabled={panelFull} onChange={event=>setPanelWidth(Number(event.target.value))}/></label><button aria-label={panelFull?"Retract tool panel":"Expand tool panel"} aria-pressed={panelFull} onClick={()=>setPanelFull(value=>!value)}>{panelFull?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label="Close tool panel" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><X size={16}/></button>
@@ -478,7 +485,9 @@ export default function VeltraWorkspace() {
             <button className="canvas-add-button" onClick={() => { setBusinessOsOpen(false);setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        {businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {(retainedApps.crm||crmOpen)&&<div className="retained-workspace-app" hidden={!crmOpen}><CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/></div>}
+        {(retainedApps.mail||mailOpen)&&<div className="retained-workspace-app" hidden={!mailOpen}><MailCanvas onClose={()=>setMailOpen(false)}/></div>}
+        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 
