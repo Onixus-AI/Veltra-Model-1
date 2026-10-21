@@ -3,6 +3,8 @@ import {validId,type CrmScope,runCrmChat,validatePlan} from './crm/chat-actions'
 import {brainPlan,runBrain,type BrainScope} from './shared-brain';
 import {formatCrmReply} from './crm/chat-format';
 import {executeMailTool} from './mail-chat';
+import {browserEnabled,inspectBrowserPage} from './browser/inspect';
+import type {ToolOutcome} from './chat-tools';
 
 export type AgentContext={conversation_id?:string;crm_scope?:CrmScope};
 export async function agentScope(client:SupabaseClient,user:string,context:AgentContext):Promise<BrainScope>{
@@ -18,8 +20,9 @@ export async function agentScope(client:SupabaseClient,user:string,context:Agent
  return scope;
 }
 /** One authenticated execution path for model tools. The model never supplies identity, table or destination. */
-export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail';id:string};app?:'chat'|'mail'|'crm'}){
+export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail';id:string};app?:'chat'|'mail'|'crm'}):Promise<ToolOutcome>{
  const {client,user,scope,args}=o,app=o.app??'chat';
+ if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
  const crm=async(plan?:unknown,review_id?:string)=>{
   if(!scope.workspace_id)throw Error('400:Select a business conversation to control CRM.');
   return runCrmChat({client,user,scope:scope as CrmScope,message:plan?'model tool request':undefined,review_id,plan:plan?async()=>validatePlan(plan):undefined,outreach:o.mailOrigin?async(body?:Record<string,unknown>)=>{
@@ -36,7 +39,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
    client.from('veltra_memories').select('id').limit(1).then(r=>!r.error)
   ]);
   const value=(i:number)=>observations[i].status==='fulfilled'?observations[i].value:null;
-  return {content:JSON.stringify({crm:value(0)?{role:value(0).role,reads:true,reviewed_writes:['owner','member'].includes(value(0).role)}:{available:false,reason:'Select a business conversation with CRM membership.'},shared_brain:{available:value(3)===true&&(!scope.workspace_id||Boolean(value(0))),scope:scope.workspace_id?'business':'personal',reviewed_changes:!scope.workspace_id||Boolean(value(0)&&['owner','member'].includes(value(0).role))},mail:value(1)?{identity:value(1),reads:['search','read thread'],reviewed_writes:['prepare follow-up drafts'],sending:false}:{available:false},developer_connections:(Array.isArray(value(2))?value(2):[]).map((c:{provider:string;connected:boolean})=>({provider:c.provider,connected:c.connected,actions:!c.connected?[]:c.provider==='github'?['list files','read file','reviewed existing-file draft pull request']:['read selected project']})),browser:{available:false,reason:'Browser automation is not configured. Do not claim browser actions ran.'}})};
+  return {content:JSON.stringify({crm:value(0)?{role:value(0).role,reads:true,reviewed_writes:['owner','member'].includes(value(0).role)}:{available:false,reason:'Select a business conversation with CRM membership.'},shared_brain:{available:value(3)===true&&(!scope.workspace_id||Boolean(value(0))),scope:scope.workspace_id?'business':'personal',reviewed_changes:!scope.workspace_id||Boolean(value(0)&&['owner','member'].includes(value(0).role))},mail:value(1)?{identity:value(1),reads:['search','read thread'],reviewed_writes:['prepare follow-up drafts'],sending:false}:{available:false},developer_connections:(Array.isArray(value(2))?value(2):[]).map((c:{provider:string;connected:boolean})=>({provider:c.provider,connected:c.connected,actions:!c.connected?[]:c.provider==='github'?['list files','read file','reviewed existing-file draft pull request']:['read selected project']})),browser:{available:browserEnabled(),reads:['public HTTPS page inspection'],writes:false,reason:browserEnabled()?'Fresh read-only browser; no login or submission.':'Browser inspection is not enabled. Do not claim browser actions ran.'}})};
  }
  if(o.confirm){
   if(!validId(o.confirm.id))throw Error('400:Invalid action review.');
