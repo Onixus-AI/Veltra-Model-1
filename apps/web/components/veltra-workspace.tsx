@@ -1,4 +1,7 @@
 "use client";
+import TaskCenter from './task-center';
+import {taskProgress,type TaskRun,type TaskEvent} from '@/lib/task-progress';
+import {FOLLOWUP_PROMPT,runFollowupTask} from '@/lib/followup-task';
 import TaskAccessDialog from './task-access-dialog';
 import {TaskAccessClient,type AccessRequest} from '@/lib/task-access-client';
 import WorkspaceCommandMenu from "@/components/workspace-command-menu";
@@ -134,8 +137,8 @@ export default function VeltraWorkspace() {
   const cloudRef=useRef<CloudConversation|null>(null);
   const [cloudRequired,setCloudRequired]=useState(false);
   const [cloudReset,setCloudReset]=useState(0);
-  function loadCloud(row:CloudConversation){cloudRef.current=row;setCloud(row);setCloudRequired(true);setMessages(row.messages);setHistoryLoaded(true);setError('');}
-  function unavailableCloud(){cloudRef.current=null;setCloud(null);setMessages([]);}
+  function loadCloud(row:CloudConversation){if(!sending&&row.id!==cloudRef.current?.id)setTaskRun(null);cloudRef.current=row;setCloud(row);setCloudRequired(true);setMessages(row.messages);setHistoryLoaded(true);setError('');}
+  function unavailableCloud(){if(!sending)setTaskRun(null);cloudRef.current=null;setCloud(null);setMessages([]);}
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [mobileView, setMobileView] = useState<"chat" | "canvas">("chat");
   const [imageModel, setImageModel] = useState("recraft/recraft-v4.1-flash");
@@ -196,6 +199,7 @@ export default function VeltraWorkspace() {
   }
 
   function startNewChat() {
+    setTaskRun(null);
     setCanvasVisible(false);
     if(cloudRequired){setCloudReset(n=>n+1);return;}
     setMessages([]);
@@ -226,13 +230,17 @@ export default function VeltraWorkspace() {
     if (accepted.length) setPendingImages((current) => [...current, ...accepted]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
+  const [taskRun,setTaskRun]=useState<TaskRun|null>(null);
+  const taskStopped=useRef(false);
+  function taskEvent(event:TaskEvent){setTaskRun(current=>current?taskProgress(current,event):current);}
+  function stopTask(){taskStopped.current=true;taskEvent({type:'cancel'});void activeTaskAccess.current?.finish();answerAppAccess(false);answerWriteProposal(false);setToolStatus('Pending task work stopped.');}
   const [toolStatus,setToolStatus]=useState("");
   const [writeProposal,setWriteProposal]=useState<WriteProposal|null>(null);
   const writeResolver=useRef<((approved:boolean)=>void)|null>(null);
   const [accessRequest,setAccessRequest]=useState<AccessRequest|null>(null);
   const accessResolver=useRef<((allowed:boolean)=>void)|null>(null),activeTaskAccess=useRef<TaskAccessClient|null>(null);
-  function requestAppAccess(request:AccessRequest){return new Promise<boolean>(resolve=>{accessResolver.current=resolve;setAccessRequest(request);});}
-  function answerAppAccess(allowed:boolean){setAccessRequest(null);accessResolver.current?.(allowed);accessResolver.current=null;}
+  function requestAppAccess(request:AccessRequest){if(taskStopped.current)return Promise.resolve(false);taskEvent({type:'permission',app:request.name,reason:request.reason});return new Promise<boolean>(resolve=>{accessResolver.current=resolve;setAccessRequest(request);});}
+  function answerAppAccess(allowed:boolean){taskEvent({type:'resume'});setAccessRequest(null);accessResolver.current?.(allowed);accessResolver.current=null;}
   useEffect(()=>()=>{accessResolver.current?.(false);void activeTaskAccess.current?.finish();},[]);
 
   function requestWriteApproval(proposal:WriteProposal){
@@ -257,9 +265,16 @@ export default function VeltraWorkspace() {
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: prompt, ...(attachments.length ? { attachments } : {}) }];
     savedMessages=nextMessages;
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
-    setSending(true);
+    setSending(true);setToolStatus('');taskStopped.current=false;setTaskRun({id:crypto.randomUUID(),purpose:prompt||'Image request',state:'running',steps:[]});
     const taskAccess=new TaskAccessClient(prompt,requestAppAccess);activeTaskAccess.current=taskAccess;
     try {
+      if(prompt.toLowerCase()===FOLLOWUP_PROMPT.toLowerCase()){
+        if(workspaceMode!=='business')throw Error('Choose Business mode and a business conversation for this workflow.');
+        const selected=crmOpen&&crmScope?crmScope:savedCloud?.workspace_id?{workspace_id:savedCloud.workspace_id,customer_id:savedCloud.customer_id??null}:null;
+        if(!selected)throw Error('Choose a business conversation before preparing follow-ups.');
+        const answer=await runFollowupTask({...(savedCloud?{conversation_id:savedCloud.id}:{}),crm_scope:selected},requestWriteApproval,taskAccess,{event:taskEvent,cancelled:()=>taskStopped.current});
+        savedMessages=[...nextMessages,{role:'assistant',content:answer}];setMessages(savedMessages);return;
+      }
       if (imageMode || /^(?:please\s+)?(?:create|generate|draw|make)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|illustration|photo)\b/i.test(prompt)) {
         const response = await fetch("/api/images", {
           method: "POST", headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
@@ -322,6 +337,7 @@ export default function VeltraWorkspace() {
         (status) => setToolStatus(status),
         (item) => { setArtifact({ kind: item.kind??"markdown", title: item.title, content: item.content }); if(item.kind==="image"){setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false);} setCanvasVisible(true); },
         taskAccess,
+        {event:taskEvent,cancelled:()=>taskStopped.current},
       );
       savedMessages=[...nextMessages, { role: "assistant", content: answer }];
       setMessages(savedMessages);
@@ -329,6 +345,7 @@ export default function VeltraWorkspace() {
       if (nextArtifact) {setArtifact(nextArtifact);if(nextArtifact.kind!=="markdown")setCanvasVisible(true);}
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The request could not be completed.";
+      taskEvent({type:'fail',detail:message});
       setError(friendlyChatError(message));
       setMessages((current) => current.map((item, index) =>
         index === current.length - 1 && item.role === "assistant"
@@ -336,7 +353,7 @@ export default function VeltraWorkspace() {
           : item,
       ));
     } finally {
-      await taskAccess.finish();activeTaskAccess.current=null;
+      await taskAccess.finish();activeTaskAccess.current=null;taskEvent({type:'finish'});
       if(crmOpen)window.dispatchEvent(new Event('veltra-crm-changed'));
       if(savedCloud&&savedMessages.length){try{const result=await crmRequest<{revision:number}>('conversations/'+savedCloud.id,'PUT',{revision:savedCloud.revision,messages:savedMessages.map(({role,content,imageId})=>({role,content,...(imageId?{imageId}: {})}))});const row={...savedCloud,revision:result.revision};cloudRef.current=row;setCloud(row);}catch(e){setError('Reply was not saved to cloud history. '+(e instanceof Error?e.message:'Please retry.'));}}
       setSending(false);
@@ -398,7 +415,7 @@ export default function VeltraWorkspace() {
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Veltra workspace</span></div>
       </aside>
       <section className="chat-panel">
-        <div className="chat-toolbar"><strong className="chat-product-name">Veltra Chat</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={()=>{void activeTaskAccess.current?.finish();answerAppAccess(false);answerWriteProposal(false);setToolStatus('Further app access ended for this task.');}}>End app access</button>}
+        <div className="chat-toolbar"><strong className="chat-product-name">Veltra Chat</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={stopTask}>End app access</button>}
           <button className="new-chat-button" disabled={sending} onClick={startNewChat} aria-label="New chat"><SquarePen size={16}/></button>
           <div className="model-selector-wrap">
             <button className={`model-selector ${modelOpen ? "is-open" : ""}`} onClick={() => setModelOpen(!modelOpen)} aria-expanded={modelOpen}>
@@ -420,6 +437,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
+        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app)} onFollowups={()=>{setInput(FOLLOWUP_PROMPT);setImageMode(false);}} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
         {workspaceMode==='business'&&!businessOsOpen&&!crmOpen&&<details className="workspace-activity-drawer"><summary>Business activity</summary><OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/></details>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>

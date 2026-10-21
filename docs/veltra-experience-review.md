@@ -123,3 +123,17 @@ Workspace TypeScript and all 65 tests pass, including named-app checks for GitHu
 No production setting has changed. Workspace PR60, CRM PR18 and Mail PR32 remain draft. Hosted staging identity/provider behavior still requires a signed-in smoke test; the isolated integration runner is not a claim of that live test.
 
 Final verification receipt for cd9bb66: all Workspace CI checks passed, including the 65-test suite, application build, operations/consent browser suite, workspace navigation, coding service and isolated browser worker. Receipts: [checks](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39685096036), [UI/browser](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39685096140). The matching hosted preview returned HTTP 200 through the existing Vercel connection after Deployment Protection authentication; no protection rule was changed. This confirms page availability, not an authenticated Veltra task. No real user session or live Mail provider was exercised in that hosted preview. Production activation remains off.
+
+## Chat task center — first increment
+
+- [x] Build a session-local task timeline for actual model-tool events: working, permission, review, result, failure, skipped action and stopped work.
+- [x] Show provider receipts separately from model prose; a failed tool cannot become a green completed task because the model returns an answer.
+- [x] Add Business-mode follow-up workflow: read bounded CRM customers → check one page of unanswered priced quotes → display unique exact-email matches → review mailbox-wide draft preparation → use the returned draft receipt count. No sending action is added.
+- [x] Keep real limits explicit: up to 100 returned CRM records for matching, 25 Mail records per page, Mail preparation's existing scan of up to five overdue candidates; preparation is not restricted to displayed CRM matches. Require All customers rather than implying one-customer draft scope.
+- [x] Stop pending work without claiming to undo active requests; preserve late receipts. Review request again fills the composer, never retries an action automatically.
+- [x] Keep solid black/cyan with neon lime completion, magenta permission/review and red failure states. Use text labels as well as color, keyboard focus and reduced-motion support.
+- [x] Workspace TypeScript and 70 tests passed before preview; added cancellation-during-task-start coverage.
+- [ ] Verify actual task-center component and follow-up controller in desktop/mobile browser fixtures, plus workspace regressions/build.
+- [ ] Test live provider behavior after Railway recovers; this increment is not a claim that the Rail­way-hosted Mail deployment or signed-in provider flow was verified.
+
+This increment tracks the current Chat request in memory. It does not create a durable background-task scheduler or history database, change existing Mail background workers, enable the permission rollout flag, or add automatic send/retry. Result actions open the existing Mail/CRM workspace panels; exact provider-specific draft/customer deep links are a later increment.

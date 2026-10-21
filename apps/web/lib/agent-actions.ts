@@ -62,8 +62,9 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
  if(o.name==='crm_read'||o.name==='crm_change'){
   const plan=validatePlan(args),reads=new Set(['help','customers','tasks','overdue','pipeline','summary','history','outreach']);
   if((o.name==='crm_read')!==reads.has(plan.action))throw Error('400:Use the correct CRM read or change tool.');
-  return proposal('crm',await crm(plan));
+  const result=await crm(plan);return {...proposal('crm',result),...(o.name==='crm_read'&&plan.action==='customers'?{data:result.details}:{})};
  }
+ if(o.name==='mail_find_followups'){if(args.cursor!=null&&(typeof args.cursor!=='string'||args.cursor.length>8000))throw Error('400:Choose a valid next page.');return {content:JSON.stringify(await mail('find_unanswered_quotes',{days:0,...(args.cursor?{cursor:args.cursor}:{})}))};}
  if(o.name==='mail_search'){if(typeof args.query!=='string'||!args.query.trim()||args.query.length>1000)throw Error('400:Provide a mailbox search.');return {content:JSON.stringify(await mail('search_mail',{query:args.query,...(typeof args.cursor==='string'?{cursor:args.cursor}:{})}))};}
  if(o.name==='mail_read_thread'){if(typeof args.thread_id!=='string'||!args.thread_id||args.thread_id.length>1000)throw Error('400:Choose a mail thread.');return {content:JSON.stringify(await mail('read_mail_thread',{thread_id:args.thread_id}))};}
  if(o.name==='mail_prepare_followups'){
