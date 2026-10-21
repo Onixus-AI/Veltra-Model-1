@@ -455,7 +455,7 @@ export default function VeltraWorkspace() {
           {tmsOpen&&<div className="context-chip">Onixus TMS · Read-only context checked when you send</div>}
           {documents.length > 0 && <div className="context-chip"><FileText size={12} /> {documents.length} project {documents.length === 1 ? "file" : "files"} in context</div>}
           {pendingImages.length > 0 && <div className="image-tray">{pendingImages.map((url, imageIndex) => (<span className="image-thumb" key={imageIndex}><img src={url} alt={`Image ${imageIndex + 1} to send`} /><button type="button" aria-label={`Remove image ${imageIndex + 1}`} onClick={() => setPendingImages((current) => current.filter((_, index) => index !== imageIndex))}><X size={12} /></button></span>))}</div>}
-          <p className="settings-note">{buildOpen?"Super Coder mode · messages start coding tasks · up to 6,000 credits reserved per task":"Ask about connected tools, create an image, or use “Super Coder: build…” to code."}</p>
+          <p className="settings-note">{buildOpen?"Super Coder mode · messages start coding tasks · up to 6,000 credits reserved per task":workspaceMode==="creator"?"Develop a brief, create an image, or work with your project files.":workspaceMode==="dev"?"Ask about your repository, or use “Super Coder: build…” to start a coding task.":workspaceMode==="business"?"Ask about customers, follow-ups, or connected business tools.":"Plan your day, work with your files, or ask about connected tools."}</p>
           <form className="composer" onSubmit={(event) => void sendMessage(event)}>
             <textarea
               rows={2}
