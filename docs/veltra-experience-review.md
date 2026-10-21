@@ -52,6 +52,16 @@ The complete section checklist remains open; this increment does not establish t
 - [x] Code: show save errors inside the dialog and preserve entered values after a failed save.
 - [x] Code: group relationship, contact and business details; retain all existing fields, validation and save operation.
 - [x] Code: use opaque black surfaces, cyan focus and clear red error borders, responsive fields and 44px form controls.
-- [ ] Verify keyboard, failed-save/retry, mobile layout and existing CRM regression checks in both products before release.
+- [x] Verify keyboard, failed-save/retry, mobile layout and existing CRM regression checks in both products before release. PR57 and CRM PR15 merged and production READY.
 
 Remaining CRM review includes actual record navigation, other forms/dialogs, pipeline, sources, memory and automation. This customer-entry increment does not mark the full CRM experience complete.
+
+## Customer navigation and pipeline increment
+
+- [x] Code: expose customer search result counts, clear-search action, both contact name and email, and relevant outreach review warnings.
+- [x] Code: focus the record title on entry and return focus to the source row/deal on Back, retaining search and pipeline stage filters.
+- [x] Code: replace the squeezed six-column pipeline with a responsive 3/2/1-column board and controlled stage filter.
+- [x] Code: show per-stage deal counts and separate totals by recorded currency; no currency conversion is inferred.
+- [ ] Verify return paths, empty search, currency separation and responsive layouts in both CRM products before release.
+
+Opportunity cards open the existing customer record and its opportunities. This pass does not add drag-and-drop, alter deal stages automatically, or change outreach behavior.
