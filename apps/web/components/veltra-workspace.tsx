@@ -249,19 +249,19 @@ export default function VeltraWorkspace() {
   function answerWriteProposal(approved:boolean){
     setWriteProposal(null);writeResolver.current?.(approved);writeResolver.current=null;
   }
-  async function sendMessage(event?: FormEvent) {
+  async function sendMessage(event?: FormEvent,requestedPrompt?:string) {
     event?.preventDefault();
-    const prompt = input.trim();
-    if ((!prompt && !pendingImages.length) || sending || !historyLoaded) return;
+    const prompt = (requestedPrompt??input).trim();
+    if ((!prompt && !pendingImages.length) || sending || activeTaskAccess.current || !historyLoaded) return;
     if(cloudRequired&&!cloudRef.current){setError('Cloud history is not ready. Choose a conversation before sending.');return;}
     const savedCloud=cloudRef.current;
     if(crmOpen&&crmScope&&(!savedCloud||savedCloud.workspace_id!==crmScope.workspace_id||(savedCloud.customer_id??null)!==crmScope.customer_id)){setError('CRM context is switching. Wait for the selected customer conversation to load.');return;}
     let savedMessages:ChatMessage[]=[];
     setError("");
     stickToBottom.current=true;
-    setInput("");
-    const attachments = pendingImages;
-    setPendingImages([]);
+    if(!requestedPrompt)setInput("");
+    const attachments = requestedPrompt?[]:pendingImages;
+    if(!requestedPrompt)setPendingImages([]);
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: prompt, ...(attachments.length ? { attachments } : {}) }];
     savedMessages=nextMessages;
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
@@ -437,7 +437,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
-        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app)} onFollowups={()=>{setInput(FOLLOWUP_PROMPT);setImageMode(false);}} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
+        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
         {workspaceMode==='business'&&!businessOsOpen&&!crmOpen&&<details className="workspace-activity-drawer"><summary>Business activity</summary><OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/></details>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
