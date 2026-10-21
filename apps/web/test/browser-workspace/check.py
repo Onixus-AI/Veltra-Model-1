@@ -30,6 +30,8 @@ with sync_playwright() as p:
  for provider,asset in [('github','github.svg'),('vercel','vercel.svg'),('supabase','supabase.svg'),('railway','railway.svg'),('n8n','n8n.svg')]:
   mark=page.locator(f'#workspace-sidebar button[title="{provider}"] img')
   expect(mark).to_have_attribute('src',f'/brands/{asset}')
+  expect(mark).to_be_attached()
+  page.wait_for_function('(src)=>{const el=document.querySelector(`img[src="${src}"]`);return el?.complete&&el.naturalWidth>0}',arg=f'/brands/{asset}')
   assert mark.evaluate('(el)=>getComputedStyle(el).filter')=='none'
  page.get_by_role('button',name='Business',exact=True).click()
  page.get_by_role('button',name='Customize workspace',exact=True).click()
