@@ -242,5 +242,23 @@
     "source": "https://workspace.google.com",
     "sha256": "3730780f82acd51907c761bf0da9429d18266a9c6b33a03a515c4dd06819a0d9",
     "via": "Publisher asset"
+  },
+  {
+    "name": "stripe",
+    "file": "stripe.svg",
+    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/stripe.svg",
+    "title": "Stripe",
+    "source": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/stripe.svg",
+    "sha256": "7576775bf9915b696bbb9162268f5c56147d2b4221a76ac6a9ca92835239b7e9",
+    "via": "Simple Icons"
+  },
+  {
+    "name": "googlemaps",
+    "file": "googlemaps.png",
+    "asset_url": "https://www.gstatic.com/images/branding/product/2x/maps_96in128dp.png",
+    "title": "Google Maps",
+    "source": "https://www.gstatic.com/images/branding/product/2x/maps_96in128dp.png",
+    "sha256": "6770847e850f675dea8ff381dee642381dd246f7f08dcab242e8419ada88916c",
+    "via": "Google product assets"
   }
 ]
