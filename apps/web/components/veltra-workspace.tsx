@@ -1,4 +1,5 @@
 "use client";
+import OperationsCenter from '@/components/crm/operations-center';
 import type {CrmHostScope} from '@/lib/crm/host-context';
 import ToolLogo from "./tool-logo";
 
@@ -112,6 +113,7 @@ export default function VeltraWorkspace() {
     if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("work");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
   const [cloud,setCloud]=useState<CloudConversation|null>(null);
+  const [crmNavigation,setCrmNavigation]=useState<{workspace:string;view:string;revision:number}>();
   const [crmScope,setCrmScope]=useState<CrmHostScope|null>(null);
   const cloudRef=useRef<CloudConversation|null>(null);
   const [cloudRequired,setCloudRequired]=useState(false);
@@ -385,6 +387,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
+        {workspaceMode==='work'&&<OperationsCenter compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
@@ -466,7 +469,7 @@ export default function VeltraWorkspace() {
             <button className="canvas-add-button" onClick={() => { setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>
           </div>
         </div>
-        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas disabled={sending} onContextChange={setCrmScope}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : crmOpen ? <CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : mailOpen ? <MailCanvas onClose={() => setMailOpen(false)} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 

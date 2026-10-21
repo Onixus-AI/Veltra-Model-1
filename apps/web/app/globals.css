@@ -1,4 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
+@import "../components/crm/operations.css";
+@import "../components/crm/command-dashboard.css";
 
 @tailwind base;
 @tailwind components;
