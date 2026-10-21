@@ -19,7 +19,7 @@ const CrmCanvas=dynamic(()=>import("@/components/crm-canvas"));
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, ImagePlus, Layers3,
+  ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, ImagePlus, Layers3, LayoutDashboard, BriefcaseBusiness, PenTool, SlidersHorizontal, Github, Triangle, Database, TrainFront, Workflow, Bug,
   Plus, Palette, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Maximize2, Minimize2, X, MessageSquare, Code2, Plug, Mail, Users,
 } from "lucide-react";
 import ChatTools from "@/components/chat-tools";
@@ -367,16 +367,16 @@ export default function VeltraWorkspace() {
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Veltra Chat</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           {workspaceMode==="dev"&&<button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>}
-          {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><Layers3 size={17}/><span>Business overview</span></Link>}
-          {workspaceMode!=="dev"&&<button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><ToolLogo name="Veltra Mail"/><span>Veltra Mail</span></button>}
-          {workspaceMode==="business"&&<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><ToolLogo name="Veltra CRM"/><span>Veltra CRM</span></button>}
-          {workspaceMode==="business"&&<button title="Veltra Business OS" aria-pressed={businessOsOpen} onClick={()=>openTool("business")}><Layers3 size={17}/><span>Veltra Business OS</span></button>}
+          {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><LayoutDashboard size={17}/><span>Business overview</span></Link>}
+          {workspaceMode!=="dev"&&<button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Veltra Mail</span></button>}
+          {workspaceMode==="business"&&<button title="Veltra CRM" aria-label="Veltra CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Veltra CRM</span></button>}
+          {workspaceMode==="business"&&<button title="Veltra Business OS" aria-pressed={businessOsOpen} onClick={()=>openTool("business")}><BriefcaseBusiness size={17}/><span>Veltra Business OS</span></button>}
           <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setPanelFull(false);setBusinessOsOpen(false);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
-          {workspaceMode==="dev"&&(["github","vercel","supabase","railway","n8n"] as Provider[]).map(provider=><button key={provider} title={provider} onClick={()=>{openTool("code");setCodeTool(provider);}}><Code2 size={17}/><span>{({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}</span></button>)}
-          {workspaceMode==="creator"&&<><button title="Create an image" aria-label="Create an image" disabled={sending} onClick={()=>{setImageMode(true);setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><ImagePlus size={17}/><span>Create an image</span></button><button title="Project files" aria-label="Project files" onClick={()=>setKnowledgeOpen(true)}><FileText size={17}/><span>Project files</span></button><Link href="/settings/connections?mode=creator" title="Creator tools" aria-label="Creator tools"><Palette size={17}/><span>Creator tools</span></Link></>}
+          {workspaceMode==="dev"&&(["github","vercel","supabase","railway","n8n"] as Provider[]).map(provider=><button key={provider} title={provider} onClick={()=>{openTool("code");setCodeTool(provider);}}><span aria-hidden="true">{provider==="github"?<Github size={17}/>:provider==="vercel"?<Triangle size={17}/>:provider==="supabase"?<Database size={17}/>:provider==="railway"?<TrainFront size={17}/>:<Workflow size={17}/>}</span><span>{({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}</span></button>)}
+          {workspaceMode==="creator"&&<><button title="Create an image" aria-label="Create an image" disabled={sending} onClick={()=>{setImageMode(true);setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><ImagePlus size={17}/><span>Create an image</span></button><button title="Project files" aria-label="Project files" onClick={()=>setKnowledgeOpen(true)}><FileText size={17}/><span>Project files</span></button><Link href="/settings/connections?mode=creator" title="Creator tools" aria-label="Creator tools"><SlidersHorizontal size={17}/><span>Creator tools</span></Link></>}
           <WorkspaceAppearance navigation/>
-          <Link href="/design" title="Design"><Palette size={17}/><span>Design</span></Link>
-          {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
+          <Link href="/design" title="Design"><PenTool size={17}/><span>Design</span></Link>
+          {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><Bug size={17}/><span>LiveAskew / Bee</span></Link>}
           <Link href={"/settings/connections?mode="+workspaceMode} title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar key={workspaceMode} business={workspaceMode==="business"} scope={crmOpen?crmScope:null} disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
