@@ -1,3 +1,4 @@
+import '../../styles/veltra-theme.css';
 import Workspace from '../../components/crm/workspace';
 import '../../app/crm/crm.css';
 import type {Operations} from '../../lib/crm/operations';
