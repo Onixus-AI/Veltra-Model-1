@@ -1,0 +1,6 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {workspaceMode,modeForTool,connectorSectionInMode,connectorToolInMode} from '../lib/workspace-mode';
+test('stored Work preference migrates to Business while invalid modes are rejected',()=>{assert.equal(workspaceMode('work'),'business');assert.equal(workspaceMode('dev'),'dev');assert.equal(workspaceMode('admin'),null);assert.equal(workspaceMode(null),null);});
+test('opening development and business tools chooses the right mode; Mail keeps current mode',()=>{assert.equal(modeForTool('code'),'dev');assert.equal(modeForTool('build'),'dev');assert.equal(modeForTool('crm'),'business');assert.equal(modeForTool('business'),'business');assert.equal(modeForTool('mail'),null);});
+test('connector sections separate development from customer tools, with selected personal tools',()=>{assert.equal(connectorSectionInMode('dev','business'),false);assert.equal(connectorSectionInMode('dev','dev'),true);assert.equal(connectorSectionInMode('business','dev'),false);assert.equal(connectorToolInMode('Veltra CRM','personal'),false);assert.equal(connectorToolInMode('LiveAskew / Bee','personal'),true);assert.equal(connectorToolInMode('Veltra CRM','business'),true);});
