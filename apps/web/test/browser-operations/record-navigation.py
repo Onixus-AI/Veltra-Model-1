@@ -1,0 +1,52 @@
+from pathlib import Path
+from playwright.sync_api import sync_playwright,expect
+out=Path('work/operations-screenshots');out.mkdir(parents=True,exist_ok=True)
+with sync_playwright() as p:
+ browser=p.chromium.launch()
+ page=browser.new_page(viewport={'width':1440,'height':1000})
+ errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
+ page.route('**/api/**',lambda route:route.fulfill(json={'connected':False,'items':[],'campaigns':[],'messages':[]}))
+ page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
+ nav=page.get_by_role('navigation',name='Main navigation')
+ nav.get_by_role('button',name='Customers',exact=True).click()
+ search=page.get_by_role('textbox',name='Search customers')
+ search.fill('Northstar')
+ expect(page.get_by_role('status').filter(has_text='Showing 1 of 2')).to_be_visible()
+ row=page.locator('[data-crm-record="customer:a"]')
+ expect(row).to_contain_text('alex@example.com')
+ row.click()
+ heading=page.get_by_role('heading',name='Northstar Studio',exact=True)
+ expect(heading).to_be_focused()
+ page.screenshot(path=str(out/'crm-record-desktop.png'),full_page=True)
+ page.get_by_role('button',name='Back to customers',exact=True).click()
+ expect(search).to_have_value('Northstar');expect(row).to_be_focused()
+ search.fill('No matching company')
+ expect(page.get_by_text('No customers match this search. Clear it or try another name, email or industry.')).to_be_visible()
+ page.get_by_role('button',name='Clear search',exact=True).click()
+ expect(search).to_have_value('');expect(page.locator('.crm-customer-row')).to_have_count(2)
+ nav.get_by_role('button',name='Pipeline',exact=True).click()
+ stage=page.get_by_label('Pipeline stage',exact=True)
+ stage.select_option('proposal')
+ expect(page.locator('.crm-pipeline-stage')).to_have_count(1)
+ deal=page.locator('[data-crm-record="deal:d1"]')
+ deal.click();expect(heading).to_be_focused()
+ page.get_by_role('button',name='Back to pipeline',exact=True).click()
+ expect(stage).to_have_value('proposal');expect(deal).to_be_focused()
+ stage.select_option('all');expect(page.locator('.crm-pipeline-stage')).to_have_count(6)
+ assert len(page.locator('.crm-pipeline-grid').evaluate('(el)=>getComputedStyle(el).gridTemplateColumns').split())==3
+ page.screenshot(path=str(out/'crm-pipeline-desktop.png'),full_page=True)
+ for width,columns in [(590,2),(390,1)]:
+  page.set_viewport_size({'width':width,'height':900})
+  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),f'Pipeline must fit {width}px'
+  assert len(page.locator('.crm-pipeline-grid').evaluate('(el)=>getComputedStyle(el).gridTemplateColumns').split())==columns
+ page.screenshot(path=str(out/'crm-pipeline-mobile.png'),full_page=True)
+ deal.click();expect(heading).to_be_focused()
+ assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),'Customer record must fit mobile'
+ page.get_by_role('button',name='Back to pipeline',exact=True).click();expect(deal).to_be_focused()
+ page.goto('http://127.0.0.1:3188/?pipeline-currencies');page.wait_for_load_state('networkidle')
+ page.get_by_label('Pipeline stage',exact=True).select_option('proposal')
+ totals=page.locator('.crm-stage-value')
+ expect(totals).to_contain_text('$3,500 USD');expect(totals).to_contain_text('€1,200 EUR')
+ expect(totals.locator('span')).to_have_count(2)
+ assert not errors,errors
+ browser.close()
