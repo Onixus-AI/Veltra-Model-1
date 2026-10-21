@@ -101,6 +101,14 @@ Validation checkpoint: Workspace TypeScript check and all 62 unit/API tests pass
 - [x] Unmodified Mail: six focused CRM integration/sign-in/suppression/outage tests pass.
 - [x] CI browser suites pass for both products: task Allow/Deny, first focus on Deny, Escape denial, new task prompts, mobile bounds, task completion, and no mocked provider execution on Deny. These are real component interactions against fixture services, not live mailbox actions.
 - [x] Workspace browser navigation regression passes.
-- [ ] Implement and verify Mail's own CRM-chat task handoff and remaining delegated-app paths before enabling.
+- [x] Implement Mail's own CRM-chat task handoff in Mail PR32; preserves owner-bound encrypted sign-in, permission challenges, Allow/Deny, reviewed changes and legacy disabled behavior.
+- [x] Verify Mail disconnect ends the pending task before the CRM session is cleared.
+- [ ] Audit remaining delegated-app paths and verify the integrated preview before enabling production.
 
 Prototype review: Workspace PR60 and CRM PR18 are draft and not merged. Browser receipts: [Workspace](https://github.com/Onixus-AI/Veltra-Model-1/actions/runs/39680559082), [CRM](https://github.com/Onixus-AI/Veltra-CRM/actions/runs/39680563296). Production permission activation remains OFF. We can continue other roadmap work without activating this prototype.
+
+## Mail CRM-chat permission compatibility
+
+Mail PR32 adds a fixed-destination task-access proxy through the existing sealed CRM session and a solid black/cyan consent dialog in Mail's CRM assistant. Task identity follows the original request and its reviewed change; scope changes, dismissal and disconnect end access. Disconnect ends the task before clearing CRM credentials. Existing Mail-mode commands and background workers are unchanged.
+
+Both Mail type checks and all 119 tests pass, including new account/CSRF isolation, allow/deny, completed task and disabled-rollout cases. Final a764be7 passed both Mail CI and browser verification, including disconnect order. Browser checks use the real Mail assistant with fixture services, not live mailbox actions. Receipts: [CI](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335842), [browser](https://github.com/Onixus-AI/Veltra-Mail/actions/runs/39683335845). No feature setting has been enabled, and the three permission PRs remain draft.
