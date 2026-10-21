@@ -14,6 +14,8 @@ with sync_playwright() as p:
   route.fulfill(status=200,content_type='application/json',body=json.dumps(data))
  page.route('**/api/**',api);page.route('https://fixture.supabase.co/**',api)
  page.goto('http://127.0.0.1:3187/?mode=business');page.wait_for_load_state('networkidle')
+ page.screenshot(path=str(out/'workspace-initial.png'))
+ assert not errors,errors
  expect(page.get_by_role('button',name='Expand sidebar',exact=True)).to_be_visible()
  assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
  page.get_by_role('button',name='Veltra CRM',exact=True).click()
