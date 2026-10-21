@@ -19,6 +19,10 @@ with sync_playwright() as p:
  expect(page.get_by_role('button',name='Expand sidebar',exact=True)).to_be_visible()
  assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
  assert page.locator('.workspace-sidebar nav svg').first.evaluate('(el)=>getComputedStyle(el).color')=='rgb(0, 229, 239)','Sidebar line icons must use Veltra cyan'
+ assert page.locator('#workspace-sidebar nav img').count()==0,'Navigation uses line icons, not product logos'
+ icons=page.locator('#workspace-sidebar > nav:first-child > button svg,#workspace-sidebar > nav:first-child > a svg').evaluate_all('(els)=>els.map(el=>el.innerHTML)')
+ assert len(icons)==len(set(icons)),'Each workspace destination needs a distinct icon'
+ assert page.locator('.workspace-topbar').evaluate('(el)=>getComputedStyle(el).backgroundImage')=='none','Header must use a solid background'
  page.get_by_role('textbox',name='Message Veltra').fill('Business draft to keep')
  page.get_by_role('button',name='Creator',exact=True).click()
  expect(page.get_by_role('heading',name='What will you create?')).to_be_visible()
