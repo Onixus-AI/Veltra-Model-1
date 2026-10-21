@@ -37,6 +37,7 @@ jobs:
           python test/browser-operations/record-navigation.py
           python test/browser-operations/context-clarity.py
           python test/browser-operations/task-consent.py
+          python test/browser-operations/task-center.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

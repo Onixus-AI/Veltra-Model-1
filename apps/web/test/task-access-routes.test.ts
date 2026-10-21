@@ -14,16 +14,16 @@ test('AI tool and direct-chat routes stop before Mail provider access unless thi
  try{for(const mode of ['missing','deny','expired','allow','disabled']){
   process.env.VELTRA_TASK_ACCESS_ENABLED=mode==='disabled'?'false':'true';
   let providers=0;
-  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{const url=String(input);
+  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{const url=String(input);
    if(url.includes('/auth/v1/user'))return Response.json({id:USER,aud:'authenticated',role:'authenticated',is_anonymous:false,email:'owner@example.test',app_metadata:{},user_metadata:{}});
    if(url.includes('/rest/v1/veltra_ai_tasks')){assert.ok(url.includes('user_id=eq.'+USER));return Response.json(mode==='missing'?null:{id:TASK,expires_at:new Date(mode==='expired'?0:Date.now()+60000).toISOString(),completed_at:null});}
    if(url.includes('/rest/v1/veltra_ai_task_access')){assert.ok(url.includes('app=eq.mail'));assert.ok(url.includes('user_id=eq.'+USER));return Response.json({allowed:mode==='allow'});}
-   assert.equal(url,'https://mail.example.test/chat/mail-mcp');providers++;return Response.json({result:{content:[{type:'text',text:JSON.stringify({items:[],scope:'Verified Mail receipt'})}]}});
+   assert.equal(url,'https://mail.example.test/chat/mail-mcp');const rpc=JSON.parse(String(init?.body));assert.ok(['search_mail','find_unanswered_quotes'].includes(rpc.params.name));if(rpc.params.name==='find_unanswered_quotes')assert.equal(rpc.params.arguments.days,0);providers++;return Response.json({result:{content:[{type:'text',text:JSON.stringify({items:[],scope:'Verified Mail receipt'})}]}});
   });
   const tool=await toolRoute(new Request('https://veltra.example/api/agent/tools',{method:'POST',headers:{Authorization:'Bearer fixture-access','Content-Type':'application/json'},body:JSON.stringify({task_id:TASK,name:'mail_search',args:{query:'quote'}})}));
   assert.equal(tool.status,mode==='missing'?428:(mode==='allow'||mode==='disabled')?200:403);
   const direct=await chatRoute(new NextRequest('https://veltra.example/api/chat',{method:'POST',headers:{Authorization:'Bearer fixture-access','Content-Type':'application/json'},body:JSON.stringify({task_id:TASK,messages:[{role:'user',content:'Search my mail for quote'}]})}));
-  assert.equal(direct.status,mode==='missing'?428:(mode==='allow'||mode==='disabled')?200:403);assert.equal(providers,(mode==='allow'||mode==='disabled')?2:0);mock.mock.restore();
+  assert.equal(direct.status,mode==='missing'?428:(mode==='allow'||mode==='disabled')?200:403);const candidates=await toolRoute(new Request('https://veltra.example/api/agent/tools',{method:'POST',headers:{Authorization:'Bearer fixture-access','Content-Type':'application/json'},body:JSON.stringify({task_id:TASK,name:'mail_find_followups',args:{}})}));assert.equal(candidates.status,tool.status);assert.equal(providers,(mode==='allow'||mode==='disabled')?3:0);mock.mock.restore();
  }}finally{if(oldFlag===undefined)delete process.env.VELTRA_TASK_ACCESS_ENABLED;else process.env.VELTRA_TASK_ACCESS_ENABLED=oldFlag;for(const [key,value] of Object.entries({NEXT_PUBLIC_SUPABASE_URL:before.url,NEXT_PUBLIC_SUPABASE_ANON_KEY:before.key,VELTRA_MAIL_URL:before.mail})){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
 });
 

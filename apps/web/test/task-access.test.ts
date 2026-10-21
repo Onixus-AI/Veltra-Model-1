@@ -41,3 +41,11 @@ test('Allow runs Mail only for its task; Deny never reaches the provider and com
   assert.equal(prompts,1);assert.equal(providerCalls,allowed?1:0);await access.finish();assert.equal(ended,true);await assert.rejects(()=>access.fetch('/api/agent/tools'),/task has ended/);mock.mock.restore();
  }}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('stopping while task creation is in flight closes the new task without opening a late permission dialog',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ let release!:(value:Response)=>void,started!:()=>void,finished=0,prompts=0;const seen=new Promise<void>(resolve=>{started=resolve;});
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{assert.equal(input,'/api/ai-access');const body=JSON.parse(String(init?.body));if(body.action==='start'){started();return new Promise<Response>(resolve=>{release=resolve;});}assert.equal(body.action,'finish');finished++;return Response.json({completed:true});});
+ try{const task=new TaskAccessClient('Read mail',async()=>{prompts++;return true;});const request=task.require('mail','Read for this task');await seen;await task.finish();release(Response.json({task_id:task.id}));await assert.rejects(request,/has ended/);assert.equal(prompts,0);assert.equal(finished,1);}
+ finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
