@@ -58,3 +58,14 @@ The manager is direct account management, not an AI task-access grant. It does n
 - [x] Reuse reviewed proposals and separate approval before recall; no model calls or new paid infrastructure.
 - [ ] Complete production signed-in acceptance (no active browser session available during implementation).
 - [ ] Extend selected-source ingestion to Mail and CRM after backend verification.
+
+### CRM persistence gaps — implementation
+- [x] Live contact/task save, reload and completion verified with clearly labelled test data and outreach suppression.
+- [x] Add another workspace through the existing owner-authorized RPC and select its returned ID.
+- [x] Reuse one browser auth client; share overlapping reads, bound waiting and fetch remaining snapshot pages with up to three workers per table.
+- [x] Keep complete dashboard data but render customer lists in pages of 50; do not show empty totals before initial loading finishes.
+- [x] Add customer-linked manual enquiries with source, received time and new/reviewing/closed status. No automatic deal, task or outreach creation.
+- [x] Prepare an additive enquiry migration with RLS, column grants, same-workspace customer FK and snapshot indexes.
+- [ ] Complete PostgreSQL authorization tests and browser/CI verification.
+- [ ] Apply reviewed migration during release; no production schema was changed during implementation.
+- [ ] Re-run authenticated workspace/enquiry persistence tests after release and measure actual loading latency.
