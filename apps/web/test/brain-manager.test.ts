@@ -2,7 +2,7 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {brainManagerHandler} from '../lib/brain-manager-server';
 import {recallBrain} from '../lib/shared-brain';
-import {memorySourceUrl} from '../lib/brain-manager-client';
+import {memorySourceUrl,memoryReviewView} from '../lib/brain-manager-client';
 import {fixture,W,C,U,X} from './helpers/brain-fixture';
 function manager(role='owner'){
  const f=fixture(role),handler=brainManagerHandler((async(request:Request)=>{if(request.headers.get('authorization')!=='Bearer test-owner')throw Error('401:Sign in again.');return {client:f.client,user:{id:U}};}) as any);
@@ -26,6 +26,7 @@ test('manager lists within scope, includes expired only on request and does not 
 test('manager writes require a server review, scope binding and single-use confirmation',async()=>{
  const f=manager(),scope={crm_scope:{workspace_id:W}};
  const preview=await (await f.call({...scope,action:'propose',content:'Hours are 9–5',source_ref:'Owner instruction',kind:'preference'})).json();
+ assert.equal(memoryReviewView(preview)?.content,'Hours are 9–5');assert.equal(memoryReviewView({kind:'preview',reply:'Incomplete',details:{action:'brain_forget'}}),null);
  assert.equal(preview.kind,'preview');assert.equal(f.tables.veltra_memories.length,0);
  assert.equal((await f.call({...scope,action:'confirm',review_id:preview.review_id,crm_scope:{workspace_id:W,customer_id:C}})).status,409);
  assert.equal((await f.call({...scope,action:'confirm',review_id:preview.review_id})).status,200);

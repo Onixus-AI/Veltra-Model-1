@@ -25,7 +25,7 @@ with sync_playwright() as p:
    if proposal['action']=='forget':records[:]=[item for item in records if item['id']!=proposal['id']]
    return route.fulfill(json={'kind':'result','changed':True,'reply':'Memory approved for shared recall.'})
   review_id='review-'+str(len(reviews));reviews[review_id]=body
-  route.fulfill(json={'kind':'preview','review_id':review_id,'reply':'Nothing has changed yet. Review expires in ten minutes.','details':body})
+  route.fulfill(json={'kind':'preview','review_id':review_id,'reply':'Nothing has changed yet. Review expires in ten minutes.','details':{'action':'brain_'+action,'content':body.get('content'),'source':body.get('source_ref'),'scope':'Business workspace','before':next((item for item in records if item['id']==body.get('id')),None),'expires_at':body.get('expires_at')}})
  page.route('**/api/brain',api)
  page.goto('http://127.0.0.1:3188/?brain-manager');page.wait_for_load_state('networkidle')
  page.get_by_role('button',name='Open shared brain').click()
