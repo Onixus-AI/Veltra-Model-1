@@ -76,7 +76,7 @@
 
 /* Embedded CRM shares the workspace rail; retain only local section navigation. */
 .crm-shell.crm-shell-overview.crm-shell-embedded{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr);height:100dvh;min-height:0}
-.crm-shell.crm-shell-embedded .crm-sidebar{grid-column:1;grid-row:1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-right:0;border-bottom:1px solid var(--veltra-line,#23363c);height:auto;min-height:0}
+.crm-shell.crm-shell-embedded .crm-sidebar{grid-column:1;grid-row:1;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;min-width:0;max-width:100%;gap:8px;padding:10px 16px;border-right:0;border-bottom:1px solid var(--veltra-line,#23363c);height:auto;min-height:0}
 .crm-shell.crm-shell-embedded .crm-sidebar>.crm-brand,.crm-shell.crm-shell-embedded .crm-sidebar>.crm-workspace-label,.crm-shell.crm-shell-embedded .crm-sidebar>.crm-suite,.crm-shell.crm-shell-embedded .crm-sidebar>button{display:none}
 .crm-shell.crm-shell-embedded .crm-sidebar>select{flex:0 1 180px;min-width:120px;margin:0}
 .crm-shell.crm-shell-embedded .crm-sidebar nav{display:flex;flex:1 1 300px;min-width:0;overflow-x:auto;margin:0;padding:0;gap:4px}
