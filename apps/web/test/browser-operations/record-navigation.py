@@ -48,5 +48,20 @@ with sync_playwright() as p:
  totals=page.locator('.crm-stage-value')
  expect(totals).to_contain_text('$3,500 USD');expect(totals).to_contain_text('€1,200 EUR')
  expect(totals.locator('span')).to_have_count(2)
+ # A top-level stale flag retains standalone navigation; a real frame gets local toolbar navigation.
+ page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
+ expect(page.locator('.crm-shell-embedded')).to_have_count(0)
+ page.evaluate("""() => { document.body.innerHTML='<iframe title="Embedded CRM" src="/?shell&embedded=1" style="border:0;width:100%;height:850px"></iframe>'; }""")
+ frame=page.frame_locator('iframe')
+ expect(frame.locator('.crm-shell-embedded')).to_be_visible()
+ expect(frame.locator('.crm-brand')).not_to_be_visible()
+ expect(frame.get_by_role('navigation',name='Main navigation')).to_be_visible()
+ frame.get_by_role('button',name='Customers',exact=True).click()
+ expect(frame.get_by_role('textbox',name='Search customers')).to_be_visible()
+ for width in [1440,390]:
+  page.set_viewport_size({'width':width,'height':1000})
+  assert frame.locator('.crm-shell').evaluate('(el)=>getComputedStyle(el).gridTemplateColumns.split(" ").length===1')
+  assert frame.locator('.crm-shell').evaluate('(el)=>el.scrollWidth<=el.clientWidth'), 'Embedded CRM must fit the host'
+ page.screenshot(path=str(out/'crm-embedded-toolbar.png'),full_page=True)
  assert not errors,errors
  browser.close()
