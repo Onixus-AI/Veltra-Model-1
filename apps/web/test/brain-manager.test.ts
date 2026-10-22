@@ -50,3 +50,18 @@ test('viewer roles, authentication, origin, invalid actions and input bounds are
  assert.equal(memorySourceUrl('javascript:alert(1)'),null);assert.equal(memorySourceUrl('https://user:password@example.test'),null);
  assert.equal(memorySourceUrl('Owner instruction'),null);assert.equal(memorySourceUrl('https://example.test/source'),'https://example.test/source');
 });
+
+test('Chat proposals resolve owned, versioned sources and reject duplicates before review',async()=>{
+ const f=manager();f.tables.crm_conversations.push({id:C,user_id:U,workspace_id:W,customer_id:null,revision:2,messages:[{role:'user',content:'Use cyan'}]});
+ const body={action:'propose',conversation_id:C,source_index:0,source_revision:2,source_excerpt:'Use cyan',content:'Use cyan',source_ref:'Untrusted client label'};
+ const response=await f.call(body);assert.equal(response.status,200);const review=await response.json();assert.match(review.details.source,/revision 2.*message 1.*user/);assert.doesNotMatch(review.details.source,/Untrusted/);assert.equal(f.tables.veltra_memories.length,0);
+ assert.equal((await f.call({...body,source_revision:1})).status,409);
+ assert.equal((await f.call({...body,source_excerpt:'Unsaved text'})).status,409);
+ assert.equal((await f.call({...body,source_index:8})).status,400);
+ assert.equal((await f.call({...body,conversation_id:X})).status,404);
+ assert.equal((await f.call({...body,crm_scope:{workspace_id:W,customer_id:X}})).status,409);
+ await f.call({action:'confirm',conversation_id:C,review_id:review.review_id});
+ assert.equal(f.tables.veltra_memories[0].status,'proposed');
+ assert.equal((await f.call(body)).status,409);
+ const viewer=manager('viewer');viewer.tables.crm_conversations.push(...f.tables.crm_conversations);assert.equal((await viewer.call(body)).status,403);
+});

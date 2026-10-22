@@ -1,6 +1,7 @@
 import {crmUser,crmError} from './crm/server';
 import {agentScope} from './agent-actions';
 import {brainPlan,checkBrainScope,recallBrain,runBrain} from './shared-brain';
+import {chatMemorySource,checkChatMemoryDuplicate} from './brain-chat-source';
 /** Direct account management, not an AI access grant. All writes reuse reviewed runBrain. */
 export function brainManagerHandler(authenticate=crmUser){return async(request:Request)=>{try{
  const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)throw Error('403:Open shared brain from your workspace.');
@@ -16,6 +17,12 @@ export function brainManagerHandler(authenticate=crmUser){return async(request:R
   const records=await recallBrain(client,user.id,scope,plan.query,true,Date.now(),body.include_expired===true);
   let can_write=true;try{await checkBrainScope(client,user.id,scope,true);}catch(error){if(error instanceof Error&&error.message.startsWith('403:'))can_write=false;else throw error;}
   return Response.json({records,scope,can_write,limit:30},{headers:{'Cache-Control':'no-store'}});
+ }
+ if(body.source_index!==undefined){
+  if(body.action!=='propose')throw Error('400:Chat sources can only create proposals.');
+  await checkBrainScope(client,user.id,scope,true);
+  body.source_ref=await chatMemorySource(client,user.id,scope,body);
+  const plan=brainPlan(body);await checkChatMemoryDuplicate(client,user.id,scope,plan.content!,body.source_ref);
  }
  if(body.action==='confirm'&&!body.review_id)throw Error('400:Choose a memory review.');
  const result=await runBrain({client,user:user.id,scope,app:'chat',...(body.action==='confirm'?{review_id:body.review_id}:{plan:brainPlan({...body,action:body.action})})});

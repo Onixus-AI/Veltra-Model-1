@@ -109,7 +109,8 @@ export default function VeltraWorkspace() {
   const [retainedApps,setRetainedApps]=useState({crm:false,mail:false});
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [brainOpen,setBrainOpen]=useState(false);
-  function openBrain(){setKnowledgeOpen(false);setBrainOpen(true);}
+  const [brainSeed,setBrainSeed]=useState<{content:string;index:number;revision:number}|undefined>();
+  function openBrain(){setBrainSeed(undefined);setKnowledgeOpen(false);setBrainOpen(true);}
   const [canvasVisible,setCanvasVisible]=useState(false);
   const [panelFull,setPanelFull]=useState(false),[panelWidth,setPanelWidth]=useState(60),[businessOsOpen,setBusinessOsOpen]=useState(false);
   const [beeConnected,setBeeConnected]=useState(false);
@@ -473,6 +474,7 @@ export default function VeltraWorkspace() {
                     {message.content
                       ? <div className="message-content">{message.role==="assistant"?<ChatResponse content={message.content}/>:<ChatContent content={message.content}/>}</div>
                       : <div className="thinking-indicator" role="status"><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span><span>{sending ? (imageMode ? "Veltra is creating your image…" : "Veltra is thinking…") : "No reply received. Try sending your message again."}</span></div>}
+                    {message.content&&cloud&&<button type="button" className="message-remember" disabled={sending} onClick={()=>{setBrainSeed({content:message.content,index,revision:cloud.revision});setKnowledgeOpen(false);setBrainOpen(true);}}><Brain size={14}/>Remember</button>}
                   </div>
                 </article>
               ))}
@@ -524,7 +526,7 @@ export default function VeltraWorkspace() {
 
       </section>
 
-      {brainOpen&&<BrainManager key={workspaceMode+JSON.stringify(crmOpen?crmScope:cloud?.id)} business={workspaceMode==="business"} context={crmOpen&&crmScope?{crm_scope:crmScope}:cloud?{conversation_id:cloud.id}:{}} onClose={()=>setBrainOpen(false)}/>}
+      {brainOpen&&<BrainManager seed={brainSeed} key={workspaceMode+JSON.stringify(crmOpen?crmScope:cloud?.id)} business={workspaceMode==="business"} context={brainSeed&&cloud?{conversation_id:cloud.id}:crmOpen&&crmScope?{crm_scope:crmScope}:cloud?{conversation_id:cloud.id}:{}} onClose={()=>setBrainOpen(false)}/>}
       {knowledgeOpen && <ProjectKnowledge documents={documents} onChange={setDocuments} onClose={() => setKnowledgeOpen(false)} />}
     </main>
   );
