@@ -9,7 +9,7 @@
 - [x] Embedded Mail navigation merged (Mail PR33); Railway rollout remains unverified.
 - [x] Check public OpenRouter endpoints for all 11 configured primary/fallback IDs. Listings exist; account-key permissions, funding and privacy eligibility have not been proven by inference.
 - [x] Build query-aware saved-memory recall and run focused tests.
-- [ ] Complete full CI and review the retrieval release.
+- [x] Complete full CI and merge/deploy query-aware retrieval (PR64).
 
 ## Current retrieval increment
 
@@ -19,7 +19,7 @@ This is lexical search, not embeddings or learned semantic ranking. More than 10
 
 ## Build next, independently of Railway
 
-- [ ] Add an inspectable shared-brain view: search, scope, source, approval/expiry, and existing reviewed correction/forget actions.
+- [x] Build an inspectable shared-brain view: search, scope, source, approval/expiry, and existing reviewed correction/forget actions.
 - [ ] Add ingestion boundaries and source freshness/version tracking before automatic imports.
 - [ ] Evaluate embedding/reranking with synthetic data; choose dimensions and reindex strategy before database changes.
 - [ ] Add durable task history and safe background job controls.
@@ -37,3 +37,16 @@ This is lexical search, not embeddings or learned semantic ranking. More than 10
 ## Verification
 
 Focused tests use fixture data plus the real Supabase SDK request serializer, covering query relevance, limits, source retention, expiry/approval/customer isolation and separate PostgREST OR groups. No real customer data or provider inference is used. TypeScript check passes. Full CI receipt belongs in the PR after completion.
+
+## Shared-brain manager — workspace increment
+
+- [x] Add a unique Brain icon and command-menu entry.
+- [x] Search saved records in the current personal/business/customer scope; inspect source app/reference, status, expiry and ID.
+- [x] Include expired records only on explicit manager request; automatic Chat recall still excludes expired/proposed records.
+- [x] Reuse single-use server reviews for add, approve, correct and forget. Corrected records need reapproval.
+- [x] Preserve viewer-role and customer/business-wide editing boundaries. No automatic model or provider calls.
+- [x] Focused API/domain tests and TypeScript pass locally.
+- [ ] Full CI, desktop/mobile visual verification and release review.
+- [ ] Signed-in provider/database acceptance remains separate; fixture checks do not prove live account behavior.
+
+The manager is direct account management, not an AI task-access grant. It does not activate the production permission flag, ingest mail/repositories, alter credentials, or change standalone apps.

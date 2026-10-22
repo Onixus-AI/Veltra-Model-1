@@ -42,9 +42,10 @@ export async function checkBrainScope(client:SupabaseClient,user:string,scope:Br
 }
 function scoped(client:SupabaseClient,user:string,scope:BrainScope){let q=client.from('veltra_memories').select(fields);q=scope.workspace_id?q.eq('workspace_id',scope.workspace_id):q.is('workspace_id',null).eq('user_id',user);return q;}
 /** Only approved, unexpired, relevant records enter model context. Personal and business scopes never mix. */
-export async function recallBrain(client:SupabaseClient,user:string,scope:BrainScope,query='',includeProposed=false,now=Date.now()){
+export async function recallBrain(client:SupabaseClient,user:string,scope:BrainScope,query='',includeProposed=false,now=Date.now(),includeExpired=false){
  await checkBrainScope(client,user,scope);
- let q=scoped(client,user,scope).or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`);
+ let q=scoped(client,user,scope);
+ if(!includeExpired)q=q.or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`);
  if(!includeProposed)q=q.eq('status','approved');
  q=scope.customer_id?q.or(`customer_id.is.null,customer_id.eq.${scope.customer_id}`):q.is('customer_id',null);
  const terms=query?brainSearchTerms(bounded(query,200)):[];
