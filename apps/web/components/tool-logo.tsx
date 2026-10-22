@@ -1,6 +1,7 @@
 import { CalendarDays, Megaphone, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
 
 const brandAssets: Record<string, string> = {
+  "Onixus TMS": "onixus-tms-gold.png",
   "Veltra Mail": "veltra-mail.svg", "Veltra CRM": "veltra-crm.png",
   "LiveAskew / Bee": "liveaskew.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
@@ -15,7 +16,7 @@ const brandAssets: Record<string, string> = {
   OneDrive: "onedrive.svg", SharePoint: "sharepoint.svg",
 };
 const workspaceIcons = {
-  "Onixus TMS": Truck, Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
+  Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
   Barber: Scissors, "Community Manager": Users, Signal: Megaphone,
   "Custom MCP Server": Plug,
 };
