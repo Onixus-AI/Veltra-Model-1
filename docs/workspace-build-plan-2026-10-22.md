@@ -58,3 +58,11 @@ The manager is direct account management, not an AI task-access grant. It does n
 - [x] Reuse reviewed proposals and separate approval before recall; no model calls or new paid infrastructure.
 - [ ] Complete production signed-in acceptance (no active browser session available during implementation).
 - [ ] Extend selected-source ingestion to Mail and CRM after backend verification.
+
+### Connection health and motion
+- [x] Add read-only Mail and CRM link/access checks to Connections.
+- [x] Distinguish verified link, disconnected, missing CRM workspace, sign-in, access denial and unavailable service.
+- [x] Animate only checks in progress; keep completed results still and respect reduced motion.
+- [x] Bound requests, discard stale responses, and allow manual rechecks.
+- [ ] Complete browser/CI validation and review before release.
+- [ ] Verify actual signed-in Mail and CRM workflows separately; a successful connection check does not certify sending, saving or agent execution.
