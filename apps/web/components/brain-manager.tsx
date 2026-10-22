@@ -21,7 +21,7 @@ export default function BrainManager({context={},business=false,onClose,request=
  async function act(body:Record<string,unknown>){
   if(locked.current)return;locked.current=true;setBusy(true);setError('');setNotice('');const current=revision.current;
   try{const result=await request({...JSON.parse(contextKey),business,...body});if(current!==revision.current)return;if('records' in result)throw Error('Expected a reviewed memory result.');
-   if(result.kind==='preview'&&result.review_id){setReview(result);setEditing(null);}else if(result.changed){setReview(null);setEditing(null);setNotice(result.reply);setRefresh(value=>value+1);}else throw Error(result.reply||'No memory change was confirmed.');
+   if(result.kind==='preview'&&result.review_id){setReview(result);setEditing(null);}else if(result.changed){setReview(null);setEditing(null);setNotice(result.reply);setData(null);setLoading(true);setRefresh(value=>value+1);}else throw Error(result.reply||'No memory change was confirmed.');
   }catch(cause){if(current===revision.current){setError(cause instanceof Error?cause.message:'Memory change could not be confirmed. Refresh before retrying.');if(body.action==='confirm')setReview(null);}}
   finally{locked.current=false;setBusy(false);}
  }
