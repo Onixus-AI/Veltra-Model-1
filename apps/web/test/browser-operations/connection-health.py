@@ -16,6 +16,7 @@ with sync_playwright() as p:
  crm=page.get_by_role('article',name='CRM connection health');mail=page.get_by_role('article',name='Mail connection health')
  expect(crm).to_contain_text('Workspace link verified');expect(mail).to_contain_text('Service unavailable')
  assert page.locator('.connection-health').evaluate('el=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
+ assert 'sans-serif' in page.locator('.connection-health').evaluate('el=>getComputedStyle(el).fontFamily')
  assert crm.locator('.health-signal').evaluate('el=>getComputedStyle(el).animationName')=='none'
  page.screenshot(path=str(out/'connection-health-desktop.png'),full_page=True)
  mode='disconnected';page.get_by_role('button',name='Recheck connections').click();expect(mail).to_contain_text('Not connected')
