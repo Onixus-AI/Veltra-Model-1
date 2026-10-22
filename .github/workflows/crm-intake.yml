@@ -1,0 +1,29 @@
+name: CRM intake database verification
+on: [pull_request, workflow_dispatch]
+jobs:
+  enquiries:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: fixture-only-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: fixture-only-password
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify migration, grants, tenant boundaries and viewer restrictions
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/crm-inquiries-bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/migrations/20261022100008_crm_customer_inquiries.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/tests/crm-inquiries.sql
