@@ -50,3 +50,11 @@ Focused tests use fixture data plus the real Supabase SDK request serializer, co
 - [ ] Signed-in provider/database acceptance remains separate; fixture checks do not prove live account behavior.
 
 The manager is direct account management, not an AI task-access grant. It does not activate the production permission flag, ingest mail/repositories, alter credentials, or change standalone apps.
+
+### Selected Chat memory proposals
+- [x] Add Remember to saved Chat text messages; open an editable proposal.
+- [x] Verify source ownership, conversation revision, message index and excerpt on the server.
+- [x] Check exact text/source duplicates in the selected scope before review. This is a preflight check, not a concurrent uniqueness guarantee.
+- [x] Reuse reviewed proposals and separate approval before recall; no model calls or new paid infrastructure.
+- [ ] Complete production signed-in acceptance (no active browser session available during implementation).
+- [ ] Extend selected-source ingestion to Mail and CRM after backend verification.

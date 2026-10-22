@@ -59,6 +59,21 @@ with sync_playwright() as p:
  page.set_viewport_size({'width':390,'height':844});page.screenshot(path=str(out/'brain-manager-mobile.png'),full_page=True)
  assert dialog.evaluate('(el)=>el.scrollWidth<=el.clientWidth'),'Memory manager must fit mobile'
  page.keyboard.press('Escape');expect(dialog).to_have_count(0);expect(page.get_by_role('button',name='Open shared brain')).to_be_focused()
+ # Selected Chat text opens an editable draft; it must not write on open or cancel.
+ page.goto('http://127.0.0.1:3188/?brain-manager&chat-seed');page.get_by_role('button',name='Open shared brain').click()
+ expect(page.get_by_role('textbox',name='Memory',exact=True)).to_have_value('Use concise weekly summaries.')
+ expect(page.get_by_role('textbox',name='Source reference')).to_have_attribute('readonly','')
+ count=len(writes)
+ page.get_by_role('textbox',name='Memory',exact=True).fill('Weekly summaries should be concise.')
+ page.get_by_role('button',name='Review memory',exact=True).click()
+ expect(page.get_by_role('region',name='Memory change review')).to_contain_text('Weekly summaries should be concise.')
+ proposal=next(body for body in reversed(calls) if body['action']=='propose')
+ assert proposal['source_index']==0 and proposal['source_revision']==3
+ assert proposal['source_excerpt']=='Use concise weekly summaries.'
+ assert len(writes)==count
+ page.screenshot(path=str(out/'brain-chat-review.png'),full_page=True)
+ page.get_by_role('button',name='Cancel review').click();assert len(writes)==count
+ page.keyboard.press('Escape')
  assert not errors,errors
  browser.close()
 print('Shared-brain manager verified: sources, review/cancel/confirm, stale review, filters, keyboard and mobile.')
