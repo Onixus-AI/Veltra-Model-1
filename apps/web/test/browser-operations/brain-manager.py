@@ -33,22 +33,27 @@ with sync_playwright() as p:
  saved=page.get_by_role('region',name='Saved memories');detail=page.get_by_role('region',name='Memory details')
  expect(saved.get_by_role('button').filter(has_text=base['content'])).to_be_visible()
  expect(detail.get_by_role('link')).to_have_attribute('href',base['source_ref'])
+ page.screenshot(path=str(out/'brain-manager-desktop.png'),full_page=True)
  saved.get_by_role('button').filter(has_text=pending['content']).click()
  page.get_by_role('button',name='Review approval',exact=True).click()
  review=page.get_by_role('region',name='Memory change review');expect(review).to_be_visible()
  expect(page.get_by_role('button',name='Cancel review')).to_be_focused();assert len(writes)==0
+ page.screenshot(path=str(out/'brain-manager-review.png'),full_page=True)
  page.get_by_role('button',name='Cancel review').click();assert len(writes)==0
  page.get_by_role('button',name='Review approval',exact=True).click()
  page.get_by_role('button',name='Confirm memory change').dblclick();expect(page.get_by_role('status').filter(has_text='approved')).to_be_visible()
  assert len(writes)==1,'Confirmation must apply once'
- page.get_by_role('button',name='Correct',exact=True).click();page.get_by_label('Memory',exact=True).fill('Corrected follow-up preference.')
+ page.get_by_role('button',name='Correct',exact=True).click()
+ expect(page.get_by_role('heading',name='Correct memory',exact=True)).to_be_visible()
+ page.screenshot(path=str(out/'brain-manager-edit.png'),full_page=True)
+ page.get_by_label('Memory',exact=True).fill('Corrected follow-up preference.')
  page.get_by_role('button',name='Review memory',exact=True).click();expect(review).to_contain_text('Corrected follow-up preference.');assert len(writes)==1
  page.get_by_role('button',name='Cancel review').click()
  page.get_by_role('checkbox',name='Include expired').check();expect(saved.get_by_role('button').filter(has_text=old['content'])).to_be_visible()
  saved.get_by_role('button').filter(has_text=old['content']).click();page.get_by_role('button',name='Forget',exact=True).click();reject=True
  page.get_by_role('button',name='Confirm memory change').click();expect(page.get_by_role('alert')).to_contain_text('Memory changed');assert len(writes)==1
  page.get_by_role('button',name='Refresh memories').click();expect(page.get_by_role('alert')).to_have_count(0)
- page.screenshot(path=str(out/'brain-manager-desktop.png'),full_page=True)
+ page.screenshot(path=str(out/'brain-manager-expired.png'),full_page=True)
  page.get_by_placeholder('Search facts, preferences, projects…').fill('Northstar');page.get_by_role('button',name='Search',exact=True).click()
  expect(saved.get_by_role('button').filter(has_text=pending['content'])).to_have_count(0)
  page.set_viewport_size({'width':390,'height':844});page.screenshot(path=str(out/'brain-manager-mobile.png'),full_page=True)
