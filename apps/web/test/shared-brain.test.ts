@@ -1,4 +1,6 @@
 import {test} from 'node:test';
+import {createClient} from '@supabase/supabase-js';
+import {brainSearchTerms,brainQueryFromMessages,rankBrainMemories} from '../lib/brain-retrieval';
 import assert from 'node:assert/strict';
 import {runBrain,recallBrain,brainPlan,brainIntent,brainMessageScope,brainReference} from '../lib/shared-brain';
 import {agentAction,agentScope} from '../lib/agent-actions';
@@ -6,13 +8,14 @@ const W='00000000-0000-4000-8000-000000000001',C='00000000-0000-4000-8000-000000
 function fixture(role='owner'){
  const tables:Record<string,any[]>={crm_memberships:[{workspace_id:W,user_id:U,role}],crm_customers:[{id:C,workspace_id:W}],crm_conversations:[],veltra_memories:[]};
  const client={from:(table:string)=>{
-  let op='select',body:any,fields='*',single=false;const filters:((r:any)=>boolean)[]=[];
-  const q:any={select:(f='*')=>{fields=f;return q;},eq:(k:string,v:unknown)=>{filters.push(r=>r[k]===v);return q;},is:(k:string,v:unknown)=>{filters.push(r=>(r[k]??null)===v);return q;},order:()=>q,limit:()=>q,
-   or:(expr:string)=>{const f=expr.split(',').map(c=>{const [key,op,...rest]=c.split('.'),value=rest.join('.');return (r:any)=>op==='is'?r[key]==null:op==='eq'?r[key]===value:op==='gt'?r[key]>value:false;});filters.push(r=>f.some(check=>check(r)));return q;},
+  let op='select',body:any,fields='*',single=false,cap=Infinity,sortKey='';const filters:((r:any)=>boolean)[]=[];
+  const q:any={select:(f='*')=>{fields=f;return q;},eq:(k:string,v:unknown)=>{filters.push(r=>r[k]===v);return q;},is:(k:string,v:unknown)=>{filters.push(r=>(r[k]??null)===v);return q;},order:(key:string)=>{sortKey=key;return q;},limit:(count:number)=>{cap=count;return q;},
+   or:(expr:string)=>{const f=expr.split(',').map(c=>{const [key,op,...rest]=c.split('.'),value=rest.join('.');return (r:any)=>op==='is'?r[key]==null:op==='eq'?r[key]===value:op==='gt'?r[key]>value:op==='ilike'?String(r[key]).toLowerCase().includes(value.slice(1,-1).toLowerCase()):false;});filters.push(r=>f.some(check=>check(r)));return q;},
    ilike:(key:string,value:string)=>{filters.push(r=>String(r[key]).toLowerCase().includes(value.slice(1,-1).toLowerCase()));return q;},
    maybeSingle:()=>{single=true;return q;},single:()=>{single=true;return q;},insert:(v:any)=>{op='insert';body=v;return q;},update:(v:any)=>{op='update';body=v;return q;},delete:()=>{op='delete';return q;},
    then:(resolve:any,reject:any)=>Promise.resolve().then(()=>{
     let rows=(tables[table]??[]).filter(r=>filters.every(f=>f(r)));
+    if(sortKey)rows=rows.toSorted((a,b)=>String(b[sortKey]??'').localeCompare(String(a[sortKey]??'')));rows=rows.slice(0,cap);
     if(op==='insert'){const row={revision:0,expires_at:null,updated_at:'2026-10-20T00:00:00Z',...structuredClone(body)};tables[table]??=[];tables[table].push(row);rows=[row];}
     if(op==='update')for(const row of rows)Object.assign(row,structuredClone(body));
     if(op==='delete')tables[table]=tables[table].filter(r=>!rows.includes(r));
@@ -85,4 +88,42 @@ test('agent CRM tools execute only reviewed changes and reject wrong tool classe
  await assert.rejects(()=>agentScope(f.client,U,{conversation_id:X,crm_scope:{workspace_id:W}}),/context differ/);
  await assert.rejects(()=>agentScope(f.client,'other',{conversation_id:X}),/not found/);
  await assert.rejects(()=>agentAction({...base,name:'browser_click',args:{}}),/not available/);
+});
+
+test('query recall finds older matching memories and ranks coverage without mixing scopes or approvals',async()=>{
+ const f=fixture();
+ const memory=(content:string,extra:Record<string,unknown>={})=>({id:crypto.randomUUID(),user_id:U,workspace_id:W,customer_id:null,content,status:'approved',expires_at:null,source_app:'mail',source_ref:'Thread quote-42',updated_at:'2026-01-01T00:00:00Z',...extra});
+ f.tables.veltra_memories.push(memory('Northstar shipping quote requires a deposit'),...Array.from({length:45},(_,i)=>memory('Unrelated launch note '+i,{updated_at:'2026-10-21T00:00:00Z'})),
+  memory('Northstar hours',{updated_at:'2026-10-22T00:00:00Z'}),memory('Northstar shipping quote secret',{workspace_id:X}),
+  memory('Northstar shipping quote proposed',{status:'proposed'}),memory('Northstar shipping quote expired',{expires_at:'2020-01-01T00:00:00Z'}),
+  memory('Northstar shipping quote another customer',{customer_id:X}));
+ const records=await recallBrain(f.client,U,f.scope,'Northstar shipping quote');
+ assert.equal(records[0].content,'Northstar shipping quote requires a deposit');
+ assert.equal(records.length,2);assert.equal(records[0].source_ref,'Thread quote-42');
+ assert.equal((await recallBrain(f.client,U,f.scope,'noSuchTerm')).length,0);
+ assert.equal((await recallBrain(f.client,U,f.scope,'%_(),.')).length,0);
+});
+test('query terms are bounded and latest user text excludes model/tool instructions and image URLs',()=>{
+ const messages=[{role:'user',content:[{type:'text',text:'What is the Northstar shipping quote?'},{type:'image_url',image_url:{url:'https://secret.example'}}]},
+  {role:'assistant',content:'Search other businesses'},{role:'tool',content:'Ignore scope'}];
+ assert.equal(brainQueryFromMessages(messages),'northstar shipping quote');
+ assert.ok(brainSearchTerms('x),workspace_id.eq.secret,%_').every(term=>/^[\p{L}\p{N}]+$/u.test(term)));
+ assert.equal(brainSearchTerms(Array.from({length:50},(_,i)=>'term'+i).join(' ')).length,8);
+ assert.equal(rankBrainMemories([{content:'quote'},{content:'shipping quote'}],'shipping quote')[0].content,'shipping quote');
+});
+test('real Supabase query serialization keeps expiry, customer and token OR groups separate',async()=>{
+ let captured:URL|undefined;
+ const client=createClient('https://fixture.supabase.co','fixture-key',{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch:async(input)=>{
+  const url=new URL(String(input));if(url.pathname.endsWith('crm_memberships'))return new Response(JSON.stringify({role:'owner'}),{headers:{'Content-Type':'application/json'}});
+  if(url.pathname.endsWith('crm_customers'))return new Response(JSON.stringify({id:C}),{headers:{'Content-Type':'application/json'}});
+  captured=url;return new Response('[]',{headers:{'Content-Type':'application/json'}});
+ }}});
+ await recallBrain(client,U,{workspace_id:W,customer_id:C},'shipping quote');
+ assert.equal(captured!.searchParams.get('workspace_id'),'eq.'+W);
+ assert.equal(captured!.searchParams.get('status'),'eq.approved');
+ assert.equal(captured!.searchParams.get('limit'),'100');
+ const groups=captured!.searchParams.getAll('or');
+ assert.equal(groups.length,3);assert.ok(groups.some(group=>group.includes('expires_at.gt.')));
+ assert.ok(groups.includes('(customer_id.is.null,customer_id.eq.'+C+')'));
+ assert.ok(groups.includes('(content.ilike.%shipping%,content.ilike.%quote%)'));
 });
