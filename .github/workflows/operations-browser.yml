@@ -75,6 +75,7 @@ jobs:
           server_pid=$!
           trap 'kill "$server_pid"' EXIT
           python test/browser-workspace/check.py
+          python test/browser-workspace/model-routing.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:

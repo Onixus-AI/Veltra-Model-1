@@ -49,8 +49,6 @@ import {browserSupabase} from '@/lib/supabase';
 type ChatMessage = { role: "user" | "assistant"; content: string; image?: string; imageId?: string; attachments?: string[] };
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const VISION_MODEL = "veltra-vision";
-// Only models on OpenRouter that support tool calls can run connected-tool turns.
-const TOOL_MODEL = "veltra-agent";
 function friendlyChatError(message: string) {
   if (/credit|wallet|deduct|supabase|token usage/i.test(message)) {
     return /insufficient credits/i.test(message)
@@ -273,7 +271,7 @@ export default function VeltraWorkspace() {
     const nextMessages: ChatMessage[] = [...messages, { role: "user", content: prompt, ...(attachments.length ? { attachments } : {}) }];
     savedMessages=nextMessages;
     setMessages([...nextMessages, { role: "assistant", content: "" }]);
-    setSending(true);setToolStatus('');taskStopped.current=false;setTaskRun({id:crypto.randomUUID(),purpose:prompt||'Image request',state:'running',steps:[]});
+    setModelOpen(false);setSending(true);setToolStatus('');taskStopped.current=false;setTaskRun({id:crypto.randomUUID(),purpose:prompt||'Image request',state:'running',steps:[]});
     const taskAccess=new TaskAccessClient(prompt,requestAppAccess);activeTaskAccess.current=taskAccess;
     try {
       if(prompt.toLowerCase()===FOLLOWUP_PROMPT.toLowerCase()){
@@ -339,7 +337,7 @@ export default function VeltraWorkspace() {
       ];
       const answer = await runAgentTurn(
         gatewayMessages,
-        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : TOOL_MODEL,
+        nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : activeModel.model,
         { mail_request_key: crypto.randomUUID(), ...(savedSetup?{setup_context:savedSetup,...(savedSetup.timezone_confirmed?{time_zone:savedSetup.time_zone}:{})}:{}), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
@@ -428,14 +426,14 @@ export default function VeltraWorkspace() {
           <button className="new-chat-button" disabled={sending} onClick={startNewChat} aria-label="New chat"><SquarePen size={16}/></button>
         <ChatSetup busy={sending||!historyLoaded} autoOpen={historyLoaded&&messages.length===0} businessReady={Boolean(cloud?.workspace_id&&!cloud.customer_id&&(!crmOpen||!crmScope||cloud.workspace_id===crmScope.workspace_id&&!crmScope.customer_id))} onContext={setSavedSetup} onMode={changeWorkspaceMode} onTool={tool=>openTool(tool,false)} onStart={prompt=>{setImageMode(false);setInput(prompt);}}/>
           <div className="model-selector-wrap">
-            <button className={`model-selector ${modelOpen ? "is-open" : ""}`} onClick={() => setModelOpen(!modelOpen)} aria-expanded={modelOpen}>
+            <button className={`model-selector ${modelOpen ? "is-open" : ""}`} disabled={sending} onClick={() => setModelOpen(!modelOpen)} aria-expanded={modelOpen}>
               <span className={`model-indicator ${mode}`}><i /></span>
               <span className="model-label"><strong>{activeModel.name}</strong></span>
               <ChevronDown size={15} />
             </button>
             {modelOpen && <div className="model-menu">
               {(Object.keys(MODEL_OPTIONS) as ModelMode[]).map((option) => (
-                <button key={option} onClick={() => { setMode(option); setModelOpen(false); }}>
+                <button key={option} disabled={sending} onClick={() => { setMode(option); setModelOpen(false); }}>
                   <span className={`model-indicator ${option}`}><i /></span>
                   <span><strong>{MODEL_OPTIONS[option].name}</strong><small>{MODEL_OPTIONS[option].subtitle}</small></span>
                   {mode === option && <Check size={15} />}
