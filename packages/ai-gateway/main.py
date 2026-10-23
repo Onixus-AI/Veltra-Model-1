@@ -477,6 +477,8 @@ async def create_chat_completion(
 ) -> dict[str, Any] | StreamingResponse:
     principal = await get_authenticated_principal(credentials)
     organization_id = principal["organization_id"]
+    if request.tools and any(tool.get("type") != "function" for tool in request.tools):
+        raise HTTPException(status_code=400, detail="Only Veltra function tools are supported; use the price-checked image endpoint.")
     wallet = await get_wallet(organization_id)
     if wallet is None or wallet["credits_remaining"] <= 0:
         raise HTTPException(status_code=402, detail="Insufficient credits")

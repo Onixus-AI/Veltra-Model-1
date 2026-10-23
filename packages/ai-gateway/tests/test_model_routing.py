@@ -67,3 +67,15 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
         for role, primary in main.MODEL_CONFIG['coding_team'].items():
             self.assertTrue(primary.endswith(':free'))
             routing_options(primary, main.MODEL_CONFIG['coding_fallbacks'][role])
+
+    async def test_provider_managed_tools_cannot_bypass_image_policy(self):
+        import main
+        from fastapi import HTTPException
+        request = main.ChatCompletionRequest(model='veltra-agent', messages=[{'role': 'user', 'content': 'draw'}],
+                                            tools=[{'type': 'openrouter:image_generation'}])
+        call = AsyncMock()
+        with patch('main.get_authenticated_principal', AsyncMock(return_value={'organization_id': 'test'})), patch('main.call_model', call):
+            with self.assertRaises(HTTPException) as error:
+                await main.create_chat_completion(request, None)
+        self.assertEqual(error.exception.status_code, 400)
+        call.assert_not_awaited()
