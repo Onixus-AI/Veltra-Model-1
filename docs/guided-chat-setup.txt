@@ -1,0 +1,52 @@
+Guided Chat setup — October 23, 2026
+
+An inline guide lets a signed-in customer choose Business, Dev, Creator or
+Personal, save a goal and optional name/business label, and confirm a timezone.
+The guide then explains the relevant connections and prepares a first request
+in the Chat composer. The customer sends that request; saving setup does not
+execute a connected action or claim a task is complete.
+
+Progress is versioned in the authenticated customer's Supabase user_metadata
+under veltra_setup_v1. SDK updateUser writes only that preference key. Reads
+validate and whitelist the schema. The saved response must identify the same
+user and contain the submitted preferences before the UI reports success.
+This is per-user setup, not a canonical business record or shared team profile.
+No workspace ID, role, connection flag, credential, membership or approval is
+accepted as part of this profile. Existing record and action authorization stay
+independent. A future canonical workspace profile should reuse existing CRM
+membership rather than promote user_metadata into authorization.
+
+Confirmed timezone overrides the device timezone in model requests. Saved goal
+and labels become explicitly untrusted preference context; metadata is removed
+from provider-specific request fields. Changing a timezone requires confirming
+it again. Explicit mode/canvas/business deep links take precedence over saved
+mode on initial load. Setup never replaces the explicit selected CRM scope.
+
+Business setup opens the existing CRM and Mail controls. The first task requires
+a selected all-customers business conversation and, if CRM is open, a matching
+scope. Mail connection and permissions are checked by existing task tools when
+the customer sends the prepared request. The existing follow-up workflow reads
+bounded customer and quote candidates, shows evidence, requires a separate
+review for mailbox-wide draft preparation, and returns actual draft receipts.
+Drafts still go through Mail review; the setup never sends email. This task
+does not promise a new CRM write or full email-to-CRM workflow implementation.
+
+Dev starts with scoping a development task, Creator with a content brief and
+Personal with a day plan. These do not imply connected calendars, publishing,
+deployment access or other unavailable capabilities.
+
+UI design: one inline conversational guide in the existing black/white Veltra
+palette with the workspace accent. Existing DM Sans type, a single readable
+column, three actual process steps and plain action labels. Keep Chat usable
+while the guide is closed. No new modal, permission switch or decorative cards.
+
+Verification includes validation/authority-field rejection, current-user saves,
+fresh-client reloads, anonymous and expired account rejection, unconfirmed write
+failures, provider payload sanitization and saved timezone propagation. The real
+component has a synthetic browser fixture for reload/resume, unavailable business
+scope, save errors, composer handoff and mobile experiences. Fixture localStorage
+exists only in the test harness; production persistence uses authenticated Auth.
+
+Remaining product work: canonical business profile setup, inline connection
+status/repair, broader first-task workflows, shared task durability, public search,
+cost-weighted entitlements and the remaining commercial readiness gates.
