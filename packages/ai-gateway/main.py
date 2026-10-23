@@ -19,7 +19,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 from agent_runs import create_router as agent_router, run_worker
-from model_routing import routing_options
+from model_routing import routing_options, image_provider, POLICY
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -104,6 +104,12 @@ class ApiKeyCreateRequest(BaseModel):
 @app.get("/health")
 async def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/v1/model-policy")
+async def model_policy() -> dict[str, Any]:
+    return {**POLICY, "routes": {name: options["model"] for name, options in MODELS.items()},
+            "coding_routes": MODEL_CONFIG["coding_team"]}
 
 
 @app.get("/")
@@ -471,6 +477,8 @@ async def create_chat_completion(
 ) -> dict[str, Any] | StreamingResponse:
     principal = await get_authenticated_principal(credentials)
     organization_id = principal["organization_id"]
+    if request.tools and any(tool.get("type") != "function" for tool in request.tools):
+        raise HTTPException(status_code=400, detail="Only Veltra function tools are supported; use the price-checked image endpoint.")
     wallet = await get_wallet(organization_id)
     if wallet is None or wallet["credits_remaining"] <= 0:
         raise HTTPException(status_code=402, detail="Insufficient credits")
@@ -599,11 +607,12 @@ async def generate_image(
     try:
         await supabase_request("image_requests", method="PATCH", params={"id": f"eq.{generation_id}"}, payload={"model": model})
         async with httpx.AsyncClient(timeout=150) as client:
+            provider = await image_provider(client, model)
             response = await client.post("https://openrouter.ai/api/v1/images", headers={
                 "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
             }, json={"model": model, "prompt": request.prompt.strip(), "n": 1,
                      **({"resolution": "1K"} if image_options["supports_resolution"] else {}),
-                     "aspect_ratio": "1:1", "provider": {"ignore": ["groq"]}})
+                     "aspect_ratio": "1:1", "provider": provider})
             response.raise_for_status()
             result = response.json()
         image = result.get("data", [])[0]

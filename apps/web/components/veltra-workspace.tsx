@@ -448,9 +448,7 @@ export default function VeltraWorkspace() {
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>
-            <option value="black-forest-labs/flux.2-klein-4b">FLUX Klein · ~$0.014 provider cost</option>
             <option value="bytedance-seed/seedream-5-0-flash">Seedream Flash · ~$0.018 provider cost</option>
-            <option value="qwen/qwen-image-3">Veltra Image · 100 credits</option>
           </select></label>}
         </div>}
         <div className="conversation" ref={scrollRef} onScroll={event=>{const area=event.currentTarget;stickToBottom.current=area.scrollHeight-area.scrollTop-area.clientHeight<100;}}>

@@ -2,7 +2,7 @@ model_list:
   # Zero-cost general-purpose routing for utility tasks and classification
   - model_name: veltra-free
     litellm_params:
-      model: openrouter/openrouter/free
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -23,7 +23,7 @@ model_list:
   # Complex logic, deep reasoning, and code
   - model_name: veltra-logic
     litellm_params:
-      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b
+      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.2
@@ -31,7 +31,7 @@ model_list:
   # Fast text, email triage, and CRM actions
   - model_name: veltra-fast
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-lightning
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.3
@@ -39,34 +39,34 @@ model_list:
   # Agentic workflow execution and tool calling
   - model_name: veltra-agent
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-super-vl
+      model: openrouter/nvidia/nemotron-3.5-super-vl:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
   # Explicit provider choices exposed in the Chat selector
   - model_name: veltra-mimo
     litellm_params:
-      model: openrouter/xiaomi/mimo-v2.6-flash
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
   - model_name: veltra-ling
     litellm_params:
-      model: openrouter/inclusionai/ling-3.0-flash
+      model: openrouter/nvidia/nemotron-3.5-lightning:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
   # Image understanding for chat attachments (requires image_url content parts)
   - model_name: veltra-vision
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-super-vl
+      model: openrouter/nvidia/nemotron-3.5-super-vl:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
   # Free development and local test tier
   - model_name: veltra-dev
     litellm_params:
-      model: openrouter/deepseek/deepseek-r1:free
+      model: openrouter/cohere/north-mini-code:free
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -80,50 +80,37 @@ image_generation:
       name: Recraft V4.1 Flash
       estimated_usd_per_image: 0.007
       supports_resolution: false
-    - id: black-forest-labs/flux.2-klein-4b
-      name: FLUX.2 Klein 4B
-      estimated_usd_per_image: 0.014
-      pricing_note: First output megapixel; additional megapixels cost extra.
-      supports_resolution: false
     - id: bytedance-seed/seedream-5-0-flash
       name: Seedream 5.0 Flash
       estimated_usd_per_image: 0.018
       supports_resolution: true
-    - id: qwen/qwen-image-3
-      name: Qwen Image 3
-      estimated_usd_per_image: 0.03
-      supports_resolution: true
+# No video route is enabled until a separate per-video budget is verified.
 video_generation:
-  api_base: https://openrouter.ai/api/v1
-  models:
-    - id: bytedance/seedance-2.0-mini
-      name: Seedance 2.0 Mini
-      estimated_usd_per_second_from: 0.03363
-      pricing_note: Starting estimate at 480p; resolution and references affect price.
-    - id: kwaivgi/kling-v3.0-std
-      name: Kling 3.0 Standard
-      estimated_usd_per_second_without_audio: 0.084
-      estimated_usd_per_second_with_audio: 0.126
+  models: []
 
-
-# Bounded coding-team roles. Provider IDs can be overridden by server env vars.
 coding_team:
-  planner: nvidia/nemotron-3-ultra-550b-a55b
-  coder: nvidia/nemotron-3.5-super-vl
-  reviewer: nvidia/nemotron-3.5-super-vl
-  vision: nvidia/nemotron-3.5-super-vl
-  design: nvidia/nemotron-3.5-super-vl
+  planner: nvidia/nemotron-3-ultra-550b-a55b:free
+  coder: cohere/north-mini-code:free
+  reviewer: nvidia/nemotron-3-ultra-550b-a55b:free
+  vision: nvidia/nemotron-3.5-super-vl:free
+  design: nvidia/nemotron-3.5-super-vl:free
 
-# Ordered OpenRouter fallbacks. Never route normal customer data to :free trials.
+# Every production route starts free; only approved cheap models can follow.
 chat_fallbacks:
-  veltra-fast: [qwen/qwen-2.5-coder-32b-instruct, google/gemini-2.5-flash]
-  veltra-logic: [deepseek/deepseek-chat, google/gemini-2.5-flash]
-  veltra-agent: [xiaomi/mimo-v2.6-flash, google/gemini-2.5-flash, inclusionai/ling-3.0-flash, deepseek/deepseek-chat]
-  veltra-vision: [qwen/qwen2.5-vl-72b-instruct]
+  veltra-free: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
+  veltra-fast-free: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
+  veltra-code-free: [inception/mercury-3, qwen/qwen3.8-flash]
+  veltra-dev: [inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
+  veltra-fast: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
+  veltra-logic: [minimax/minimax-m3.1-flash, deepseek/deepseek-v4.1-flash-1017]
+  veltra-agent: [xiaomi/mimo-v2.6-flash, qwen/qwen3.8-flash]
+  veltra-vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
+  veltra-mimo: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
+  veltra-ling: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
 
 coding_fallbacks:
-  planner: [deepseek/deepseek-chat]
-  coder: [qwen/qwen-2.5-coder-32b-instruct]
-  reviewer: [deepseek/deepseek-chat]
-  vision: [qwen/qwen3-vl-235b-a22b-instruct]
-  design: [qwen/qwen3.7-plus]
+  planner: [minimax/minimax-m3.1-flash, deepseek/deepseek-v4.1-flash-1017]
+  coder: [inception/mercury-3, qwen/qwen3.8-flash]
+  reviewer: [xiaomi/mimo-v2.6-flash, qwen/qwen3.8-flash]
+  vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
+  design: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
