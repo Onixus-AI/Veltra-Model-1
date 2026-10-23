@@ -17,7 +17,7 @@ def routing_options(primary, fallbacks=(), *, tools=False):
                 'ignore': POLICY['blocked_providers'], 'max_price': POLICY['max_price']}
     if tools:
         provider['require_parameters'] = True
-    return {'models': models, 'provider': provider}
+    return {'models': models[:3], 'provider': provider}
 
 
 async def image_provider(client, model):

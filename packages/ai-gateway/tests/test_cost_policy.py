@@ -17,6 +17,11 @@ class CostPolicyTests(unittest.TestCase):
         self.assertTrue(options['provider']['require_parameters'])
         self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
 
+    def test_fallback_list_respects_openrouter_three_model_limit(self):
+        route = routing_options('nvidia/nemotron-3.5-lightning:free',
+            ['inclusionai/ling-3.0-flash', 'xiaomi/mimo-v2.6-flash', 'qwen/qwen3.8-flash'])
+        self.assertEqual(len(route['models']), 3)
+
 class ImagePolicyTests(unittest.IsolatedAsyncioTestCase):
     async def test_live_pricing_is_checked_and_only_cheap_endpoint_is_allowed(self):
         class Response:
