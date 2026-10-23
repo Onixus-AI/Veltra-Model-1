@@ -1,7 +1,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import type {SupabaseClient} from '@supabase/supabase-js';
-import {setupProfile,readSetup,setupReference,SETUP_KEY,FIRST_TASKS,type SetupProfile} from '../lib/setup-profile';
+import {setupProfile,readSetup,setupReference,SETUP_KEY,FIRST_TASKS,setupScreen,setupSteps,timezoneLabel,type SetupProfile} from '../lib/setup-profile';
 import {loadSetup,saveSetup} from '../lib/setup-client';
 const base:SetupProfile={version:1,phase:'connections',mode:'business',name:'Sam',business_name:'Example business',goal:'Organize customer follow-ups',time_zone:'America/New_York',timezone_confirmed:true};
 test('setup validates goals and timezones, strips authority claims, and supports resumable drafts',()=>{
@@ -34,4 +34,14 @@ test('expired or anonymous accounts cannot save, and failed writes never produce
   const client={auth:{getUser:async()=>({data:{user:{id:'current-user',is_anonymous:false}},error:null}),updateUser:async()=>result}} as unknown as SupabaseClient;
   await assert.rejects(saveSetup(base,client),/could not be confirmed/);
  }
+});
+
+test('focused setup resumes draft questions and skips unnecessary connection steps',()=>{
+ assert.equal(setupScreen(setupProfile({...base,phase:'profile',profile_step:'timezone'})),'timezone');
+ assert.equal(setupScreen({...base,phase:'profile'}),'experience');
+ assert.equal(setupScreen({...base,mode:'personal'}),'ready');
+ assert.equal(setupScreen({...base,mode:'creator'}),'ready');
+ assert.equal(setupSteps('business').length,5);assert.equal(setupSteps('personal').length,4);
+ assert.equal(readSetup({...base,profile_step:'grant-admin'}),null);
+ assert.match(timezoneLabel('America/New_York'),/New York/);
 });

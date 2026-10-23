@@ -30,13 +30,16 @@ with sync_playwright() as p:
   assert b['name']=='confirm';counts['writes']+=1;route.fulfill(json={'content':'{"drafted":["draft-1"],"scope":"Mail overdue scan","next_cursor":null}'})
  page.route('**/api/agent/tools',tools);page.route('**/api/ai-access',access)
  page.goto('http://127.0.0.1:3188/?task-center');page.wait_for_load_state('networkidle')
- center=page.get_by_role('region',name='Veltra task center');start=center.get_by_role('button',name='Prepare follow-ups',exact=True)
+ center=page.get_by_role('region',name='Veltra task center');expect(center.get_by_role('button',name='Expand task center')).to_be_visible();assert center.bounding_box()['height']<65
+ center.get_by_role('button',name='Expand task center').click();start=center.get_by_role('button',name='Prepare follow-ups',exact=True)
  start.click();expect(center.get_by_role('status')).to_have_text('Working');page.wait_for_function('document.querySelectorAll(".task-step").length===2');assert counts['writes']==0
  assert center.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
  assert 'sans-serif' in center.evaluate('(el)=>getComputedStyle(el).fontFamily')
  page.screenshot(path=str(out/'task-center-working.png'))
+ center.get_by_role('button',name='Collapse task center').click();expect(center.get_by_role('button',name='Stop pending work')).to_be_visible();expect(center.locator('.task-center-details')).to_have_count(0)
  release_quotes();review=page.get_by_role('dialog',name='Review connected action');expect(review).to_be_visible();expect(center.get_by_role('status')).to_have_text('Needs review');expect(review).to_contain_text('not restricted to the CRM matches')
  page.screenshot(path=str(out/'task-center-review.png'));review.get_by_role('button',name='Cancel').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==0
+ center.get_by_role('button',name='Expand task center').click()
  settings['mode']='normal';start.click();expect(review).to_be_visible();review.get_by_role('button',name='Confirm').click();expect(center.get_by_role('status')).to_have_text('Completed');assert counts['writes']==1
  expect(page.get_by_label('Task response')).to_contain_text('1 draft receipt');expect(center.get_by_role('button',name='Open Mail',exact=True)).to_be_visible()
  settings['mode']='failed';start.click();expect(center.get_by_role('status')).to_have_text('Needs attention');expect(center).to_contain_text('Mail unavailable');before=counts['tools'];center.get_by_role('button',name='Review request again').click();expect(page.get_by_label('Request to review')).to_contain_text('Find customers');assert counts['tools']==before;assert counts['writes']==1

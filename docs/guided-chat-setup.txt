@@ -1,8 +1,9 @@
 Guided Chat setup — October 23, 2026
 
-An inline guide lets a signed-in customer choose Business, Dev, Creator or
+A focused guide opened from the Chat toolbar lets a customer choose Business, Dev, Creator or
 Personal, save a goal and optional name/business label, and confirm a timezone.
-The guide then explains the relevant connections and prepares a first request
+The guide asks one question at a time, offers suggested goals and confirms a
+readable timezone before explaining relevant connections and preparing a first request
 in the Chat composer. The customer sends that request; saving setup does not
 execute a connected action or claim a task is complete.
 
@@ -35,10 +36,20 @@ Dev starts with scoping a development task, Creator with a content brief and
 Personal with a day plan. These do not imply connected calendars, publishing,
 deployment access or other unavailable capabilities.
 
-UI design: one inline conversational guide in the existing black/white Veltra
-palette with the workspace accent. Existing DM Sans type, a single readable
-column, three actual process steps and plain action labels. Keep Chat usable
-while the guide is closed. No new modal, permission switch or decorative cards.
+UI design: a small Setup control sits in the Chat toolbar. A native dialog
+focuses on one question at a time, with quick choices, suggested goals, readable
+timezone confirmation, clear Back/Continue controls and optional name fields.
+Draft questions save as the customer continues and resume at the exact screen.
+Creator and Personal skip connections that their first task does not need.
+Closing the guide returns the space to Chat. Keyboard focus returns to the
+previous control; Escape closes the guide when a save is not pending.
+
+Task center: collapsed by default into a roughly 42px status row with explicit
+Expand/Collapse text. The last choice is remembered locally. Stop stays visible
+while work runs, and existing approval dialogs remain independent of expansion.
+Receipts, follow-up actions and Business activity appear only when expanded.
+Empty tool-step lists and the permanent background-automation disclaimer are
+removed. Ordinary replies no longer create a large empty task panel.
 
 Verification includes validation/authority-field rejection, current-user saves,
 fresh-client reloads, anonymous and expired account rejection, unconfirmed write
