@@ -25,17 +25,18 @@ test('chat supplies fresh server facts for each turn and keeps timezone metadata
  const before=Date.now();
  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
   assert.equal(String(input),'https://gateway.example.test/v1/chat/completions');calls++;
-  const body=JSON.parse(String(init?.body));assert.equal(body.time_zone,undefined);assert.equal(body.task_id,undefined);
+  const body=JSON.parse(String(init?.body));assert.equal(body.time_zone,undefined);assert.equal(body.task_id,undefined);assert.equal(body.setup_context,undefined);
   assert.match(body.messages[0].content,/Veltra server clock/);
   assert.match(body.messages[0].content,/Asia\/Tokyo/);
   const record=JSON.parse(body.messages[0].content.split('\n')[0].split('request: ')[1]);
   assert.ok(Date.parse(record.observed_at)>=before);
   assert.match(body.messages[0].content,/does not provide current news/);
+  if(calls===2){assert.match(body.messages[1].content,/Customer setup preferences/);assert.match(body.messages[1].content,/Prepare campaign briefs/);assert.doesNotMatch(body.messages[1].content,/injected-workspace-id/);}
   return Response.json({choices:[{message:{content:'Fixture answer'}}]});
  });
  try{
   for(let turn=0;turn<2;turn++){
-   const result=await chatRoute(new NextRequest('https://veltra.example/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'veltra-agent',time_zone:'Asia/Tokyo',messages:[{role:'user',content:'What time is it?'}]})}));
+   const result=await chatRoute(new NextRequest('https://veltra.example/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'veltra-agent',time_zone:'Asia/Tokyo',...(turn===1?{setup_context:{version:1,phase:'ready',mode:'creator',name:'',business_name:'',goal:'Prepare campaign briefs',time_zone:'Asia/Tokyo',timezone_confirmed:true,workspace_id:'injected-workspace-id'}}:{}),messages:[{role:'user',content:'What time is it?'}]})}));
    assert.equal(result.status,200);
   }
   assert.equal(calls,2);

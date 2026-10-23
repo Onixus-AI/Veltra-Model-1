@@ -1,5 +1,7 @@
 "use client";
 import TaskCenter from './task-center';
+import ChatSetup from './chat-setup';
+import type {SetupProfile} from '@/lib/setup-profile';
 import TaskReview from './task-review';
 import {taskProgress,type TaskRun,type TaskEvent} from '@/lib/task-progress';
 import {FOLLOWUP_PROMPT,runFollowupTask} from '@/lib/followup-task';
@@ -100,6 +102,7 @@ function ChatContent({ content }: { content: string }) {
 }
 
 export default function VeltraWorkspace() {
+  const [savedSetup,setSavedSetup]=useState<SetupProfile|null>(null);
   const [workspaceMode,setWorkspaceMode]=useState<WorkspaceMode>("personal");
   const modeDrafts=useRef<Partial<Record<WorkspaceMode,{input:string;imageMode:boolean;artifact:Artifact;documents:KnowledgeDocument[]}>>>({});
   const [codeTool,setCodeTool]=useState<Provider>("github");
@@ -337,7 +340,7 @@ export default function VeltraWorkspace() {
       const answer = await runAgentTurn(
         gatewayMessages,
         nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : TOOL_MODEL,
-        { mail_request_key: crypto.randomUUID(), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
+        { mail_request_key: crypto.randomUUID(), ...(savedSetup?{setup_context:savedSetup,...(savedSetup.timezone_confirmed?{time_zone:savedSetup.time_zone}:{})}:{}), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
         (item) => { setArtifact({ kind: item.kind??"markdown", title: item.title, content: item.content }); if(item.kind==="image"){setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false);} setCanvasVisible(true); },
@@ -443,6 +446,7 @@ export default function VeltraWorkspace() {
         </div>
 
 
+        <ChatSetup busy={sending||!historyLoaded} autoOpen={historyLoaded&&messages.length===0} businessReady={Boolean(cloud?.workspace_id&&!cloud.customer_id&&(!crmOpen||!crmScope||cloud.workspace_id===crmScope.workspace_id&&!crmScope.customer_id))} onContext={setSavedSetup} onMode={changeWorkspaceMode} onTool={tool=>openTool(tool,false)} onStart={prompt=>{setImageMode(false);setInput(prompt);}}/>
         {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app,false)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
         {workspaceMode==='business'&&!businessOsOpen&&!crmOpen&&<details className="workspace-activity-drawer"><summary>Business activity</summary><OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/></details>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
