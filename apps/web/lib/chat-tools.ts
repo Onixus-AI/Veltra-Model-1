@@ -5,6 +5,7 @@ import type {TaskAccessClient} from './task-access-client';
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 import {AGENT_TOOLS} from './agent-tool-catalog';
+import {deviceTimeZone} from './runtime-context';
 
 /** Tools the model may call. Reads run immediately; writes wait for the user's confirmation. */
 export type ToolCall = { id: string; type: "function"; function: { name: string; arguments: string } };
@@ -147,7 +148,7 @@ export async function runAgentTurn(
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ ...extraBody,...(access?{task_id:access.id}:{}), model, messages: convo, tools: CHAT_TOOLS, stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, messages: convo, tools: CHAT_TOOLS, stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);

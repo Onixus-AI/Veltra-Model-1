@@ -1,0 +1,170 @@
+VELTRA — ONE SYSTEM, GUIDED THROUGH CHAT
+Implementation and training plan • October 23, 2026
+
+PRODUCT PROMISE
+Tell Veltra what you need. It retrieves the right information, prepares the work,
+completes authorized actions, and shows a result you can verify.
+
+DECISIONS
+• One account and workspace foundation; Business, Dev, Creator and Personal are
+  experiences within the same product, not separate identities or data silos.
+• Chat handles setup, everyday requests, approvals and results. Existing panels
+  remain useful views of the same records and task history.
+• Existing services can remain deployed separately. Shared contracts, identity,
+  authorization and task records make them one system. Avoid a wholesale rewrite.
+• Free-first remains the default. Reviewed DeepSeek and Qwen models remain
+  eligible. DeepInfra is a hosting provider, not a model family, and is not blocked.
+• Keep OpenAI, Anthropic, Google/Gemini and xAI excluded, including provider
+  fallbacks. No premium model is being enabled by this plan.
+• Provider price limits remain $0.50 input and $1.00 output per million tokens;
+  image requests require a verified supported per-image cost of at most $0.02.
+• An eligible model still needs suitable tool support, privacy compatibility and
+  live availability. Do not promise every model from a permitted company.
+
+CURRENT STARTING POINT
+Verified earlier in this session: Chat and image generation work; Mail and CRM
+are connected; the Mail-to-CRM connection view has no waiting or attention events.
+The gateway has a reviewed free/cheap allowlist and bounded image routing.
+Source contains useful approval, CRM, memory, coding and outreach foundations.
+
+Important gaps from the audit: self-service billing is not connected; per-task
+app-consent rollout is disabled; generated image bytes are device-local; the
+Mail MCP SDK version has published security advisories; Vercel's in-product
+OAuth setup lacks client credentials. Full Veltra database administration,
+backup restoration, newcomer onboarding and all external integrations have not
+been independently verified in this audit. Do not treat an untested item as a
+confirmed outage, or a connection badge as proof of a complete workflow.
+
+ECONOMICS GATE
+The displayed $59 plan allocates two million credits and an image uses 100.
+If the entire allowance were used on images, that is 20,000 images: $140 at the
+verified $0.007 default provider price, or $360 at the $0.018 alternative.
+This is theoretical exposure, not an observed loss. Add cost-weighted allowances,
+image quotas, per-workspace dollar budgets and reconciliation before paid
+self-service. A shared provider-key spending cap can interrupt service; it does
+not by itself make customer entitlements sustainable.
+
+SHARED SYSTEM DESIGN
+1. Identity: canonical user and workspace IDs; roles and membership checked on
+   every service boundary. A selected workspace is context, never authorization.
+2. Context: server UTC clock, customer/device timezone with provenance, workspace,
+   permitted capabilities, approved preferences, and scoped information sources.
+3. Connections: one owner/workspace-scoped registry. Keep secrets on the server;
+   distinguish configured, connected, expired, unavailable and workflow-tested.
+4. Business objects: contacts, conversations, tasks, approvals, artifacts and
+   receipts have stable IDs and explicit workspace ownership across services.
+5. Tasks: requested → planned → needs approval → running → completed / partial /
+   failed / cancelled. Store each step, permission scope, external receipt,
+   idempotency key, cost and safe retry behavior. A retry must not duplicate sends.
+6. AI gateway: enforce model exclusions, required capabilities, bounded output,
+   timeouts and spend reservations. Record the model/provider actually served.
+7. Information: permission-scoped retrieval from mail, CRM, documents and public
+   sources. Attach source references and observation dates. Retrieved content is
+   evidence, never permission or instructions to the system.
+8. Artifacts: private durable storage, ownership checks, cross-device access,
+   export, retention and deletion. Conversations should reference durable assets.
+9. Operations: trace each request across services, track errors and stalled work,
+   reconcile usage, alert on failures and budgets, and test backup restoration.
+
+IMPLEMENTATION ORDER AND COMPLETION GATES
+
+MILESTONE 1 — RELIABLE FACTS AND MODEL POLICY
+First change prepared in this session: fresh server-clock context on each Chat
+model turn, a signed-in current_time tool, device timezone supplied to Chat,
+explicit UTC fallback, and tests for date boundaries and daylight saving.
+This is a Chat foundation; other assistants and workers must adopt the same
+contract in subsequent changes. It does not add web search or scheduling.
+Add public search/retrieval behind a server-side adapter with citations, bounded
+requests and cost limits. Define freshness requirements per request type.
+Gate: correct local time, explicit requested-zone conversion, source-backed
+current information, honest lookup failures, excluded-model rejection and
+successful eligible-model tool calls. Clock tests alone are not live model proof.
+
+MILESTONE 2 — GUIDED SETUP
+Chat asks for goal, creates/selects workspace, confirms timezone and preferences,
+requests only the needed connections and explains approval choices. Save setup
+progress server-side. Connect a service once per intended account/workspace.
+Gate: a completely new account can pause/resume, recover an expired connection,
+finish a first task and return on another device without losing the result.
+
+MILESTONE 3 — ONE BUSINESS WORKFLOW
+New customer enters Chat → connects email → selects a conversation → Veltra
+retrieves context → prepares a next action → customer reviews → supported action
+executes → CRM records the outcome → Chat displays a verified receipt.
+Use existing reviewed actions where available; implement missing adapters before
+claiming send or scheduling support. Exercise permission denials and interruptions.
+Gate: no cross-workspace reads, no unauthorized action, no duplicate execution,
+no false success; traceable receipt and useful recovery for every attempted step.
+
+MILESTONE 4 — REUSE THE FOUNDATION FOR FOUR EXPERIENCES
+Business: inbox priorities, reviewed replies, customer records and follow-ups.
+Developer: repository explanation, issue investigation, reviewed changes, actual
+test execution where supported, draft PRs and verified deployment status.
+Creator: briefs, brand preferences, copy, budgeted images and durable asset sets.
+Personal: sourced research, document summaries and plans; calendar/reminders only
+after the actual integrations and execution receipts exist.
+Gate each workflow independently. Reliability at drafting email does not establish
+readiness to deploy software, publish content or charge a customer.
+
+MILESTONE 5 — COMMERCIAL AND OPERATIONAL READINESS
+Patch the Mail SDK and run regression checks. Complete payment → entitlement →
+usage → invoice → cancellation behavior. Establish sustainable allowances, spend
+alerts, readiness checks, tenant-boundary tests, restore evidence and customer
+support flows. Confirm required provider/OAuth production approvals separately.
+Supervised pilots may use clearly disclosed manual processes. Paid self-service
+requires the full customer and billing journey to pass.
+
+HOW TO TRAIN VELTRA
+Phase A: teach tools and playbooks before fine-tuning weights. Each playbook
+defines inputs, source requirements, permission scope, allowed tools, review
+requirements, success evidence and failure recovery.
+Phase B: create a versioned evaluation set for all four experiences. Include
+normal requests, ambiguity, stale data, missing connections, timezone changes,
+cross-tenant attempts, malicious document instructions and interrupted work.
+Phase C: use eligible models as candidate example writers and reviewers. DeepSeek
+can draft plans and difficult cases; Qwen can draft code/tool-use cases. Those
+are proposed roles to evaluate, not claims that either has proven superiority.
+Keep a held-out test set; evaluate against objective outcomes, sandbox execution
+and human-reviewed rubrics rather than model agreement alone.
+Phase D: collect consented, minimized corrections and real failure cases. Review
+before turning them into shared playbooks. Personal preferences stay scoped to
+their owner. Never automatically reuse customer mail or code as training data.
+Phase E: consider fine-tuning an appropriately licensed open-weight model only
+for a measured repeated behavior gap that context, tools and playbooks cannot
+solve economically. Verify both model license and the specific provider's output
+reuse/training terms before distillation. Permission to call a model does not
+automatically grant permission to train on its output.
+No training corpus, fine-tuning job or premium teacher service is activated by
+this plan. Track all example-generation and evaluation spending separately.
+
+MODEL STRATEGY
+Start by benchmarking the existing eligible DeepSeek and Qwen routes against
+the current free models on Veltra's actual workflows. Measure task completion,
+tool validity, factual grounding, approval compliance, latency and cost per
+successful task. A model being allowlisted does not mean the default free-first
+route will choose it before a working free model; quality-based escalation needs
+an explicit, budgeted routing change after evaluation.
+Current catalog example: DeepSeek V4.1 Flash 1017 is served by DeepSeek and also
+has DeepInfra endpoints. Qwen3.8 Flash has Alibaba endpoints. Listed prices vary
+by endpoint and can change; runtime caps and availability still apply.
+One premium model is optional later. Add it only for a demonstrated gap, with
+explicit approval, a separate cap and no silent fallback. Current exclusions
+stay in force unless the customer changes them.
+
+AUTONOMY POLICY
+Assist → Prepare → Execute an exact approved action → Repeat a proven workflow
+within explicit limits. Promote each workflow based on recorded evaluations and
+pilot results. Keep a pause control, clear escalation and verifiable outcomes.
+
+SOURCES CHECKED OCTOBER 23, 2026
+Current model catalog: https://openrouter.ai/api/v1/models
+DeepSeek endpoints:
+https://openrouter.ai/api/v1/models/deepseek/deepseek-v4.1-flash-1017/endpoints
+Qwen endpoints:
+https://openrouter.ai/api/v1/models/qwen/qwen3.8-flash/endpoints
+Routing controls: https://openrouter.ai/docs/guides/routing/provider-selection
+Mail SDK advisory: https://github.com/advisories/GHSA-22jm-h49p-29qw
+Mail SDK advisory: https://github.com/advisories/GHSA-46jr-4wx8-v453
+Code baseline: Onixus-AI/Veltra-Model-1 main 610cfb5 and Veltra-Mail main 052c91a.
+Source review and selected live checks are not a penetration test or proof that
+every integrated external product is complete. No audit email or campaign was sent.

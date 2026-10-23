@@ -3,6 +3,16 @@ from unittest.mock import AsyncMock
 from model_routing import routing_options, image_provider
 
 class CostPolicyTests(unittest.TestCase):
+    def test_deepseek_and_qwen_remain_eligible_without_blocking_deepinfra(self):
+        for model in ['deepseek/deepseek-v4.1-flash-1017', 'qwen/qwen3.8-flash']:
+            options = routing_options(model, tools=True)
+            self.assertEqual(options['models'], [model])
+            self.assertNotIn('deepinfra', options['provider']['ignore'])
+            self.assertNotIn('deepseek', options['provider']['ignore'])
+            self.assertTrue(options['provider']['require_parameters'])
+            self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
+            for excluded in ['openai', 'anthropic', 'google-ai-studio', 'google-vertex', 'xai']:
+                self.assertIn(excluded, options['provider']['ignore'])
     def test_no_override_or_fallback_can_escape_allowlist(self):
         for model in ['openai/gpt-5', 'anthropic/claude-opus', 'google/gemma:free', 'x-ai/grok',
                       'openrouter/free', 'openrouter/auto', '~openai/gpt-luna-latest',
