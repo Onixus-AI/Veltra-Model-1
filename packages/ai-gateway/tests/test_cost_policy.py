@@ -25,7 +25,9 @@ class ImagePolicyTests(unittest.IsolatedAsyncioTestCase):
                 {'provider_slug': 'recraft', 'pricing': [{'billable': 'output_image', 'unit': 'image', 'cost_usd': .007}]},
                 {'provider_slug': 'expensive', 'pricing': [{'billable': 'output_image', 'unit': 'image', 'cost_usd': .03}]}]}
         client = AsyncMock(); client.get.return_value = Response()
-        self.assertEqual((await image_provider(client, 'recraft/recraft-v4.1-flash'))['only'], ['recraft'])
+        provider = await image_provider(client, 'recraft/recraft-v4.1-flash')
+        self.assertEqual(provider['only'], ['recraft'])
+        self.assertEqual(provider['max_price'], {'image': .02})
         client.get.assert_awaited_once()
     async def test_unknown_megapixel_and_price_increase_fail_closed(self):
         class Response:

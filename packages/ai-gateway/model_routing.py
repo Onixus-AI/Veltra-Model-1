@@ -44,4 +44,5 @@ async def image_provider(client, model):
             allowed.append(slug)
     if not allowed:
         raise ValueError('No image endpoint within Veltra price limit')
-    return {'only': allowed, 'allow_fallbacks': False, 'data_collection': 'deny'}
+    return {'only': allowed, 'allow_fallbacks': False, 'data_collection': 'deny',
+            'max_price': {'image': POLICY['image_max_usd']}}
