@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import litellm
-from model_routing import routing_options
+from model_routing import routing_options, image_provider
 from fastapi import APIRouter, HTTPException, Security
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field, field_validator
@@ -307,8 +307,9 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
         await live(role)
         route = 'design' if role == 'coder' and payload.get('mode') == 'design' else role
         override = os.environ.get(f'VELTRA_{route.upper()}_MODEL')
-        model = override or models.get(route, models[role])
-        options = routing_options(model, [] if override else (fallbacks or {}).get(route, []))
+        model = models.get(route, models[role])
+        candidates = [*(fallbacks or {}).get(route, []), *([override] if override else [])]
+        options = routing_options(model, candidates)
         if route == 'design':
             options['reasoning'] = {'enabled': False}
         messages = [{'role': 'system', 'content': instructions}, {'role': 'user', 'content': content}]
@@ -350,9 +351,10 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
             raise ValueError('Not enough reserved credits for the image tool.')
         try:
             async with httpx.AsyncClient(timeout=150) as client:
+                provider = await image_provider(client, 'recraft/recraft-v4.1-flash')
                 result = await client.post('https://openrouter.ai/api/v1/images', headers={
                     'Authorization': 'Bearer ' + os.environ['OPENROUTER_API_KEY']}, json={
-                    'model': 'recraft/recraft-v4.1-flash', 'prompt': prompt[:4000], 'n': 1, 'aspect_ratio': '1:1'})
+                    'model': 'recraft/recraft-v4.1-flash', 'prompt': prompt[:4000], 'n': 1, 'aspect_ratio': '1:1', 'provider': provider})
                 result.raise_for_status()
                 data = result.json()['data'][0]
                 encoded = data['b64_json']

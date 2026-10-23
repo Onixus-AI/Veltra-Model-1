@@ -1,0 +1,47 @@
+{
+  "verified_at": "2026-10-23",
+  "source": "https://openrouter.ai/api/v1/models",
+  "max_price": {
+    "prompt": 0.5,
+    "completion": 1
+  },
+  "blocked_providers": [
+    "anthropic",
+    "openai",
+    "google-ai-studio",
+    "google-vertex",
+    "xai"
+  ],
+  "free_models": [
+    "nvidia/nemotron-3.5-lightning:free",
+    "nvidia/nemotron-3.5-super-vl:free",
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "recursive/flint-v1.0:free",
+    "xingchen-agi/xing4.0-29b-a4b:free",
+    "dots-studio/dots-3-note-preview:free",
+    "liquid/lfm-2.5-2.6b:free",
+    "thinkingmachines/inkling-small:free",
+    "poolside/laguna-s-2.1:free",
+    "thinkingmachines/inkling:free",
+    "poolside/laguna-xs-2.1:free",
+    "cohere/north-mini-code:free",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "nvidia/nemotron-3-super-120b-a12b:free"
+  ],
+  "paid_models": [
+    "inclusionai/ling-3.0-flash",
+    "inclusionai/ling-3.0-flash-vl",
+    "nvidia/nemotron-3.5-lightning",
+    "inception/mercury-3",
+    "xiaomi/mimo-v2.6-flash",
+    "qwen/qwen3.8-flash",
+    "minimax/minimax-m3.1-flash",
+    "nvidia/nemotron-3.5-super-vl",
+    "deepseek/deepseek-v4.1-flash-1017"
+  ],
+  "image_max_usd": 0.02,
+  "image_models": [
+    "recraft/recraft-v4.1-flash",
+    "bytedance-seed/seedream-5-0-flash"
+  ]
+}

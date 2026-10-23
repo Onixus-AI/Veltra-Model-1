@@ -8,8 +8,8 @@ from model_routing import routing_options
 
 class RoutingTests(unittest.TestCase):
     def test_primary_is_first_and_duplicates_are_removed(self):
-        route = routing_options('openrouter/nvidia/test', ['nvidia/test', 'backup/model'], tools=True)
-        self.assertEqual(route['models'], ['nvidia/test', 'backup/model'])
+        route = routing_options('openrouter/nvidia/nemotron-3.5-lightning:free', ['nvidia/nemotron-3.5-lightning:free', 'inclusionai/ling-3.0-flash'], tools=True)
+        self.assertEqual(route['models'], ['nvidia/nemotron-3.5-lightning:free', 'inclusionai/ling-3.0-flash'])
         self.assertTrue(route['provider']['require_parameters'])
         self.assertEqual(route['provider']['data_collection'], 'deny')
 
@@ -35,7 +35,7 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
                                          'worker', database, main.MODEL_CONFIG['coding_team'], main.MODEL_CONFIG['coding_fallbacks'])
         self.assertEqual(completion.await_count, 3)
         self.assertEqual(completion.call_args_list[1].kwargs['extra_body']['models'],
-                         ['nvidia/nemotron-3.5-super-vl', 'qwen/qwen-2.5-coder-32b-instruct'])
+                         ['cohere/north-mini-code:free', 'inception/mercury-3', 'qwen/qwen3.8-flash'])
         states = [kwargs['payload']['state'] for table, kwargs in calls if 'state' in kwargs.get('payload', {})]
         self.assertEqual(states[-1]['receipts'][0]['model'], 'backup/actual')
 
@@ -52,19 +52,18 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
              patch('main.call_model', call), patch('main.settle_credits', settle):
             response = await main.create_chat_completion(request, None)
         body = call.call_args.args[0]['extra_body']
-        self.assertEqual(body['models'][0], 'nvidia/nemotron-3.5-super-vl')
+        self.assertEqual(body['models'][0], 'nvidia/nemotron-3.5-super-vl:free')
         self.assertEqual(body['models'][1], 'xiaomi/mimo-v2.6-flash')
         self.assertTrue(body['provider']['require_parameters'])
         self.assertEqual(response['model'], 'backup/served')
         settle.assert_awaited_once_with('test', 12, 'veltra-agent')
 
-    async def test_default_routes_and_coding_roles_have_no_free_trials(self):
+    async def test_every_default_route_is_free_first_and_within_policy(self):
         import main
-        for alias in ['veltra-fast', 'veltra-logic', 'veltra-agent', 'veltra-vision']:
-            primary = main.MODELS[alias]['model']
-            self.assertTrue(primary.startswith('openrouter/nvidia/'))
-            self.assertFalse(any(':free' in item for item in routing_options(primary, main.MODEL_CONFIG['chat_fallbacks'][alias])['models']))
+        for alias, config in main.MODELS.items():
+            options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []))
+            self.assertTrue(options['models'][0].endswith(':free'))
+            self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
         for role, primary in main.MODEL_CONFIG['coding_team'].items():
-            self.assertTrue(primary.startswith('nvidia/'))
-            self.assertNotIn(':free', primary)
-            self.assertTrue(main.MODEL_CONFIG['coding_fallbacks'][role])
+            self.assertTrue(primary.endswith(':free'))
+            routing_options(primary, main.MODEL_CONFIG['coding_fallbacks'][role])
