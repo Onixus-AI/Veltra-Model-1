@@ -1,3 +1,5 @@
+> Repository publishing is paused by default. Generated files remain reviewable; PR creation requires operator opt-in. Chat source evidence is read-only and test plans are not executed tests. See [self-development.md](self-development.md).
+
 # Veltra Build: bounded coding team
 
 Veltra Build is an additive `/build` workspace. Existing Chat, its embedded CRM, Mail and the separate standalone CRM remain independent entry points. The main Chat conversation request format is unchanged.

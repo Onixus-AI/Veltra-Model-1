@@ -21,18 +21,20 @@ type FileResult = {
   content: string;
 };
 
-export const CHAT_TOOLS = [
+const TOOL_CATALOG = [
   ...AGENT_TOOLS,
   { type: "function", function: { name: "github_list_files", description: "List files in the connected GitHub repository.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "github_read_file", description: "Read one file from the connected GitHub repository.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_commit", description: "Commit new content for one existing file to a new branch and open a draft pull request. The user must confirm before it runs. Read the file first and pass the full new content.", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, title: { type: "string" } }, required: ["path", "content", "title"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_changes", description: "Propose 1–12 coordinated new or updated text files in the selected repository as one commit and draft PR. Read existing files first and preserve working code. Full before/after review and user confirmation are required. Existing repository CI may run after PR creation; this does not merge or deploy production.", parameters: {type:"object",properties:{title:{type:"string"},files:{type:"array",minItems:1,maxItems:12,items:{type:"object",properties:{path:{type:"string"},content:{type:"string"}},required:["path","content"],additionalProperties:false}}},required:["title","files"],additionalProperties:false} } },
+  {type:'function',function:{name:'github_review_proposal',description:'Prepare a READ-ONLY improvement proposal with host-verified current source quotes. Requires exact quotes from files actually read, observed versus intended behavior, and a before/after test plan. The host checks quoted text at one repository commit and verifies named npm scripts. Test plans are NOT executed and this cannot create a PR. AI-generated publishing is paused.',parameters:{type:'object',properties:{sources:{type:'array',minItems:1,maxItems:4,items:{type:'object',properties:{path:{type:'string'},quote:{type:'string',minLength:12,maxLength:2000}},required:['path','quote'],additionalProperties:false}},observed_behavior:{type:'string',minLength:12},intended_behavior:{type:'string',minLength:12},verification:{type:'object',properties:{directory:{type:'string'},command:{type:'string'},expected_before:{type:'string',minLength:12},expected_after:{type:'string',minLength:12}},required:['directory','command','expected_before','expected_after'],additionalProperties:false}},required:['sources','observed_behavior','intended_behavior','verification'],additionalProperties:false}}},
   { type: "function", function: { name: "github_pr_checks", description: "Read GitHub checks, commit statuses and preview links for an exact pull-request head commit in the selected repository. No checks or pending checks do not mean success. This reads the existing CI pipeline; it does not dispatch a workflow or deploy production.", parameters: {type:"object",properties:{pull_request:{type:"integer",minimum:1}},required:["pull_request"],additionalProperties:false} } },
   { type: "function", function: { name: "vercel_list_deployments", description: "List recent Vercel deployments for the selected project.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "supabase_project", description: "Read the selected Supabase project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes'].includes(tool.function.name));
 
 export type WriteProposal = {
   id: string;
@@ -71,8 +73,13 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
   const args = parseArgs(call.function.arguments);
   const name = call.function.name;
   try {
+    if(['github_propose_commit','github_propose_changes'].includes(name))return {failed:true,content:'AI-generated repository publishing is paused. Use github_review_proposal to verify current source quotes and describe a test plan. No files, branch or PR were created.'};
     if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context,undefined,access);
     if(!access)throw Error('Start a task with app permission before using a connected product.');
+    if(name==='github_review_proposal'){
+      const evidence=await connectionRequest<any>('github/proposal-evidence','POST',args,{id:access.id,fetch:access.fetch.bind(access)});
+      return {content:JSON.stringify(evidence),data:evidence,canvas:{title:'Proposal evidence · tests not run',content:`# Read-only proposal evidence\n\n${evidence.repository} · commit ${evidence.base_sha}\n\n**Source quotes matched. Diagnosis unverified. Tests not run. Publishing paused.**\n\n## Proposed behavior\n${evidence.observed_behavior}\n\n## Intended behavior\n${evidence.intended_behavior}\n\n## Test plan — not executed\nDirectory: ${evidence.verification.directory}\nCommand: ${evidence.verification.command}\nBefore: ${evidence.verification.expected_before}\nAfter: ${evidence.verification.expected_after}\n\n${evidence.sources.map((source:any)=>`## ${source.path} · lines ${source.line_start}–${source.line_end}\n${codeBlock(source.quote,languageFor(source.path))}`).join('\n\n')}`}};
+    }
     if(name==='github_pr_checks'){
       if(!Number.isSafeInteger(args.pull_request)||Number(args.pull_request)<1)throw Error('Choose a pull request number.');
       return {content:JSON.stringify(await connectionRequest('github/checks?pull_request='+args.pull_request,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};

@@ -1,20 +1,24 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {runAgentTurn} from '../lib/chat-tools';
+import {CHAT_TOOLS,runToolCall} from '../lib/chat-tools';
 import type {TaskAccessClient} from '../lib/task-access-client';
-test('coordinated repository changes show complete file review and publish only after approval',async t=>{
- const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
- try{for(const approved of [false,true]){
-  let turns=0,writes=0,reviewed=false;const files=[{path:'src/existing.ts',content:'updated'},{path:'src/new.ts',content:''}];
-  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
-   const body=init?.body?JSON.parse(String(init.body)):null;
-   if(input==='/api/chat')return Response.json({choices:[{message:turns++===0?{tool_calls:[{id:'change',type:'function',function:{name:'github_propose_changes',arguments:JSON.stringify({title:'Fix two files',files})}}]}:{content:'Review handled.'}}]});
-   if(input==='/api/connections/github/change-set'){assert.equal(writes,0);return Response.json({repository:'owner/repo',branch:'main',connection_version:3,base_sha:'a'.repeat(40),title:body.title,files,before:[{path:'src/existing.ts',content:'old'},{path:'src/new.ts',content:null}]});}
-   assert.equal(input,'/api/connections/github/pull-request-set');assert.equal(reviewed,true);assert.equal(approved,true);assert.deepEqual(body.files,files);assert.equal(body.base_sha,'a'.repeat(40));assert.equal('before' in body,false);writes++;return Response.json({url:'https://github.com/owner/repo/pull/7'});
-  });
-  const access={id:'fixture-task',fetch:globalThis.fetch} as TaskAccessClient;
-  await runAgentTurn([{role:'user',content:'Fix these two files'}],'veltra-agent',{},async proposal=>{assert.equal(writes,0);assert.deepEqual(proposal.repository_review,[{path:'src/existing.ts',before:'old',after:'updated'},{path:'src/new.ts',before:null,after:''}]);reviewed=true;return approved;},()=>{},()=>{},access);
-  assert.equal(writes,approved?1:0);mock.mock.restore();
+test('publishing tools are hidden and stale calls cannot contact a provider',async t=>{
+ assert(CHAT_TOOLS.some(t=>t.function.name==='github_review_proposal'));
+ for(const name of ['github_propose_commit','github_propose_changes']){
+  assert(!CHAT_TOOLS.some(t=>t.function.name===name));
+  const mock=t.mock.method(globalThis,'fetch',async()=>{throw Error('Unexpected network request');});
+  const result=await runToolCall({id:'paused',type:'function',function:{name,arguments:'{}'}});
+  assert.equal(result.failed,true);assert.match(result.content,/publishing is paused/);assert.equal(result.proposal,undefined);assert.equal(mock.mock.callCount(),0);mock.mock.restore();
  }
+});
+test('proposal evidence preserves host verification limits without a write approval',async()=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ try{
+ const args={sources:[{path:'src/config.ts',quote:'export const enabled = true;'}],observed_behavior:'Observed current behavior',intended_behavior:'Different intended behavior',verification:{directory:'.',command:'npm run check',expected_before:'Current expectation fails',expected_after:'Changed expectation passes'}};
+ const evidence={...args,repository:'owner/repo',base_sha:'a'.repeat(40),sources:[{...args.sources[0],line_start:2,line_end:2}],diagnosis_status:'unverified',can_publish:false,verification:{...args.verification,execution_status:'not_run',script_check:'exists'}};
+ let requests=0;
+ const access={id:'fixture-task',fetch:async(input:RequestInfo|URL,init?:RequestInit)=>{requests++;assert.equal(input,'/api/connections/github/proposal-evidence');assert.equal(init?.method,'POST');assert.deepEqual(JSON.parse(String(init?.body)),args);return Response.json(evidence);}} as TaskAccessClient;
+ const result=await runToolCall({id:'evidence',type:'function',function:{name:'github_review_proposal',arguments:JSON.stringify(args)}},{},access);
+ assert.equal(requests,1);assert.equal(result.proposal,undefined);assert.deepEqual(result.data,evidence);assert.match(result.canvas?.content??'',/Diagnosis unverified. Tests not run. Publishing paused/);assert.match(result.canvas?.content??'',/lines 2–2/);
  }finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });

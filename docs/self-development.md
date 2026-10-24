@@ -1,3 +1,11 @@
+# Evidence-first repository proposals
+
+AI-generated repository publishing is paused by default. Chat advertises `github_review_proposal` instead of write tools; stale write calls are rejected. Both single-file and multi-file connector publishing endpoints reject requests unless an operator explicitly sets `VELTRA_REPOSITORY_PUBLISH_ENABLED=true`. Review interfaces check the authenticated development policy and disable publishing while paused. This change does not enable that flag.
+
+The read-only endpoint pins the selected repository commit, matches exact source quotes and returns line numbers. For npm commands it verifies that the named script exists in the chosen package directory. The diagnosis remains **unverified**, the test plan is **not run**, and `can_publish` is false. Matching source text does not prove the behavior claim or fix. Non-npm commands are not validated or executed.
+
+Before restoring publishing, add isolated execution that reproduces the reported behavior, runs meaningful before/after checks and records actual results. Source matching alone must not unlock writes. The following describes the existing publisher only when explicitly enabled.
+
 # Veltra self-development foundation
 
 Chat can read the selected repository and propose 1–12 coordinated new or updated text files with `github_propose_changes`. The coding team offers **Review all files for one pull request**, so generated files no longer need to be applied one at a time. Existing file and PR controls remain available.
