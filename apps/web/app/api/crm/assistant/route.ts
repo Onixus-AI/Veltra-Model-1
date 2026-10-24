@@ -16,7 +16,7 @@ export async function POST(request:Request){try{
  if(b.review_id)await assertReviewAccess(request,b.task_id,client,user.id,b.review_id);
  if((b.review_id&&b.message)||(!b.review_id&&(typeof b.message!=='string'||!b.message.trim()||b.message.length>3000)))throw new Error('400:Send a message or confirm one review.');
  const campaign=b.message?crmActionIntent(b.message):null;
- if(campaign?.action==='campaign_brief')return Response.json({kind:'result',reply:await executeCrmAction(client,user.id,b.workspace_id,campaign,{authorization:request.headers.get('authorization')!,operation:crypto.randomUUID()})},{headers:{'Cache-Control':'no-store'}});
+ if(campaign?.action==='campaign_brief')return Response.json({kind:'result',campaign_url:'/crm?'+new URLSearchParams({view:'Automation',workspace:b.workspace_id,industry:campaign.industry,pillar:'suite'}).toString(),reply:await executeCrmAction(client,user.id,b.workspace_id,campaign,{authorization:request.headers.get('authorization')!,operation:crypto.randomUUID()})},{headers:{'Cache-Control':'no-store'}});
  const origin=process.env.VELTRA_MAIL_URL;
  const outreach=origin?async(body?:Record<string,unknown>)=>{
   await assertTaskAccess(request,b.task_id,['mail']);
