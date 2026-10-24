@@ -19,3 +19,5 @@
 /* Keep both toolbar actions reachable in a narrow split pane as well as on phones. */
 .chat-panel{container:veltra-chat / inline-size}
 @container veltra-chat (max-width:400px){.workspace .chat-panel .chat-toolbar{gap:6px;padding-inline:12px}.workspace .chat-panel .chat-product-name{font-size:11px;white-space:nowrap}.workspace .chat-panel .new-chat-button{padding:5px}.workspace .chat-panel .setup-launch{padding:4px 6px;min-height:32px;font-size:10px}.workspace .chat-panel .model-label strong{font-size:11px}.workspace .chat-panel .model-selector{padding-left:3px}}
+
+.setup-refresh{border:0;background:transparent;color:#a9bdc7;font-size:12px;text-decoration:underline;padding:8px 0;min-height:36px}
