@@ -8,6 +8,7 @@ with sync_playwright() as p:
     page = browser.new_page()
     requests = []
     errors = []
+    budget = {"enabled": False}
     page.on('pageerror', lambda error: errors.append(str(error)))
 
     def api(route):
@@ -15,8 +16,16 @@ with sync_playwright() as p:
         if '/api/chat' in path:
             body = route.request.post_data_json
             requests.append(body)
-            assert any(tool['function']['name'] == 'current_time' for tool in body['tools'])
-            if body['messages'][-1]['role'] == 'tool':
+            if body['tools']:
+                assert any(tool['function']['name'] == 'current_time' for tool in body['tools'])
+            if budget['enabled']:
+                if not body['tools']:
+                    assert body['tool_choice'] == 'none'
+                    assert len([m for m in body['messages'] if m['role'] == 'tool']) == 12
+                    data = {'choices': [{'message': {'content': 'Collected evidence summary. Remaining question: inspect the caller.'}}]}
+                else:
+                    data = {'choices': [{'message': {'tool_calls': [{'id': 'clock-' + str(len(requests)), 'type': 'function', 'function': {'name': 'current_time', 'arguments': '{}'}}]}}]}
+            elif body['messages'][-1]['role'] == 'tool':
                 data = {'choices': [{'message': {'content': 'Routing verified.'}}]}
             else:
                 # Assert the control stays locked until every tool round finishes.
@@ -58,5 +67,15 @@ with sync_playwright() as p:
     send('veltra-vision')  # Retained images still require vision on later turns.
     page.locator('.new-chat-button').click()
     send('veltra-logic')
+    page.locator('.new-chat-button').click()
+    budget['enabled'] = True
+    before = len(requests)
+    page.get_by_role('textbox', name='Message Veltra').fill('Investigate until the tool allowance is reached')
+    page.get_by_role('button', name='Send message', exact=True).click()
+    expect(page.locator('.model-selector')).to_be_enabled(timeout=15000)
+    assert len(requests) == before + 13
+    expect(page.get_by_text('Partial investigation — tool allowance reached.', exact=False)).to_be_visible()
+    expect(page.get_by_text('Collected evidence summary.', exact=False)).to_be_visible()
+    assert all(body['model'] == 'veltra-logic' for body in requests[before:])
     assert not errors, errors
     browser.close()
