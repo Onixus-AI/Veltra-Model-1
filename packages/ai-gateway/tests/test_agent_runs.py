@@ -133,6 +133,24 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(table == 'rpc/finish_agent_run' for table, _ in calls))
         self.assertEqual(calls[-1][1]['payload']['status'], 'interrupted')
 
+    async def test_empty_output_preserves_billable_receipt_and_never_claims_success(self):
+        from types import SimpleNamespace
+        calls = []
+        async def db(table, **kwargs):
+            calls.append((table, kwargs))
+            return True if table.startswith('rpc/') else [{'cancel_requested': False}]
+        response = SimpleNamespace(model_dump=lambda: {'id': 'empty-request', 'model': 'served-model', 'usage': {'total_tokens': 700}, 'choices': [{'finish_reason': 'length', 'message': {'content': ''}}]})
+        with patch.dict(os.environ, {'OPENROUTER_API_KEY': 'test-only'}), patch('agent_runs.litellm.token_counter', return_value=10), patch('agent_runs.litellm.acompletion', new=AsyncMock(return_value=response)):
+            await execute_run({'id': str(uuid4()), 'payload': {'task': 'Build'}, 'credits_reserved': 6000}, str(uuid4()), db, {'planner': 'inclusionai/ling-3.0-flash'})
+        settlement = next(kwargs['payload'] for table, kwargs in calls if table == 'rpc/finish_agent_run')
+        self.assertFalse(settlement['p_success'])
+        self.assertEqual(settlement['p_used'], 700)
+        receipt = settlement['p_state']['receipts'][0]
+        self.assertEqual(receipt['provider_request_id'], 'empty-request')
+        self.assertEqual(receipt['outcome'], 'empty_output')
+        self.assertEqual(receipt['finish_reason'], 'length')
+        self.assertIn('planner returned no visible output', settlement['p_error'])
+
     async def test_explicit_provider_rejection_settles_unused_credits(self):
         class Rejected(Exception):
             status_code = 402
