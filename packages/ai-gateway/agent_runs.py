@@ -310,8 +310,9 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
         model = models.get(route, models[role])
         candidates = [*(fallbacks or {}).get(route, []), *([override] if override else [])]
         options = routing_options(model, candidates)
-        # These bounded steps need visible text/JSON, not a hidden reasoning budget.
-        options['reasoning'] = {'enabled': False}
+        # Mandatory-reasoning fallbacks reject disabled reasoning. Keep their
+        # reasoning effort low so bounded steps can return visible text/JSON.
+        options['reasoning'] = {'enabled': False} if route == 'design' else {'effort': 'low'}
         messages = [{'role': 'system', 'content': instructions}, {'role': 'user', 'content': content}]
         estimate = litellm.token_counter(model='openrouter/' + model, messages=messages)
         image_hold = 100 if payload.get('create_image') else 0
