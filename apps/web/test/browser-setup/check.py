@@ -73,6 +73,8 @@ with sync_playwright() as p:
     page.route('**/api/connections/github/*',repository_api)
     page.goto('http://127.0.0.1:3189/?repository-review')
     expect(page.get_by_role('dialog',name='Review all repository files')).to_be_visible()
+    expect(page.get_by_role('button',name='Create draft pull request',exact=True)).to_be_enabled()
+    expect(page.get_by_role('alert')).not_to_be_visible()
     page.get_by_text('Update: src/existing.ts',exact=True).click()
     page.get_by_text('New file: src/new.ts',exact=True).click()
     expect(page.get_by_text('old',exact=True)).to_be_visible()
