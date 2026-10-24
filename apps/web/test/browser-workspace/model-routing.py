@@ -74,8 +74,9 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Send message', exact=True).click()
     expect(page.locator('.model-selector')).to_be_enabled(timeout=15000)
     assert len(requests) == before + 13
-    expect(page.get_by_text('Partial investigation — tool allowance reached.', exact=False)).to_be_visible()
-    expect(page.get_by_text('Collected evidence summary.', exact=False)).to_be_visible()
+    expect(page.locator('.chat-panel').get_by_text('Partial investigation — tool allowance reached.', exact=False)).to_be_visible()
+    expect(page.locator('.chat-panel').get_by_text('Collected evidence summary.', exact=False)).to_be_visible()
     assert all(body['model'] == 'veltra-logic' for body in requests[before:])
+    page.screenshot(path='work/workspace-screenshots/investigation-budget.png')
     assert not errors, errors
     browser.close()
