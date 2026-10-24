@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import RepositoryChangeReview from './repository-change-review';
 import {useCallback,useEffect,useRef,useState} from 'react';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 import {connectionRequest} from '@/lib/connections-client';
@@ -17,6 +18,7 @@ function download(name:string,content:string,type='text/plain'){
  const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 export default function BuildTeam({embedded=false,onReviewFile}:{embedded?:boolean;onReviewFile?:(file:ProjectFile)=>void}){
+ const [publish,setPublish]=useState(false);
  const [task,setTask]=useState(''),[context,setContext]=useState(''),[screenshot,setScreenshot]=useState<string|null>(null),[image,setImage]=useState(false),[budget,setBudget]=useState(12000);
  const [run,setRun]=useState<Run|null>(null),[history,setHistory]=useState<Run[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[checking,setChecking]=useState(false),[verification,setVerification]=useState<Verification|null>(null),[selectedFile,setSelectedFile]=useState('');
  const [repositoryFiles,setRepositoryFiles]=useState<{path:string}[]>([]),[repositoryPath,setRepositoryPath]=useState(''),[repository,setRepository]=useState('');
@@ -69,7 +71,8 @@ export default function BuildTeam({embedded=false,onReviewFile}:{embedded?:boole
  {run.state?.observations&&<details><summary>What the team saw</summary><p>{run.state.observations}</p></details>}
  {run.state?.plan&&<details open={!files.length}><summary>Implementation plan</summary><pre>{run.state.plan}</pre></details>}
  {run.state?.review&&<section className="build-review"><h3>{run.state.review.approved?'Model review passed':'Model review needs attention'}</h3><p>{run.state.review.summary}</p>{run.state.review.issues.map((issue,i)=><p key={i}>{issue}</p>)}<small>This is a model review. Run checks to get execution evidence.</small></section>}
- {files.length>0&&<><p>{run.state?.artifacts?.summary}</p><nav className="build-file-tabs" aria-label="Generated files">{files.map(f=><button key={f.path} aria-pressed={file?.path===f.path} onClick={()=>setSelectedFile(f.path)}>{f.path}</button>)}</nav>{file&&<><div className="build-file-toolbar"><strong>{file.path}</strong>{onReviewFile&&<button onClick={()=>onReviewFile(file)}>Review in connected repository</button>}<button onClick={()=>download(file.path.split('/').pop()!,file.content)}>Download file</button></div><pre className="build-code">{file.content}</pre></>}
+ {publish&&files.length>0&&<RepositoryChangeReview key={run.id} files={files} onClose={()=>setPublish(false)}/>}
+ {files.length>0&&<>{run.status==='completed'&&<button onClick={()=>setPublish(true)}>Review all files for one pull request</button>}<p>{run.state?.artifacts?.summary}</p><nav className="build-file-tabs" aria-label="Generated files">{files.map(f=><button key={f.path} aria-pressed={file?.path===f.path} onClick={()=>setSelectedFile(f.path)}>{f.path}</button>)}</nav>{file&&<><div className="build-file-toolbar"><strong>{file.path}</strong>{onReviewFile&&<button onClick={()=>onReviewFile(file)}>Review in connected repository</button>}<button onClick={()=>download(file.path.split('/').pop()!,file.content)}>Download file</button></div><pre className="build-code">{file.content}</pre></>}
  {run.status==='completed'&&<button className="build-primary" disabled={checking||run.verification_status==='completed'||(run.verification_attempts??0)>=2} onClick={()=>void verify()}>{checking?'Running isolated checks…':'Run code checks & browser'}</button>}<p><Link href="/?canvas=code">Open connected code workspace</Link> to review and apply the files.</p></>}
  {run.state?.image&&<figure><img src={run.state.image} alt="Image created for this task"/><a href={run.state.image} download="generated.png">Download project image</a><small>Save as assets/generated.png when referenced by the project.</small></figure>}
  {verification&&<section className="build-review"><h3>{verification.checks_passed?'Checks passed':'Checks need attention'}</h3><small>Receipt {verification.receipt_id}</small>{verification.checks.map((check,i)=><details key={i}><summary>{check.name} · {check.exit_code===0?'passed':'failed'}</summary><pre>{check.stdout}{check.stderr}</pre></details>)}{verification.browser?.errors?.map((message,i)=><p role="alert" key={i}>{message}</p>)}{verification.screenshot&&<img src={verification.screenshot} alt="Browser result after rendering the generated page and running its actions"/>}

@@ -5,6 +5,8 @@ import type {TaskAccessClient} from './task-access-client';
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 import {AGENT_TOOLS} from './agent-tool-catalog';
+import {checkedFiles} from './build-artifacts';
+import type {RepositoryChangeSet,RepositoryFileReview} from './repository-changes';
 import {deviceTimeZone} from './runtime-context';
 
 /** Tools the model may call. Reads run immediately; writes wait for the user's confirmation. */
@@ -24,6 +26,8 @@ export const CHAT_TOOLS = [
   { type: "function", function: { name: "github_list_files", description: "List files in the connected GitHub repository.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "github_read_file", description: "Read one file from the connected GitHub repository.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_commit", description: "Commit new content for one existing file to a new branch and open a draft pull request. The user must confirm before it runs. Read the file first and pass the full new content.", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, title: { type: "string" } }, required: ["path", "content", "title"], additionalProperties: false } } },
+  { type: "function", function: { name: "github_propose_changes", description: "Propose 1–12 coordinated new or updated text files in the selected repository as one commit and draft PR. Read existing files first and preserve working code. Full before/after review and user confirmation are required. Existing repository CI may run after PR creation; this does not merge or deploy production.", parameters: {type:"object",properties:{title:{type:"string"},files:{type:"array",minItems:1,maxItems:12,items:{type:"object",properties:{path:{type:"string"},content:{type:"string"}},required:["path","content"],additionalProperties:false}}},required:["title","files"],additionalProperties:false} } },
+  { type: "function", function: { name: "github_pr_checks", description: "Read GitHub checks, commit statuses and preview links for an exact pull-request head commit in the selected repository. No checks or pending checks do not mean success. This reads the existing CI pipeline; it does not dispatch a workflow or deploy production.", parameters: {type:"object",properties:{pull_request:{type:"integer",minimum:1}},required:["pull_request"],additionalProperties:false} } },
   { type: "function", function: { name: "vercel_list_deployments", description: "List recent Vercel deployments for the selected project.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "supabase_project", description: "Read the selected Supabase project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
@@ -33,7 +37,8 @@ export const CHAT_TOOLS = [
 export type WriteProposal = {
   id: string;
   summary: string;
-  change?: { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
+  repository_review?:RepositoryFileReview[];
+  change?: RepositoryChangeSet | { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
   agent_review?: {target:'crm'|'brain'|'mail';id:string};
 };
 
@@ -68,6 +73,17 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
   try {
     if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context,undefined,access);
     if(!access)throw Error('Start a task with app permission before using a connected product.');
+    if(name==='github_pr_checks'){
+      if(!Number.isSafeInteger(args.pull_request)||Number(args.pull_request)<1)throw Error('Choose a pull request number.');
+      return {content:JSON.stringify(await connectionRequest('github/checks?pull_request='+args.pull_request,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};
+    }
+    if(name==='github_propose_changes'){
+      const files=checkedFiles(args.files),title=String(args.title??'').trim();if(!title||title.length>150)throw Error('Provide a short change-set title.');
+      const review=await connectionRequest<Omit<RepositoryChangeSet,'operation'>&{before:{path:string;content:string|null}[]}>('github/change-set','POST',{files,title},{id:access.id,fetch:access.fetch.bind(access)});
+      const operation=crypto.randomUUID();
+      const change:RepositoryChangeSet={repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation};
+      return {content:'The change set is waiting for user review. No branch or pull request has been created.',proposal:{id:operation,summary:`${review.repository} · ${review.branch} · base ${review.base_sha}\n${title}\n\n${files.map(f=>f.path).join('\n')}\n\nCreates one commit and a draft PR. Existing CI may run. No production deployment.`,change,repository_review:files.map(f=>({path:f.path,before:review.before.find(b=>b.path===f.path)?.content??null,after:f.content}))}};
+    }
     if (name === "github_read_file") {
       const path = String(args.path ?? "");
       if (!path || path.includes("..")) return { failed:true, content: "Invalid file path." };
@@ -112,7 +128,7 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
 
 export async function createPullRequest(change: NonNullable<WriteProposal["change"]>,access?:TaskAccessClient): Promise<string> {
   if(!access)throw Error('Task access is required before creating a pull request.');
-  const result = await connectionRequest<{ url: string }>("github/pull-request", "POST", change,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
+  const result = await connectionRequest<{ url: string }>("files" in change?"github/pull-request-set":"github/pull-request", "POST", change,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
   return `Draft pull request created: ${result.url}. Review it before merging.`;
 }
 

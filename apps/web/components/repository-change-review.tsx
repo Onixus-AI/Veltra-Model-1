@@ -1,0 +1,19 @@
+'use client';
+import './repository-change-review.css';
+import {useEffect,useRef,useState} from 'react';
+import {connectionRequest} from '@/lib/connections-client';
+import {checkedFiles,type ProjectFile} from '@/lib/build-artifacts';
+import type {RepositoryChangeSet} from '@/lib/repository-changes';
+type Review=Omit<RepositoryChangeSet,'operation'>&{before:{path:string;content:string|null}[]};
+export default function RepositoryChangeReview({files,onClose}:{files:ProjectFile[];onClose:()=>void}){
+ const dialog=useRef<HTMLDialogElement>(null),lock=useRef(false),operation=useRef(crypto.randomUUID());
+ const [review,setReview]=useState<Review|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[url,setUrl]=useState('');
+ useEffect(()=>{dialog.current?.showModal();let live=true;try{void connectionRequest<Review>('github/change-set','POST',{files:checkedFiles(files),title:'Apply Veltra coding task'}).then(data=>{if(live)setReview(data);}).catch(cause=>{if(live)setError(cause.message);});}catch(cause){setError(cause instanceof Error?cause.message:'Invalid project files.');}return()=>{live=false;dialog.current?.close();};},[files]);
+ async function publish(){
+  if(!review||lock.current)return;lock.current=true;setBusy(true);setError('');
+  try{const result=await connectionRequest<{url:string}>('github/pull-request-set','POST',{repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation:operation.current});const receipt=new URL(result.url);if(receipt.origin!=='https://github.com'||!/^\/[^/]+\/[^/]+\/pull\/\d+$/.test(receipt.pathname))throw Error('No valid pull-request receipt returned.');setUrl(receipt.href);}
+  catch(cause){setError(cause instanceof Error?cause.message:'Pull request could not be created.');}
+  finally{lock.current=false;setBusy(false);}
+ }
+ return <dialog ref={dialog} className="code-review repository-change-review" aria-label="Review all repository files" onCancel={event=>{event.preventDefault();if(!busy)onClose();}}><h2>Review all repository files</h2><p>{review?`${review.repository} · ${review.branch} · ${review.files.length} files`:'Checking the selected repository…'}</p><p>This creates one commit on a new branch and a draft pull request. Your repository’s CI and preview integrations may run. Production is not deployed.</p>{error&&<p role="alert">{error}</p>}{review&&!url&&<><label htmlFor="change-set-title">Pull request title</label><input id="change-set-title" value={review.title} maxLength={150} disabled={busy} onChange={event=>{operation.current=crypto.randomUUID();setReview({...review,title:event.target.value});}}/>{review.files.map(file=>{const before=review.before.find(item=>item.path===file.path)?.content??null;return <details key={file.path}><summary>{before===null?'New file: ':'Update: '}{file.path}</summary><div className="code-review-versions"><section><h3>Repository version</h3><pre>{before??'File does not exist at the reviewed commit.'}</pre></section><section><h3>Proposed version</h3><pre>{file.content}</pre></section></div></details>;})}<small>Reviewed base commit: {review.base_sha}</small></>}{url&&<p role="status">Draft pull request created. <a href={url} target="_blank" rel="noreferrer">Review code, CI and preview results on GitHub</a></p>}<footer><button disabled={busy} onClick={onClose}>{url?'Done':'Cancel'}</button>{!url&&<button disabled={!review||busy||!review.title.trim()} onClick={()=>void publish()}>{busy?'Creating…':'Create draft pull request'}</button>}</footer></dialog>;
+}
