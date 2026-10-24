@@ -26,6 +26,11 @@ with sync_playwright() as p:
     expect(page.get_by_role('heading', name='Bring your work into the conversation.')).to_be_visible()
     page.get_by_role('button', name='Continue', exact=True).click()
     expect(page.get_by_role('button', name='Open my first task', exact=True)).to_be_disabled()
+    for scenario, message in [('mail-disconnected', 'Connect your email account'), ('mail-error', 'Couldn’t verify your inbox')]:
+        page.goto('http://127.0.0.1:3189/?business-ready&' + scenario)
+        expect(page.get_by_role('button', name='Open my first task', exact=True)).to_be_disabled()
+        expect(page.get_by_role('status').filter(has_text=message)).to_be_visible()
+        expect(page.get_by_role('button', name='Check again', exact=True)).to_be_enabled()
     page.goto('http://127.0.0.1:3189/?business-ready')
     page.get_by_role('button', name='Open my first task', exact=True).click()
     expect(page.get_by_role('textbox', name='Prepared task', exact=True)).to_have_value('Find customers who need a follow-up and prepare drafts.')

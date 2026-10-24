@@ -61,3 +61,5 @@ exists only in the test harness; production persistence uses authenticated Auth.
 Remaining product work: canonical business profile setup, inline connection
 status/repair, broader first-task workflows, shared task durability, public search,
 cost-weighted entitlements and the remaining commercial readiness gates.
+
+Business readiness: opening the connections or first-task screen checks the authenticated Mail link without reading mailbox contents. Missing, invalid or unavailable status keeps the first follow-up request unavailable and offers Open Mail and retry. Status is transient, rechecked on reopening, and never saved as setup metadata or treated as action authorization. Existing per-action checks and reviews remain required.
