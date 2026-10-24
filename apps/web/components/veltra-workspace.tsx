@@ -1,4 +1,5 @@
 "use client";
+import {saveCloudHistory,type HistoryWrite} from '@/lib/cloud-history';
 import TaskCenter from './task-center';
 import ChatSetup from './chat-setup';
 import type {SetupProfile} from '@/lib/setup-profile';
@@ -142,6 +143,18 @@ export default function VeltraWorkspace() {
   const [crmNavigation,setCrmNavigation]=useState<{workspace:string;view:string;revision:number}>();
   const [crmScope,setCrmScope]=useState<CrmHostScope|null>(null);
   const cloudRef=useRef<CloudConversation|null>(null);
+  const [pendingHistory,setPendingHistory]=useState<HistoryWrite|null>(null);
+  const [retryingHistory,setRetryingHistory]=useState(false);
+  async function retryHistory(){
+    if(!pendingHistory||retryingHistory)return;
+    setRetryingHistory(true);
+    try{
+      const result=await saveCloudHistory(crmRequest,pendingHistory);
+      if(cloudRef.current?.id===pendingHistory.id){const row={...cloudRef.current,messages:pendingHistory.messages,revision:result.revision};cloudRef.current=row;setCloud(row);}
+      setPendingHistory(null);setError('');
+    }catch(e){setError('Cloud history could not be confirmed. Your reply remains in this tab. '+(e instanceof Error?e.message:'Retry saving when connected.'));}
+    finally{setRetryingHistory(false);}
+  }
   const [cloudRequired,setCloudRequired]=useState(false);
   const [cloudReset,setCloudReset]=useState(0);
   function loadCloud(row:CloudConversation){if(!sending&&row.id!==cloudRef.current?.id)setTaskRun(null);cloudRef.current=row;setCloud(row);setCloudRequired(true);setMessages(row.messages);setHistoryLoaded(true);setError('');}
@@ -260,6 +273,7 @@ export default function VeltraWorkspace() {
     event?.preventDefault();
     const prompt = (requestedPrompt??input).trim();
     if ((!prompt && !pendingImages.length) || sending || activeTaskAccess.current || !historyLoaded) return;
+    if(pendingHistory){setError('Save the pending reply before sending another message.');return;}
     if(cloudRequired&&!cloudRef.current){setError('Cloud history is not ready. Choose a conversation before sending.');return;}
     const savedCloud=cloudRef.current;
     if(crmOpen&&crmScope&&(!savedCloud||savedCloud.workspace_id!==crmScope.workspace_id||(savedCloud.customer_id??null)!==crmScope.customer_id)){setError('CRM context is switching. Wait for the selected customer conversation to load.');return;}
@@ -362,7 +376,7 @@ export default function VeltraWorkspace() {
     } finally {
       await taskAccess.finish();activeTaskAccess.current=null;taskEvent({type:'finish'});
       if(crmOpen)window.dispatchEvent(new Event('veltra-crm-changed'));
-      if(savedCloud&&savedMessages.length){try{const result=await crmRequest<{revision:number}>('conversations/'+savedCloud.id,'PUT',{revision:savedCloud.revision,messages:savedMessages.map(({role,content,imageId})=>({role,content,...(imageId?{imageId}: {})}))});const row={...savedCloud,revision:result.revision};cloudRef.current=row;setCloud(row);}catch(e){setError('Reply was not saved to cloud history. '+(e instanceof Error?e.message:'Please retry.'));}}
+      if(savedCloud&&savedMessages.length){const write:HistoryWrite={id:savedCloud.id,revision:savedCloud.revision,messages:savedMessages.map(({role,content,imageId})=>({role,content,...(imageId?{imageId}: {})}))};try{const result=await saveCloudHistory(crmRequest,write);if(cloudRef.current?.id===write.id){const row={...savedCloud,messages:write.messages,revision:result.revision};cloudRef.current=row;setCloud(row);}setPendingHistory(null);}catch(e){setPendingHistory(write);setError('Reply is still visible here, but cloud history could not be confirmed. '+(e instanceof Error?e.message:'Retry saving when connected.'));}}
       setSending(false);
     }
   }
@@ -482,6 +496,7 @@ export default function VeltraWorkspace() {
           )}
         </div>
         <div className="composer-area">
+          {pendingHistory && <div className="chat-error" role="status">A reply needs cloud saving. Keep this tab open.<button disabled={retryingHistory} onClick={()=>void retryHistory()}>{retryingHistory?"Saving…":"Retry saving reply"}</button></div>}
           {error && <div className="chat-error"><ShieldCheck size={14} />{error}<button onClick={() => setError("")}>Dismiss</button></div>}
           {writeProposal&&<TaskReview proposal={writeProposal} onDecision={answerWriteProposal}/>}
           {sending&&toolStatus&&<p className="settings-note">{toolStatus}</p>}
