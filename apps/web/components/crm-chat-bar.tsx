@@ -5,8 +5,8 @@ import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 import {browserSupabase} from '@/lib/supabase';
 export type CloudConversation={id:string;revision:number;workspace_id:string|null;customer_id:string|null;messages:{role:'user'|'assistant';content:string;imageId?:string}[]};
 export async function crmRequest<T>(path:string,method='GET',body?:unknown):Promise<T>{
- const response=await fetch('/api/crm/'+path,{method,headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store'});
- const data=await response.json();if(!response.ok)throw new Error(data.error||'CRM is unavailable.');return data as T;
+ const response=await fetch('/api/crm/'+path,{method,headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:body===undefined?undefined:JSON.stringify(body),cache:'no-store',...(path.startsWith('conversations/')&&(method==='PUT'||method==='GET')?{signal:AbortSignal.timeout(20000)}:{})});
+ const data=await response.json().catch(()=>({error:'Cloud history returned an unreadable response.'}));if(!response.ok)throw Object.assign(new Error(data.error||'CRM is unavailable.'),{status:response.status});return data as T;
 }
 export default function CrmChatBar({business=true,disabled,onLoad,onUnavailable,resetKey,scope}:{business?:boolean;scope?:CrmHostScope|null;disabled:boolean;onLoad:(row:CloudConversation)=>void;onUnavailable:()=>void;resetKey:number}){
  const [signed,setSigned]=useState(false),[spaces,setSpaces]=useState<{id:string;name:string}[]>([]),[workspace,setWorkspace]=useState(''),[customer,setCustomer]=useState('');
