@@ -35,7 +35,7 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
                                          'worker', database, main.MODEL_CONFIG['coding_team'], main.MODEL_CONFIG['coding_fallbacks'])
         self.assertEqual(completion.await_count, 3)
         for call in completion.call_args_list:
-            self.assertEqual(call.kwargs['extra_body']['reasoning'], {'enabled': False})
+            self.assertEqual(call.kwargs['extra_body']['reasoning'], {'effort': 'low'})
         self.assertEqual(completion.call_args_list[1].kwargs['extra_body']['models'],
                          ['cohere/north-mini-code:free', 'inception/mercury-3', 'qwen/qwen3.8-flash'])
         states = [kwargs['payload']['state'] for table, kwargs in calls if 'state' in kwargs.get('payload', {})]
