@@ -303,15 +303,15 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
         await live(stage)
 
     async def call(role, instructions, content, limit):
-        nonlocal used
+        nonlocal used, state
         await live(role)
         route = 'design' if role == 'coder' and payload.get('mode') == 'design' else role
         override = os.environ.get(f'VELTRA_{route.upper()}_MODEL')
         model = models.get(route, models[role])
         candidates = [*(fallbacks or {}).get(route, []), *([override] if override else [])]
         options = routing_options(model, candidates)
-        if route == 'design':
-            options['reasoning'] = {'enabled': False}
+        # These bounded steps need visible text/JSON, not a hidden reasoning budget.
+        options['reasoning'] = {'enabled': False}
         messages = [{'role': 'system', 'content': instructions}, {'role': 'user', 'content': content}]
         estimate = litellm.token_counter(model='openrouter/' + model, messages=messages)
         image_hold = 100 if payload.get('create_image') else 0
@@ -339,10 +339,17 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
         used += tokens
         # Persist usage before parsing or reviewing model output.
         await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}', 'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'credits_used': used})
-        text = result['choices'][0]['message'].get('content')
+        choice = result['choices'][0]
+        text = choice['message'].get('content')
+        receipt = {'role': role, 'model': result.get('model') or model, 'requested_model': model, 'credits': tokens, 'provider_request_id': result.get('id')}
         if not isinstance(text, str) or not text.strip():
-            raise ValueError('A team member returned no output.')
-        return text, {'role': role, 'model': result.get('model') or model, 'requested_model': model, 'credits': tokens, 'provider_request_id': result.get('id')}
+            finish = choice.get('finish_reason')
+            finish = finish if finish in ('stop', 'length', 'tool_calls', 'content_filter', 'error') else 'unknown'
+            receipt.update({'outcome': 'empty_output', 'finish_reason': finish})
+            state = {**state, 'receipts': state.get('receipts', []) + [receipt]}
+            await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}', 'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'state': state, 'credits_used': used})
+            raise ValueError(f'{role} returned no visible output (finish: {finish}). Usage was recorded; no successful build is claimed.')
+        return text, receipt
 
     async def make_image(prompt):
         nonlocal used
