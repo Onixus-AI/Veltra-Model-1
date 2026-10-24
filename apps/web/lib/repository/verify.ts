@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {Sandbox} from '@vercel/sandbox';
 import {checkedFiles,type ProjectFile} from '../build-artifacts';
 type Snapshot={repository:string;branch:string;base_sha:string;files:{path:string;content:string|null}[]};
-type Runner=Pick<Sandbox,'mkDir'|'writeFiles'|'runCommand'|'stop'>;
+type Runner=Pick<Sandbox,'writeFiles'|'runCommand'|'stop'>;
 const ROOT='/vercel/sandbox/project';
 export async function compareRepositoryFiles(input:{snapshot:Snapshot;proposed:ProjectFile[];test_path:string;create?:(options:Parameters<typeof Sandbox.create>[0])=>Promise<Runner>}){
  const proposed=checkedFiles(input.proposed),test=proposed.find(f=>f.path===input.test_path);
@@ -18,8 +18,9 @@ export async function compareRepositoryFiles(input:{snapshot:Snapshot;proposed:P
   let sandbox:Runner|undefined;
   try{
    sandbox=await (input.create??Sandbox.create)({...credentials,image:'vercel/sandbox/node:24',persistent:false,resources:{vcpus:1},timeout:60000,networkPolicy:'deny-all'});
-   await sandbox.mkDir(ROOT);
-   for(const file of files){const dirs=file.path.split('/').slice(0,-1).join('/');if(dirs)await sandbox.mkDir(ROOT+'/'+dirs);}
+   const directories=[...new Set([ROOT,...files.map(file=>ROOT+'/'+file.path.split('/').slice(0,-1).join('/'))])];
+   const setup=await sandbox.runCommand({cmd:'mkdir',args:['-p',...directories],cwd:'/vercel'});
+   if(setup.exitCode!==0)throw Error('The isolated repository workspace could not initialize.');
    await sandbox.writeFiles(files.map(file=>({path:ROOT+'/'+file.path,content:Buffer.from(file.content)})));
    // Same immutable test bytes and fixed command, in two separate credential-free VMs.
    const result=await sandbox.runCommand({cmd:'node',args:['--test',test.path],cwd:ROOT});
