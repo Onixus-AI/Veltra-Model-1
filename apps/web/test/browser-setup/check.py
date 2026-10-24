@@ -80,6 +80,12 @@ with sync_playwright() as p:
     expect(page.get_by_text('old',exact=True)).to_be_visible()
     expect(page.get_by_text('export const ready=true;',exact=True)).to_be_visible()
     assert not publish_calls,'Loading the review must not publish code'
+    page.screenshot(path=str(out/'repository-files-before-confirmation.png'))
+    page.set_viewport_size({'width':390,'height':844})
+    box=page.get_by_role('dialog',name='Review all repository files').bounding_box()
+    assert box['x']>=0 and box['x']+box['width']<=390
+    page.screenshot(path=str(out/'repository-review-mobile.png'))
+    page.set_viewport_size({'width':1280,'height':1000})
     page.get_by_role('button',name='Cancel',exact=True).click()
     assert not publish_calls,'Cancel must not publish code'
     page.goto('http://127.0.0.1:3189/?repository-review')
