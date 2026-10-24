@@ -22,6 +22,7 @@ import WorkspaceAppearance from "@/components/workspace-appearance";
 import {crmConnection} from "@/lib/crm-connection";
 const BusinessOsCanvas=dynamic(()=>import("@/components/business-os-canvas"));
 const ShopifyCanvas=dynamic(()=>import("@/components/shopify-canvas"));
+const BuildTeam=dynamic(()=>import("@/components/build-team"));
 const TmsCanvas=dynamic(()=>import("@/components/tms-canvas"));
 const CrmCanvas=dynamic(()=>import("@/components/crm-canvas"));
 const BrainManager=dynamic(()=>import("@/components/brain-manager"));
@@ -521,7 +522,7 @@ export default function VeltraWorkspace() {
         </div>
         {(retainedApps.crm||crmOpen)&&<div className="retained-workspace-app" hidden={!crmOpen}><CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/></div>}
         {(retainedApps.mail||mailOpen)&&<div className="retained-workspace-app" hidden={!mailOpen}><MailCanvas onClose={()=>setMailOpen(false)}/></div>}
-        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : buildOpen ? <BuildTeam embedded onReviewFile={file=>{setProposedFile(file);openTool("code");}}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 
