@@ -2,6 +2,8 @@ import {NextRequest} from 'next/server';
 import {Sandbox} from '@vercel/sandbox';
 import {gatewayAuthorization,gatewayUrl} from '@/lib/gateway';
 import {crmUser} from '@/lib/crm/server';
+import {compareRepositoryFiles} from '@/lib/repository/verify';
+import {requireTaskAccess} from '@/lib/task-access';
 import {checkedFiles} from '@/lib/build-artifacts';
 export const runtime='nodejs';
 export const maxDuration=300;
@@ -39,12 +41,26 @@ export async function POST(request:NextRequest){
   const run=await upstream.json();
   if(run.status!=='completed')throw new Error('Wait for the team to complete this task.');
   const files=checkedFiles(run.state?.artifacts?.files);
+  if(body.repository!==undefined&&typeof body.repository!=='boolean')throw Error('Invalid verification mode.');
+  if(body.repository===true){
+   if(typeof body.test_path!=='string'||!files.some(f=>f.path===body.test_path&&/\.(test|spec)\.mjs$/.test(f.path)))return Response.json({detail:'Include and select a dependency-free .test.mjs file in this task.'},{status:400});
+   const permission=await requireTaskAccess(request,request.headers.get('x-veltra-task'),['github']);if(permission)return permission;
+  }
   const browser=files.some(f=>f.path==='index.html');
   if(actions.length&&!browser)throw new Error('Browser actions require a self-contained index.html.');
   const {client}=await crmUser(request);
   const claim=await client.rpc('claim_agent_verification',{p_id:run.id});
   if(claim.error||claim.data!==true)return Response.json({detail:'Verification is already running, completed, or has reached its two-attempt limit.'},{status:409});
   finishVerification=async(success)=>{await client.rpc('finish_agent_verification',{p_id:run.id,p_success:success});};
+  if(body.repository===true){
+   const base=process.env.VELTRA_MAIL_URL;if(!base)throw Error('Repository connections unavailable.');
+   const response=await fetch(base.replace(/\/$/,'')+'/chat/connections/github/verification-files',{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json'},body:JSON.stringify({paths:files.map(f=>f.path)}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(30000)});
+   if(!response.ok)throw Error('Repository snapshot unavailable.');
+   const snapshot=await response.json();
+   const receipt=await compareRepositoryFiles({snapshot,proposed:files,test_path:body.test_path});
+   await finishVerification(true);finishVerification=undefined;
+   return Response.json({...receipt,run_id:run.id},{headers:{'Cache-Control':'no-store'}});
+  }
   const credentials=process.env.VERCEL_TOKEN&&process.env.VERCEL_TEAM_ID&&process.env.VERCEL_PROJECT_ID?{token:process.env.VERCEL_TOKEN,teamId:process.env.VERCEL_TEAM_ID,projectId:process.env.VERCEL_PROJECT_ID}:{};
   sandbox=await Sandbox.create({...credentials,resources:{vcpus:1},timeout:180000,persistent:false,
    networkPolicy:browser?{allow:['registry.npmjs.org']}:'deny-all'});

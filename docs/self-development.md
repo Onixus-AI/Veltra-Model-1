@@ -1,3 +1,11 @@
+The Super Coder workspace panel now mounts the coding-task workspace, including task history, generated files and execution controls. Previously its state changed the panel heading but still rendered the generic artifact canvas.
+
+# Isolated repository comparison
+
+For a completed Super Coder task, enable **Compare with selected repository** and choose a generated `.test.mjs` file. Include every source file needed by that dependency-free Node test. The connector reads those paths at one immutable selected-repository commit. The host runs the same proposed test bytes against the baseline and proposed files in two fresh offline Node 24 sandboxes, with no host credentials inside either VM. It returns exit codes, bounded logs, commit and content hashes. The completed task must belong to the caller; comparisons share the existing atomic two-attempt verification allowance. No database schema or model policy changes are required.
+
+This is selected-file verification, not a full repository checkout, package installation, application build or deployment. Missing imports, syntax errors and poor assertions can cause a baseline failure; fail-before/pass-after is evidence to inspect, not proof of a correct diagnosis. Receipts are returned to the current client; durable receipt storage is a later milestone. Publishing remains paused, including after successful checks.
+
 # Evidence-first repository proposals
 
 AI-generated repository publishing is paused by default. Chat advertises `github_review_proposal` instead of write tools; stale write calls are rejected. Both single-file and multi-file connector publishing endpoints reject requests unless an operator explicitly sets `VELTRA_REPOSITORY_PUBLISH_ENABLED=true`. Review interfaces check the authenticated development policy and disable publishing while paused. This change does not enable that flag.

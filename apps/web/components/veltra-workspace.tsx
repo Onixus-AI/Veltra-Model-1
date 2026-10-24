@@ -22,6 +22,7 @@ import WorkspaceAppearance from "@/components/workspace-appearance";
 import {crmConnection} from "@/lib/crm-connection";
 const BusinessOsCanvas=dynamic(()=>import("@/components/business-os-canvas"));
 const ShopifyCanvas=dynamic(()=>import("@/components/shopify-canvas"));
+const BuildTeam=dynamic(()=>import("@/components/build-team"));
 const TmsCanvas=dynamic(()=>import("@/components/tms-canvas"));
 const CrmCanvas=dynamic(()=>import("@/components/crm-canvas"));
 const BrainManager=dynamic(()=>import("@/components/brain-manager"));
@@ -313,7 +314,7 @@ export default function VeltraWorkspace() {
         }
         const result=await fetch('/api/agent-runs',{method:'POST',headers:{'Content-Type':'application/json',...await gatewayAuthorizationHeaders()},body:JSON.stringify({id:crypto.randomUUID(),task:prompt.slice(0,4000),context:repositoryContext.slice(0,8000),budget:6000,create_image:false})});
         const run=await result.json();if(!result.ok)throw new Error(run.detail??'Super Coder could not start.');
-        savedMessages=[...nextMessages,{role:'assistant',content:`Super Coder started task ${run.id}. Open the task in Super Coder to follow its progress, inspect files and run checks. 6,000 credits reserved; unused credits return after settlement. Repository changes require review before a draft pull request is created.`}];setMessages(savedMessages);try{sessionStorage.setItem('veltra-active-coder-run',run.id);}catch{}return;
+        savedMessages=[...nextMessages,{role:'assistant',content:`Super Coder started task ${run.id}. Open the task in Super Coder to follow its progress, inspect files and run checks. 6,000 credits reserved; unused credits return after settlement. Repository changes require review before a draft pull request is created.`}];setMessages(savedMessages);try{sessionStorage.setItem('veltra-active-coder-run',run.id);}catch{}window.dispatchEvent(new CustomEvent('veltra-coder-run',{detail:run}));openTool('build',false);return;
       }
       let commerceContext='';
       if(shopifyOpen){try{if(!await taskAccess.require('shopify','Read the catalog for this task.'))throw Error('Shopify access denied.');const r=await taskAccess.fetch('/api/mail/shopify/catalog',{method:'POST',headers:{...await gatewayAuthorizationHeaders(),'Content-Type':'application/json','x-veltra-task':taskAccess.id},body:'{}',cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error();commerceContext=JSON.stringify({observed_at:new Date().toISOString(),shop:d.shop,products:d.products});}catch{commerceContext='Shopify catalog unavailable. Do not infer a store connection or current products.';}}
@@ -521,7 +522,7 @@ export default function VeltraWorkspace() {
         </div>
         {(retainedApps.crm||crmOpen)&&<div className="retained-workspace-app" hidden={!crmOpen}><CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/></div>}
         {(retainedApps.mail||mailOpen)&&<div className="retained-workspace-app" hidden={!mailOpen}><MailCanvas onClose={()=>setMailOpen(false)}/></div>}
-        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : buildOpen ? <BuildTeam embedded onReviewFile={file=>{setProposedFile(file);openTool("code");}}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 
