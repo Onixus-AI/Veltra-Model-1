@@ -61,4 +61,29 @@ with sync_playwright() as p:
         mobile.get_by_role('button', name='Open my first task', exact=True).click()
         expect(mobile.get_by_role('textbox', name='Prepared task', exact=True)).not_to_have_value('')
         context.close()
+    publish_calls=[]
+    def repository_api(route):
+        body=route.request.post_data_json
+        if route.request.url.endswith('/github/change-set'):
+            data={'repository':'owner/repo','branch':'main','connection_version':3,'base_sha':'a'*40,'title':body['title'],'files':body['files'],'before':[{'path':'src/existing.ts','content':'old'},{'path':'src/new.ts','content':None}]}
+        else:
+            publish_calls.append(body)
+            data={'url':'https://github.com/owner/repo/pull/7'}
+        route.fulfill(status=200,content_type='application/json',body=__import__('json').dumps(data))
+    page.route('**/api/connections/github/*',repository_api)
+    page.goto('http://127.0.0.1:3189/?repository-review')
+    expect(page.get_by_role('dialog',name='Review all repository files')).to_be_visible()
+    page.get_by_text('Update: src/existing.ts',exact=True).click()
+    page.get_by_text('New file: src/new.ts',exact=True).click()
+    expect(page.get_by_text('old',exact=True)).to_be_visible()
+    expect(page.get_by_text('export const ready=true;',exact=True)).to_be_visible()
+    assert not publish_calls,'Loading the review must not publish code'
+    page.get_by_role('button',name='Cancel',exact=True).click()
+    assert not publish_calls,'Cancel must not publish code'
+    page.goto('http://127.0.0.1:3189/?repository-review')
+    page.get_by_role('button',name='Create draft pull request',exact=True).click()
+    expect(page.get_by_role('status')).to_contain_text('Draft pull request created')
+    assert len(publish_calls)==1 and len(publish_calls[0]['files'])==2
+    assert 'before' not in publish_calls[0]
+    page.screenshot(path=str(out/'repository-change-review.png'))
     browser.close()
