@@ -9,6 +9,7 @@ with sync_playwright() as p:
  def api(route):
   path=route.request.url
   if 'fixture.supabase.co' in path: data={}
+  elif '/api/agent-runs' in path:data={'runs':[]}
   elif '/api/crm/connection' in path:data={'connected':False}
   else:data={'connected':False,'items':[],'conversations':[]}
   route.fulfill(status=200,content_type='application/json',body=json.dumps(data))
@@ -85,5 +86,9 @@ with sync_playwright() as p:
  page.get_by_role('textbox',name='Find a workspace action').fill('nonsense')
  expect(page.get_by_role('dialog').get_by_role('status')).to_contain_text('No matching actions')
  page.screenshot(path=str(out/'workspace-search-mobile.png'))
+ page.goto('http://127.0.0.1:3187/?canvas=build&mode=dev')
+ expect(page.get_by_role('heading',name='Give the team a task.')).to_be_visible()
+ expect(page.get_by_role('button',name='Start team',exact=True)).to_be_disabled()
+ page.screenshot(path=str(out/'workspace-super-coder.png'))
  assert not errors,errors
  browser.close()
