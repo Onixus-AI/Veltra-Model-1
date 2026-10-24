@@ -102,4 +102,23 @@ with sync_playwright() as p:
     expect(page.get_by_role('status')).to_contain_text('Publishing is paused')
     assert len(publish_calls)==1,'Paused review must not publish code'
     page.screenshot(path=str(out/'repository-publishing-paused.png'))
+    run_id='00000000-0000-4000-8000-000000000001'
+    run={'id':run_id,'status':'completed','stage':'complete','created_at':'2026-10-24T12:00:00Z','credits_used':0,'credits_reserved':0,'verification_attempts':0,'state':{'artifacts':{'summary':'Comparison fixture','files':[{'path':'src/flag.mjs','content':'export const enabled=false;'}, {'path':'flag.test.mjs','content':'import assert from "node:assert/strict";'}]}}}
+    page.route('**/api/agent-runs*',lambda route:route.fulfill(json={'runs':[run]}))
+    page.route('**/api/agent-runs/*',lambda route:route.fulfill(json=run))
+    comparisons=[]
+    def verify_repository(route):
+        comparisons.append(route.request.post_data_json)
+        route.fulfill(json={'receipt_id':'fixture-receipt','base_sha':'a'*40,'checks_passed':True,'before_failed_after_passed':True,'scope':'Selected text files only. Publishing remains paused.','checks':[{'name':'Before · same Node test','exit_code':1,'stdout':'assertion failed','stderr':''},{'name':'After · same Node test','exit_code':0,'stdout':'test passed','stderr':''}]})
+    page.route('**/api/build/verify',verify_repository)
+    page.goto('http://127.0.0.1:3189/?repository-verify')
+    page.get_by_role('button').filter(has_text='completed · 0 credits').click()
+    page.get_by_role('checkbox',name='Compare with selected repository').check()
+    expect(page.get_by_label('Comparison test')).to_have_value('flag.test.mjs')
+    page.get_by_role('button',name='Run before & after tests').click()
+    expect(page.get_by_text('The test failed before and passed after.',exact=False)).to_be_visible()
+    assert comparisons==[{'run_id':run_id,'repository':True,'test_path':'flag.test.mjs'}]
+    page.get_by_text('Before · same Node test · failed',exact=True).click()
+    page.get_by_text('After · same Node test · passed',exact=True).click()
+    page.screenshot(path=str(out/'repository-before-after.png'))
     browser.close()
