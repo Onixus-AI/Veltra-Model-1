@@ -63,6 +63,9 @@ with sync_playwright() as p:
         context.close()
     publish_calls=[]
     def repository_api(route):
+        if route.request.url.endswith('/github/development-policy'):
+            route.fulfill(status=200,content_type='application/json',body=__import__('json').dumps({'publishing_enabled':'publish-paused' not in page.url}))
+            return
         body=route.request.post_data_json
         if route.request.url.endswith('/github/change-set'):
             data={'repository':'owner/repo','branch':'main','connection_version':3,'base_sha':'a'*40,'title':body['title'],'files':body['files'],'before':[{'path':'src/existing.ts','content':'old'},{'path':'src/new.ts','content':None}]}
@@ -94,4 +97,9 @@ with sync_playwright() as p:
     assert len(publish_calls)==1 and len(publish_calls[0]['files'])==2
     assert 'before' not in publish_calls[0]
     page.screenshot(path=str(out/'repository-change-review.png'))
+    page.goto('http://127.0.0.1:3189/?repository-review&publish-paused')
+    expect(page.get_by_role('button',name='Create draft pull request',exact=True)).to_be_disabled()
+    expect(page.get_by_role('status')).to_contain_text('Publishing is paused')
+    assert len(publish_calls)==1,'Paused review must not publish code'
+    page.screenshot(path=str(out/'repository-publishing-paused.png'))
     browser.close()
