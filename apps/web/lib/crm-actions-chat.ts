@@ -1,7 +1,9 @@
+import {campaignBriefIntent,campaignTemplate} from './crm/campaign-templates';
 import type {SupabaseClient} from '@supabase/supabase-js';
 const uuid='([a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12})';
-export type CrmAction={action:'status'|'campaigns'|'mail_status'|'mail_connect'|'mail_retry'}|{action:'campaign';id:string}|{action:'outreach';id:string;operation:'pause'|'activate'|'approve'|'stop'}|{action:'enrichment';enabled:boolean}|{action:'contacts';query:string}|{action:'contact_status';customer:string}|{action:'research';customer:string;website:string}|{action:'approve_contact';customer:string;email:string;source:string}|{action:'draft_campaign';input:Record<string,unknown>}|{action:'task';customer:string;title:string;due:string|null}|{action:'memory';customer:string;content:string}|{action:'complete_task';id:string};
+export type CrmAction={action:'campaign_brief';industry:string}|{action:'status'|'campaigns'|'mail_status'|'mail_connect'|'mail_retry'}|{action:'campaign';id:string}|{action:'outreach';id:string;operation:'pause'|'activate'|'approve'|'stop'}|{action:'enrichment';enabled:boolean}|{action:'contacts';query:string}|{action:'contact_status';customer:string}|{action:'research';customer:string;website:string}|{action:'approve_contact';customer:string;email:string;source:string}|{action:'draft_campaign';input:Record<string,unknown>}|{action:'task';customer:string;title:string;due:string|null}|{action:'memory';customer:string;content:string}|{action:'complete_task';id:string};
 export function crmActionIntent(text:string):CrmAction|null{
+ const brief=campaignBriefIntent(text);if(brief)return {action:'campaign_brief',industry:brief.industry};
  const v=text.trim();if(v.length>20000)return null;let m:RegExpExecArray|null;
  if(/^(?:please )?connect (?:Veltra )?Mail to this business[.!]?$/i.test(v))return {action:'mail_connect'};
  if(/^(?:please )?(?:show|check) (?:this (?:customer|company)[’']s contact research|contact research for this customer)[.!?]?$/i.test(v))return {action:'contact_status',customer:'current'};
@@ -30,6 +32,10 @@ export function crmActionIntent(text:string):CrmAction|null{
 const safe=(v:unknown,n=250)=>String(v??'').slice(0,n).replace(/[\r\n]/g,' ').replace(/[\\`*_{}\[\]()#+.!<>|]/g,'\\$&');
 export async function executeCrmAction(client:SupabaseClient,user:string,workspace:string,intent:CrmAction,o:{authorization:string;mailOrigin?:string;operation:string;customer?:string;fetcher?:typeof fetch}){
  if(!['status','contacts','contact_status','campaigns','campaign','mail_status'].includes(intent.action)){const {data,error}=await client.from('crm_workspaces').select('id').eq('id',workspace).eq('owner_id',user).maybeSingle();if(error||!data)throw Error('403:Only this business owner can perform this CRM action.');}
+ if(intent.action==='campaign_brief'){
+  const t=campaignTemplate(intent.industry);const q=new URLSearchParams({view:'Automation',workspace,industry:intent.industry,pillar:'suite'});
+  return 'Prepared a Veltra outreach template for '+safe(intent.industry)+'.\n\nSubject: '+safe(t.subject)+'\n\n'+t.body+'\n\nVisual story: '+t.story+'. Includes the original Onixus logo.\n\n[Review the campaign in CRM](/crm?'+q.toString()+')\n\nThis is a prepared template, not a saved or sent campaign. Select the correct business workspace and recipients, add your postal address, then review the exact branded drafts before activation.';
+ }
  if('customer' in intent&&intent.customer==='current'){
   if(!o.customer)throw Error('400:Open this customer’s business conversation first, so the action is saved to the correct company.');
   intent={...intent,customer:o.customer};
