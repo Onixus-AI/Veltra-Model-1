@@ -4,7 +4,7 @@ const sections = [
   {
     "id": "scope",
     "title": "Scope and operator",
-    "body": "This policy covers Veltra Chat, Veltra Mail and integrations operated as part of Onixus Workspace. Onixus owns and operates Onixus Workspace and is responsible for the handling of information described here. Our mailing address is 4805 Purdue Drive, Boynton Beach, Florida 33435, United States. Privacy questions and requests can be sent to info@onixus.xyz. A business using Onixus Workspace may separately control the personal data it uploads; its own privacy responsibilities still apply."
+    "body": "This policy covers Onixus Chat, Onixus Mail and integrations operated as part of Onixus Workspace. Onixus owns and operates Onixus Workspace and is responsible for the handling of information described here. Our mailing address is 4805 Purdue Drive, Boynton Beach, Florida 33435, United States. Privacy questions and requests can be sent to info@onixus.xyz. A business using Onixus Workspace may separately control the personal data it uploads; its own privacy responsibilities still apply."
   },
   {
     "id": "data",

@@ -4,7 +4,7 @@ import { NextRequest } from "next/server";
 
 export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "tms" | "shopify" | `shopify/${string}`) {
   const origin = process.env.VELTRA_MAIL_URL;
-  if (!origin) return Response.json({ error: "Veltra Mail connection is not configured yet." }, { status: 503 });
+  if (!origin) return Response.json({ error: "Onixus Mail connection is not configured yet." }, { status: 503 });
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer ")) return Response.json({ error: "Sign in to Chat first." }, { status: 401 });
   try {
@@ -18,7 +18,7 @@ export async function mailProxy(request: NextRequest, path: "link" | "inbox" | "
     return new Response(upstream.body, { status: upstream.status, headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
   } catch(error) {
     if(error instanceof Error&&/^\d{3}:/.test(error.message))return crmError(error);
-    return Response.json({ error: "Veltra Mail is temporarily unavailable. Please try again." }, { status: 502 });
+    return Response.json({ error: "Onixus Mail is temporarily unavailable. Please try again." }, { status: 502 });
   }
 }
 

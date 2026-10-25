@@ -1,0 +1,17 @@
+{
+ "results": [
+  "overview-light",
+  "pipeline-table-light",
+  "mail-light",
+  "preview write refused: Preview uses sample data. Sign in to make changes.",
+  "pipeline-board-dark",
+  "customer-dark",
+  "automation-dark",
+  "reviews-dark",
+  "theme toggle light on dark system: rgb(246, 247, 249); after reload: rgb(246, 247, 249)",
+  "keyboard: first Tab=\"Skip to content\", ArrowDown x2 focus=\"Customers\", Enter opened Customers",
+  "overview-mobile-dark",
+  "mobile horizontal overflow px: 0"
+ ],
+ "errors": []
+}

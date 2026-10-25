@@ -78,7 +78,7 @@ with sync_playwright() as p:
  page.goto('http://127.0.0.1:3188/?dashboard');page.wait_for_load_state('networkidle')
  expect(page.get_by_role('heading',name='Every relationship. In motion.')).to_be_visible()
  expect(page.get_by_text('$4,700',exact=True)).to_be_visible()
- expect(page.get_by_role('link',name='Veltra Mail',exact=False)).to_have_attribute('target','_top')
+ expect(page.get_by_role('link',name='Onixus Mail',exact=False)).to_have_attribute('target','_top')
  expect(page.get_by_role('heading',name='Lead sources → business outcomes')).to_be_visible()
  expect(page.get_by_role('heading',name='Pipeline & forecast')).to_be_visible()
  page.get_by_text('More business details · opportunities, follow-ups, intake & connections',exact=True).click()

@@ -25,7 +25,7 @@ with sync_playwright() as p:
  page.route('**/api/ai-access',consent);page.route('**/fixture/mail',mail)
  page.goto('http://127.0.0.1:3188/?task-consent');page.wait_for_load_state('networkidle')
  run=page.get_by_role('button',name='Run Mail task',exact=True)
- run.click();dialog=page.get_by_role('dialog',name='Allow access to Veltra Mail?',exact=True)
+ run.click();dialog=page.get_by_role('dialog',name='Allow access to Onixus Mail?',exact=True)
  expect(dialog.get_by_role('button',name='Deny',exact=True)).to_be_focused()
  assert provider['calls']==0
  expect(page.get_by_text('Background Mail automation remains running.')).to_be_attached()

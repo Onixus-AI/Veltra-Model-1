@@ -57,4 +57,4 @@ const sections = [
     "body": "Material changes will be communicated through the service or account contact where appropriate, with an effective date. Changes do not override rights already accrued or mandatory law. Questions about terms, access or account closure can be sent to info@onixus.xyz. Legal notices may also be mailed to Onixus at 4805 Purdue Drive, Boynton Beach, Florida 33435, United States."
   }
 ];
-export default function Page(){return <PublicPage title="End User License Agreement" intro="Terms for using Veltra Chat, Veltra Mail and connected workspace tools." sections={sections}/>;}
+export default function Page(){return <PublicPage title="End User License Agreement" intro="Terms for using Onixus Chat, Onixus Mail and connected workspace tools." sections={sections}/>;}

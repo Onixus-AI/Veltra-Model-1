@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   const status = await mailProxy(probe, "link");
   if (!status.ok) return status;
   const data = await status.json();
-  if (!data.connected) return Response.json({ error: "Connect Veltra Mail first." }, { status: 409 });
+  if (!data.connected) return Response.json({ error: "Connect Onixus Mail first." }, { status: 409 });
   const response = NextResponse.json({ url: "/api/mail/platform/app" });
   response.cookies.set("veltra_mail_frame", authorization.slice(7), { httpOnly: true, secure: request.nextUrl.protocol === "https:", sameSite: "strict", path: "/api/mail/platform", maxAge: 240 });
   response.headers.set("Cache-Control", "no-store");

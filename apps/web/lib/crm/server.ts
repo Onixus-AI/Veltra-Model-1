@@ -1,4 +1,6 @@
 import {createClient} from '@supabase/supabase-js';
+import {onyxCustomerContext,onyxSystemRules} from '@/lib/revenue/chat-context';
+import type {CustomerContext} from '@/lib/revenue/context';
 export async function crmUser(request:Request){
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  if(!url||!key)throw new Error('503:CRM is not configured.');
@@ -28,6 +30,7 @@ export async function crmContext(request:Request,id:string){
  client.from('crm_mail_threads').select('subject,quote_outcome').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).not('quote_outcome','is',null).limit(20),
  client.from('crm_activity').select('kind,title,created_at').eq('workspace_id',workspace.id).eq('customer_id',conversation.customer_id).order('created_at',{ascending:false}).limit(20)]);
  for(const q of queries)if(q.error)throw q.error;
- return {scope:'customer',workspace,customer:queries[0].data,memories:queries[1].data,open_tasks:queries[2].data,deals:queries[3].data,quote_outcomes:queries[4].data,recent_activity:queries[5].data};
+ const revenue=await (async()=>{try{const {data,error}=await client.rpc('revenue_customer_context',{p_workspace:workspace.id,p_customer:conversation.customer_id});if(error||!data?.customer)return {unavailable:true};return {rules:onyxSystemRules,summary:onyxCustomerContext(data as CustomerContext)};}catch{return {unavailable:true};}})();
+ return {scope:'customer',workspace,customer:queries[0].data,memories:queries[1].data,open_tasks:queries[2].data,deals:queries[3].data,quote_outcomes:queries[4].data,recent_activity:queries[5].data,revenue};
 }
 

@@ -1,0 +1,5 @@
+# 2026-10-25T04:20:42Z commit 9d8f189 — local postgres:16, database 'rev'
+re-applied 20261025090000_revenue_core_records.sql: ok
+re-applied 20261025090100_revenue_mail_automation.sql: ok
+re-applied 20261025090200_revenue_journey.sql: ok
+revenue isolation tests passed
