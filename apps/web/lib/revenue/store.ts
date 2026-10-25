@@ -29,7 +29,8 @@ export function toRevenueError(error: unknown): RevenueError {
   const raw = error instanceof Error ? error.message : typeof error === 'object' && error && 'message' in error ? String((error as {message: unknown}).message) : '';
   const matched = statusPrefix.exec(raw.trim());
   if (matched) return new RevenueError(Number(matched[1]), matched[2].trim());
-  if (/permission denied|row-level security/i.test(raw)) return new RevenueError(403, 'Your workspace role does not allow this action.');
+  const code = typeof error === 'object' && error && 'code' in error ? String((error as {code: unknown}).code) : '';
+  if (code === '42501' || /permission denied|row-level security|not authorized/i.test(raw)) return new RevenueError(403, 'Your workspace role does not allow this action.');
   if (/does not exist|schema cache/i.test(raw)) return new RevenueError(503, 'The Onixus revenue system is not enabled for this workspace yet.');
   return new RevenueError(502, 'Onixus CRM could not complete this request. Refresh and try again.');
 }
