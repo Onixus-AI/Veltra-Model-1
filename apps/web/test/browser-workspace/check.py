@@ -54,11 +54,11 @@ with sync_playwright() as p:
  expect(page.get_by_role('textbox',name='Message Onixus Workspace')).to_have_value('Creator draft to keep')
  page.get_by_role('button',name='Expand sidebar',exact=True).click()
  expect(page.get_by_role('button',name='Project files',exact=True)).to_be_visible()
- assert page.get_by_role('button',name='Veltra CRM',exact=True).count()==0
+ assert page.get_by_role('button',name='Onixus CRM',exact=True).count()==0
  page.screenshot(path=str(out/'workspace-creator.png'))
  page.get_by_role('button',name='Collapse sidebar',exact=True).click()
  page.get_by_role('button',name='Business',exact=True).click()
- page.get_by_role('button',name='Veltra CRM',exact=True).click()
+ page.get_by_role('button',name='Onixus CRM',exact=True).click()
  expect(page.locator('.workspace')).to_have_class(__import__('re').compile('canvas-full'))
  expect(page.locator('.chat-panel')).not_to_be_visible()
  page.screenshot(path=str(out/'workspace-crm.png'))

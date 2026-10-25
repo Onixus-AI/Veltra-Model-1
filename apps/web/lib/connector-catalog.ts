@@ -1,4 +1,7 @@
 export type CatalogTool = { name: string; description: string; kind?: "workspace" | "mcp" };
+// Catalog names are matching and logo keys; customers see the display name.
+const displayNames: Record<string, string> = { "Veltra CRM": "Onixus CRM", "Veltra Gather": "Onixus Gather" };
+export const toolDisplayName = (name: string) => displayNames[name] ?? name;
 export const connectorSections = [
  { id:"dev",name:"Dev Tools",description:"Build, automate and ship.",tools:[] },
  { id:"business",name:"Business Tools",description:"The everyday work, together.",tools:[{name:"Google Docs",description:"Create and edit business documents."},{name:"Google Sheets",description:"Work with spreadsheets and reporting."},{name:"Google Slides",description:"Create presentations from your ideas and brand assets."},{name:"Google Calendar",description:"Plan meetings and manage your schedule."},{name:"HubSpot",description:"Work with contacts, deals and customer follow-ups."},{name:"Veltra CRM",description:"A customer workspace connected to your conversations.",kind:"workspace"},{name:"Slack",description:"Bring team conversations into your work."},{name:"QuickBooks",description:"Connect accounting and business records."},{name:"Shopify",description:"Manage store information and commerce workflows."},{name:"TikTok Shop",description:"Connect your shop and commerce content."}] },
