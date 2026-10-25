@@ -312,6 +312,20 @@ begin
  return j;
 end $$;
 
+-- Approved or queued sends to a newly suppressed address stop with a visible reason.
+create or replace function revenue_private.cancel_for_recipient(p_workspace uuid, p_email text, p_reason text) returns integer
+language plpgsql security definer set search_path='' as $$
+declare x uuid; n integer := 0;
+begin
+ for x in select id from public.revenue_messages where workspace_id=p_workspace and direction='outbound' and status in ('approved','queued') and public.revenue_normalize_email(to_email)=p_email loop
+  perform revenue_private.transition_message(x,'cancelled',jsonb_build_object('failure',jsonb_build_object('reason',p_reason)),'email.cancelled','Send stopped: recipient '||p_reason,'mail','system','email.cancelled:'||x,
+   'Review consent and suppression before contacting this customer.');
+  update public.revenue_jobs set status='cancelled',cancel_reason='Recipient '||p_reason,finished_at=now(),updated_at=now() where message_id=x and status='queued';
+  n := n+1;
+ end loop;
+ return n;
+end $$;
+
 -- ---------- Onixus Mail: user actions ----------
 create or replace function public.revenue_draft_message(p_workspace uuid, p_draft jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -330,7 +344,7 @@ begin
  select id into m from public.revenue_messages where workspace_id=p_workspace and idempotency_key=k;
  if m is not null then return jsonb_build_object('message_id',m,'status',(select status from public.revenue_messages where id=m),'duplicate',true); end if;
  insert into public.revenue_messages(workspace_id,customer_id,deal_id,account_id,thread_id,direction,purpose,status,to_email,from_email,cc,subject,body,sender_identity_id,in_reply_to,attachments,template_id,ai_generated,created_by,idempotency_key,follow_up_of)
- values(p_workspace,c,(p_draft->>'deal_id')::uuid,(p_draft->>'account_id')::uuid,nullif(p_draft->>'thread_id',''),'outbound',coalesce(p_draft->>'purpose','reply'),'drafted',to_addr,ident.email,p_draft->>'cc',
+ values(p_workspace,c,(p_draft->>'deal_id')::uuid,coalesce((p_draft->>'account_id')::uuid,ident.account_id),nullif(p_draft->>'thread_id',''),'outbound',coalesce(p_draft->>'purpose','reply'),'drafted',to_addr,ident.email,p_draft->>'cc',
         left(coalesce(p_draft->>'subject',''),500),coalesce(p_draft->>'body',''),ident.id,p_draft->>'in_reply_to',coalesce(p_draft->'attachments','[]'),(p_draft->>'template_id')::uuid,
         coalesce((p_draft->>'ai_generated')::boolean,false),u,k,(p_draft->>'follow_up_of')::uuid)
  returning id into m;
@@ -482,6 +496,7 @@ begin
  insert into public.revenue_suppressions(workspace_id,email_canonical,reason,source,detail,created_by) values(p_workspace,em,coalesce(p_reason,'manual'),'crm',p_detail,u) on conflict(workspace_id,email_canonical) do nothing;
  with x as (update public.revenue_jobs j set status='cancelled',cancel_reason='Recipient suppressed',finished_at=now(),updated_at=now()
   from public.revenue_messages m where j.workspace_id=p_workspace and j.message_id=m.id and j.status='queued' and public.revenue_normalize_email(m.to_email)=em returning j.id) select count(*) into n from x;
+ perform revenue_private.cancel_for_recipient(p_workspace,em,'suppressed');
  perform revenue_private.audit(p_workspace,'user','suppression.add','email',em,jsonb_build_object('reason',p_reason,'cancelled_jobs',n));
  return jsonb_build_object('suppressed',em,'cancelled_jobs',n);
 end $$;
@@ -653,8 +668,9 @@ begin
   em := public.revenue_normalize_email(p_event->>'email');
   if em is null then raise exception '400:Invalid email.'; end if;
   insert into public.revenue_suppressions(workspace_id,email_canonical,reason,source,detail) values(w,em,'unsubscribe','Onixus Mail',p_event->>'method') on conflict do nothing;
-  update public.revenue_jobs j set status='cancelled',cancel_reason='Recipient unsubscribed',finished_at=now(),updated_at=now()
-   from public.revenue_messages x where j.workspace_id=w and j.message_id=x.id and j.status='queued' and public.revenue_normalize_email(x.to_email)=em;
+  update public.revenue_jobs rj set status='cancelled',cancel_reason='Recipient unsubscribed',finished_at=now(),updated_at=now()
+   from public.revenue_messages x where rj.workspace_id=w and rj.message_id=x.id and rj.status='queued' and public.revenue_normalize_email(x.to_email)=em;
+  perform revenue_private.cancel_for_recipient(w,em,'unsubscribed');
   select id into c from public.crm_customers where workspace_id=w and merged_into_id is null and email is not null and public.revenue_normalize_email(email)=em order by created_at limit 1;
   if c is not null then
    insert into public.revenue_consents(workspace_id,customer_id,channel,purpose,status,source,evidence) values(w,c,'email','marketing','revoked','Onixus Mail unsubscribe',p_event->>'method');
@@ -787,7 +803,7 @@ begin
   perform revenue_private.transition_message(m.id,'provider_accepted',jsonb_build_object('provider_message_id',p_result->>'provider_message_id','provider_thread_id',p_result->>'provider_thread_id',
     'detail',jsonb_build_object('provider_message_id',p_result->>'provider_message_id','delivery_confirmed',false)),
    'email.provider_accepted','Accepted by '||coalesce(p_result->>'provider','the mail provider')||'. Delivery is not confirmed yet.','gmail','provider','email.accepted:'||m.id);
-  if m.account_id is not null and coalesce(m.thread_id,p_result->>'provider_thread_id') is not null then
+  if m.account_id is not null and m.customer_id is not null and coalesce(m.thread_id,p_result->>'provider_thread_id') is not null then
    insert into public.crm_mail_threads(account_id,thread_id,workspace_id,customer_id,subject,last_event_at,state,last_outbound_at)
    values(m.account_id,coalesce(m.thread_id,p_result->>'provider_thread_id'),m.workspace_id,m.customer_id,m.subject,now(),'waiting_on_customer',now())
    on conflict(workspace_id,account_id,thread_id) do update set last_outbound_at=now(),last_event_at=now(),
@@ -850,7 +866,7 @@ do $$ declare f text; begin
  end loop;
  foreach f in array array['revenue_private.require_worker(text)','revenue_private.integration(uuid,text,text)','revenue_private.block_reason(uuid,text,text)',
   'revenue_private.transition_message(uuid,text,jsonb,text,text,text,text,text,text)','revenue_private.enqueue(uuid,text,text,text,jsonb,timestamptz,uuid,uuid,integer,uuid,integer)',
-  'revenue_private.workflow(uuid,text)','revenue_private.queue_send(uuid,integer,uuid)'] loop
+  'revenue_private.workflow(uuid,text)','revenue_private.queue_send(uuid,integer,uuid)','revenue_private.cancel_for_recipient(uuid,text,text)'] loop
   execute 'revoke all on function '||f||' from public, anon, authenticated';
  end loop;
 end $$;

@@ -206,7 +206,7 @@ create table if not exists public.revenue_consents(
  source text not null check(length(source) between 1 and 200),
  evidence text check(length(evidence)<=2000),
  recorded_by uuid references auth.users(id),
- recorded_at timestamptz not null default now(),
+ recorded_at timestamptz not null default clock_timestamp(),
  foreign key(workspace_id,customer_id) references public.crm_customers(workspace_id,id)
 );
 create index if not exists revenue_consents_customer on public.revenue_consents(workspace_id,customer_id,channel,purpose,recorded_at desc);
@@ -234,7 +234,7 @@ create table if not exists public.revenue_events(
  actor_id uuid,
  actor_label text,
  occurred_at timestamptz not null,
- recorded_at timestamptz not null default now(),
+ recorded_at timestamptz not null default clock_timestamp(),
  status text not null default 'recorded',
  subject_type text,
  subject_id uuid,
@@ -308,7 +308,7 @@ begin
   if coalesce(array_length(ids,1),0)=1 then
    return jsonb_build_object('customer_id',ids[1],'outcome','matched','confidence','high','reason','exact_email');
   elsif coalesce(array_length(ids,1),0)>1 then
-   select id into review from public.revenue_identity_reviews where workspace_id=p_workspace and status='open' and customer_id=ids[1] and reason='multiple_email_matches';
+   select r.id into review from public.revenue_identity_reviews r where r.workspace_id=p_workspace and r.status='open' and r.customer_id=ids[1] and r.reason='multiple_email_matches';
    if review is null then
     insert into public.revenue_identity_reviews(workspace_id,customer_id,candidate_ids,reason,evidence)
     values(p_workspace,ids[1],ids[2:],'multiple_email_matches',jsonb_build_object('email',em,'source',p_source)) returning id into review;

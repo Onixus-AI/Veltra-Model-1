@@ -362,8 +362,8 @@ begin
   select * into c from public.crm_customers where workspace_id=j.workspace_id and id=(j.payload->>'customer_id')::uuid;
   select id into ident from public.revenue_sender_identities where workspace_id=j.workspace_id order by is_shared desc, created_at limit 1;
   body := coalesce(wf.settings->>'body','Hi '||coalesce(nullif(split_part(c.name,' ',1),''),'there')||E',\n\nThank you for contacting us about "'||(j.payload->>'subject')||E'". We have received your message and a member of our team will reply within one business day.');
-  insert into public.revenue_messages(workspace_id,customer_id,deal_id,direction,purpose,status,to_email,subject,body,sender_identity_id,automation_key,idempotency_key)
-  values(j.workspace_id,c.id,(j.payload->>'deal_id')::uuid,'outbound','transactional','drafted',lower(j.payload->>'to'),'Re: '||(j.payload->>'subject'),body,ident,'inquiry_acknowledgement','inquiry_ack:'||(j.payload->>'inquiry_id'))
+  insert into public.revenue_messages(workspace_id,customer_id,deal_id,account_id,direction,purpose,status,to_email,subject,body,sender_identity_id,automation_key,idempotency_key)
+  values(j.workspace_id,c.id,(j.payload->>'deal_id')::uuid,(select account_id from public.revenue_sender_identities where id=ident),'outbound','transactional','drafted',lower(j.payload->>'to'),'Re: '||(j.payload->>'subject'),body,ident,'inquiry_acknowledgement','inquiry_ack:'||(j.payload->>'inquiry_id'))
   on conflict(workspace_id,idempotency_key) do nothing returning id into m;
   if m is not null then
    perform revenue_private.record_event(j.workspace_id,c.id,(j.payload->>'deal_id')::uuid,'email.drafted','automation','automation','Inquiry acknowledgement',now(),'drafted','message',m,'Acknowledgement drafted for review','{}','{}','email.drafted:'||m);
@@ -384,8 +384,8 @@ begin
   end loop;
   if c.email is not null then
    select id into ident from public.revenue_sender_identities where workspace_id=j.workspace_id order by is_shared desc, created_at limit 1;
-   insert into public.revenue_messages(workspace_id,customer_id,deal_id,direction,purpose,status,to_email,subject,body,sender_identity_id,automation_key,idempotency_key)
-   values(j.workspace_id,c.id,p.deal_id,'outbound','onboarding','drafted',c.email,'Welcome — next steps for '||p.title,
+   insert into public.revenue_messages(workspace_id,customer_id,deal_id,account_id,direction,purpose,status,to_email,subject,body,sender_identity_id,automation_key,idempotency_key)
+   values(j.workspace_id,c.id,p.deal_id,(select account_id from public.revenue_sender_identities where id=ident),'outbound','onboarding','drafted',c.email,'Welcome — next steps for '||p.title,
           coalesce(wf.settings->>'body','Hi '||coalesce(nullif(split_part(c.name,' ',1),''),'there')||E',\n\nThank you — your payment is confirmed. Next, we will schedule a kickoff call and collect what we need to start.'),
           ident,'payment_onboarding','onboarding_welcome:'||ob.id)
    on conflict(workspace_id,idempotency_key) do nothing returning id into m;
