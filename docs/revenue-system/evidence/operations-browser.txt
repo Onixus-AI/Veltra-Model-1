@@ -1,10 +1,13 @@
-# 2026-10-25T04:23:44Z commit 9d8f189 — steps from .github/workflows/operations-browser.yml, Playwright 1.64.0 (Python)
-PASS check.py
-PASS outreach.py
-PASS customer-dialog.py
-PASS record-navigation.py
-PASS context-clarity.py
-PASS task-consent.py
-PASS task-center.py
-PASS brain-manager.py
-PASS crm-intake.py
+# 2026-10-25T12:21:34Z commit 8245720 — steps from .github/workflows/operations-browser.yml, Playwright 1.64.0 (Python)
+PASS browser-operations/check.py
+PASS browser-operations/outreach.py
+PASS browser-operations/customer-dialog.py
+PASS browser-operations/record-navigation.py
+PASS browser-operations/context-clarity.py
+PASS browser-operations/task-consent.py
+PASS browser-operations/task-center.py
+PASS browser-operations/brain-manager.py
+PASS browser-operations/crm-intake.py
+PASS browser-setup/check.py
+PASS browser-workspace/check.py
+PASS browser-workspace/model-routing.py
