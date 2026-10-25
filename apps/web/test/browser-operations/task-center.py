@@ -30,7 +30,7 @@ with sync_playwright() as p:
   assert b['name']=='confirm';counts['writes']+=1;route.fulfill(json={'content':'{"drafted":["draft-1"],"scope":"Mail overdue scan","next_cursor":null}'})
  page.route('**/api/agent/tools',tools);page.route('**/api/ai-access',access)
  page.goto('http://127.0.0.1:3188/?task-center');page.wait_for_load_state('networkidle')
- center=page.get_by_role('region',name='Veltra task center');expect(center.get_by_role('button',name='Expand task center')).to_be_visible();assert center.bounding_box()['height']<65
+ center=page.get_by_role('region',name='Onixus Workspace task center');expect(center.get_by_role('button',name='Expand task center')).to_be_visible();assert center.bounding_box()['height']<65
  center.get_by_role('button',name='Expand task center').click();start=center.get_by_role('button',name='Prepare follow-ups',exact=True)
  start.click();expect(center.get_by_role('status')).to_have_text('Working');page.wait_for_function('document.querySelectorAll(".task-step").length===2');assert counts['writes']==0
  assert center.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'

@@ -27,7 +27,7 @@ fs.writeFileSync('/vercel/sandbox/.veltra-tools/browser.json',JSON.stringify({ti
 
 export async function POST(request:NextRequest){
  const authorization=gatewayAuthorization(request);
- if(!authorization)return Response.json({detail:'Sign in to Veltra.'},{status:401});
+ if(!authorization)return Response.json({detail:'Sign in to Onixus Workspace.'},{status:401});
  let sandbox:Awaited<ReturnType<typeof Sandbox.create>>|undefined;
  let finishVerification:((success:boolean)=>Promise<void>)|undefined;
  try{

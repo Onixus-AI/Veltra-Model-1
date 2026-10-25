@@ -127,7 +127,7 @@ def create_router(authenticate, bearer, database) -> APIRouter:
     async def principal(credentials):
         value = await authenticate(credentials)
         if not value.get('user_id'):
-            raise HTTPException(403, 'Coding tasks require Veltra account sign-in.')
+            raise HTTPException(403, 'Coding tasks require Onixus Workspace account sign-in.')
         return value
 
     async def own(run_id, value):

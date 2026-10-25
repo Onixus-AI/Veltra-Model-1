@@ -18,6 +18,6 @@ export async function checkBrowserDns(url:URL,resolve=async(host:string)=>lookup
 export function browserNetworkPolicy(hostname:string):NetworkPolicy{
  return {allow:{[hostname]:[
   {match:{method:['GET','HEAD']},transform:[]},
-  {response:{statusCode:403,body:'Veltra browser inspection is read-only.',contentType:'text/plain'}}
+  {response:{statusCode:403,body:'Onixus Workspace browser inspection is read-only.',contentType:'text/plain'}}
  ]},subnets:{deny:['0.0.0.0/8','10.0.0.0/8','100.64.0.0/10','127.0.0.0/8','169.254.0.0/16','172.16.0.0/12','192.0.0.0/24','192.168.0.0/16','198.18.0.0/15','198.51.100.0/24','203.0.113.0/24','224.0.0.0/4','240.0.0.0/4','::/128','::1/128','::ffff:0:0/96','64:ff9b::/96','2001:db8::/32','fc00::/7','fe80::/10','ff00::/8']}};
 }

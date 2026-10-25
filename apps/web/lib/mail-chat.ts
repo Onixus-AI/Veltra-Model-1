@@ -26,7 +26,7 @@ export function mailReceipt(tool:string,value:any):string{
 export async function executeMailTool(intent:MailIntent,authorization:string,origin:string,fetcher:typeof fetch=fetch):Promise<unknown>{
  const url=new URL(origin);if(url.protocol!=='https:'||url.username||url.password)throw new Error('503:Mail connection is not configured correctly.');
  const response=await fetcher(url.origin+'/chat/mail-mcp',{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json',Accept:'application/json, text/event-stream'},body:JSON.stringify({jsonrpc:'2.0',id:crypto.randomUUID(),method:'tools/call',params:{name:intent.tool,arguments:intent.arguments}}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(55000)});
- if(!response.ok)throw new Error(`${[401,409,429,503].includes(response.status)?response.status:502}:${response.status===409?'Connect Veltra Mail in Connections first.':response.status===401?'Sign in to Veltra again.':'Mail could not complete this command. Open Mail to check the connection.'}`);
+ if(!response.ok)throw new Error(`${[401,409,429,503].includes(response.status)?response.status:502}:${response.status===409?'Connect Veltra Mail in Connections first.':response.status===401?'Sign in to Onixus Workspace again.':'Mail could not complete this command. Open Mail to check the connection.'}`);
  const rpc=await response.json();if(rpc.error||rpc.result?.isError)throw new Error('502:Mail could not complete this command. Open Mail to check its connection.');
  const content=rpc.result?.content?.filter((x:any)=>x.type==='text').map((x:any)=>x.text).join('');if(!content)throw new Error('502:Mail returned no action receipt.');
  return JSON.parse(content);

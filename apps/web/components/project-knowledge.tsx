@@ -78,7 +78,7 @@ export default function ProjectKnowledge({ documents, onChange, onClose }: Proje
           <div><span className="drawer-kicker">WORKSPACE CONTEXT</span><h2>Project Knowledge</h2></div>
           <button className="icon-button" onClick={onClose} aria-label="Close Project Knowledge"><X size={18} /></button>
         </div>
-        <p className="drawer-description">Give Veltra the docs, brand voice, and product context it needs to make every answer feel on brief.</p>
+        <p className="drawer-description">Give Onixus Workspace the docs, brand voice, and product context it needs to make every answer feel on brief.</p>
         <div className="knowledge-files">
           {documents.map((document) => (
             <div className="knowledge-file" key={document.id}>

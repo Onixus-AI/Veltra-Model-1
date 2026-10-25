@@ -41,7 +41,7 @@ with sync_playwright() as p:
     page.get_by_role('button', name='Run my business', exact=False).click()
     expect(page.get_by_role('alert')).to_contain_text('not saved')
     expect(page.locator('[aria-label="Saved goal"]')).to_have_text('Organize follow-ups')
-    expect(page.get_by_role('heading', name='What brings you to Veltra?')).to_be_visible()
+    expect(page.get_by_role('heading', name='What brings you to Onixus Workspace?')).to_be_visible()
     page.screenshot(path=str(out / 'setup-save-failure.png'))
     for choice in ['Make everyday life easier', 'Build software', 'Create something']:
         context = browser.new_context(viewport={'width': 390, 'height': 844})

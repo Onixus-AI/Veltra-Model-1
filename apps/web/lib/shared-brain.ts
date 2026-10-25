@@ -100,7 +100,7 @@ export async function runBrain(o:{client:SupabaseClient;user:string;scope:BrainS
    result=await data(q.eq('id',plan.id!).eq('revision',before!.revision).select('id').single());
   }
  }catch{throw Error('409:Memory result needs review. Refresh before trying again; this review cannot be reused.');}
- const reply={kind:'result' as const,changed:true,reply:plan.action==='forget'?'Saved memory forgotten. Existing conversation history is separate.':plan.action==='approve'?'Memory approved for shared recall.':'Memory proposed. Review and approve it before Veltra uses it as remembered knowledge.',details:result};
+ const reply={kind:'result' as const,changed:true,reply:plan.action==='forget'?'Saved memory forgotten. Existing conversation history is separate.':plan.action==='approve'?'Memory approved for shared recall.':'Memory proposed. Review and approve it before Onixus Workspace uses it as remembered knowledge.',details:result};
  // Remove reviewed memory text from the completed review, especially after forgetting.
  await client.from('crm_conversations').update({revision:2,messages:[{role:'assistant',content:JSON.stringify({kind:'result',reply:reply.reply,action:plan.action,record_id:plan.id??review.record_id})}]}).eq('id',review.id).eq('user_id',user);
  return reply;

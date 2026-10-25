@@ -1,9 +1,9 @@
 import PublicPage from "@/components/public-page";
-export const metadata = {"title": "Support | Veltra"};
+export const metadata = {"title": "Support | Onixus Workspace"};
 const sections = [
   {
     "id": "contact",
-    "title": "Contact Veltra",
+    "title": "Contact Onixus Workspace",
     "body": "Email info@onixus.xyz. Include the email associated with your account, the feature or provider involved, the approximate time of the issue and a description of what you expected. Share only the information needed to investigate. No particular response time or service-level agreement is promised on this page."
   },
   {

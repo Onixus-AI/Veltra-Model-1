@@ -45,7 +45,7 @@ with sync_playwright() as p:
 
     def send(expected):
         before = len(requests)
-        page.get_by_role('textbox', name='Message Veltra').fill('Check the current clock for this routing test')
+        page.get_by_role('textbox', name='Message Onixus Workspace').fill('Check the current clock for this routing test')
         page.get_by_role('button', name='Send message', exact=True).click()
         expect(page.locator('.model-selector')).to_be_enabled(timeout=15000)
         assert len(requests) == before + 2, requests[before:]
@@ -70,7 +70,7 @@ with sync_playwright() as p:
     page.locator('.new-chat-button').click()
     budget['enabled'] = True
     before = len(requests)
-    page.get_by_role('textbox', name='Message Veltra').fill('Investigate until the tool allowance is reached')
+    page.get_by_role('textbox', name='Message Onixus Workspace').fill('Investigate until the tool allowance is reached')
     page.get_by_role('button', name='Send message', exact=True).click()
     expect(page.locator('.model-selector')).to_be_enabled(timeout=15000)
     assert len(requests) == before + 13
