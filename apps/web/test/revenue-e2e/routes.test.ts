@@ -1,44 +1,25 @@
 // HTTP route tests for /api/revenue/*. The unmodified Next.js route handlers run through
 // supabase-js against a real PostgREST (the server Supabase uses) on the local revenue database,
-// so authorization, workspace isolation, validation and error shapes are tested end to end. Only
-// Supabase Auth's /auth/v1/user is replaced, by a local HS256 check of the same JWTs PostgREST
-// verifies. Needs REVENUE_TEST_DATABASE_URL and REVENUE_TEST_POSTGREST_BIN.
+// so authorization, workspace isolation, validation and error shapes are tested end to end.
+// Needs REVENUE_TEST_DATABASE_URL and REVENUE_TEST_POSTGREST_BIN (see ../helpers/postgrest.ts).
 import {after, before, test} from 'node:test';
 import assert from 'node:assert/strict';
-import {spawn, type ChildProcess} from 'node:child_process';
-import {createHash, createHmac, randomBytes, randomUUID} from 'node:crypto';
+import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import type {Pool} from 'pg';
 import {pgStore, testPool} from '../helpers/pg-store';
+import {postgrestHarness, postgrestSkip as skip} from '../helpers/postgrest';
 import {GET as revenueGET, POST as revenuePOST} from '../../app/api/revenue/[...path]/route';
 import {POST as calendarPOST} from '../../app/api/revenue/calendar/[integration]/route';
 import {POST as formPOST} from '../../app/api/revenue/forms/[integration]/route';
 import {GET as workerGET} from '../../app/api/revenue/worker/route';
 import {POST as stripePOST} from '../../app/api/revenue/webhooks/stripe/route';
 
-const bin = process.env.REVENUE_TEST_POSTGREST_BIN;
-const skip = (!process.env.REVENUE_TEST_DATABASE_URL || !bin) && 'REVENUE_TEST_DATABASE_URL and REVENUE_TEST_POSTGREST_BIN are required (see docs/revenue-system/setup-and-recovery.md)';
-const SUPABASE = 'https://supabase.test';
-const JWT_SECRET = randomBytes(24).toString('hex');
-const PORT = 3400 + Math.floor(Math.random() * 400);
+const pg = postgrestHarness();
+const {jwt, as, setEnv} = pg;
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
-const b64 = (v: unknown) => Buffer.from(JSON.stringify(v)).toString('base64url');
-const jwt = (claims: Record<string, unknown>, secret = JWT_SECRET) => {
-  const body = `${b64({alg: 'HS256', typ: 'JWT'})}.${b64({exp: Math.floor(Date.now() / 1000) + 3600, ...claims})}`;
-  return `${body}.${createHmac('sha256', secret).update(body).digest('base64url')}`;
-};
-const verify = (authorization: string | null) => {
-  const [h, p, sig] = (authorization ?? '').replace(/^Bearer /, '').split('.');
-  if (!h || !p || createHmac('sha256', JWT_SECRET).update(`${h}.${p}`).digest('base64url') !== sig) return null;
-  return JSON.parse(Buffer.from(p, 'base64url').toString()) as {sub?: string; role?: string};
-};
-
 const O = randomUUID(), M = randomUUID(), V = randomUUID(), X = randomUUID(), W = randomUUID(), W2 = randomUUID(), A = randomUUID();
-const as = (user: string) => jwt({sub: user, role: 'authenticated', aud: 'authenticated'});
-let pool: Pool, server: ChildProcess, realFetch: typeof fetch, customer: string, otherCustomer: string;
-const env: Record<string, string | undefined> = {};
-const setEnv = (values: Record<string, string | undefined>) => {
-  for (const [k, v] of Object.entries(values)) { if (!(k in env)) env[k] = process.env[k]; if (v === undefined) delete process.env[k]; else process.env[k] = v; }
-};
+const SUPABASE = 'https://supabase.test';
+let pool: Pool, customer: string, otherCustomer: string;
 
 type Call = {status: number; body: any; headers: Headers};
 const read = async (r: Response): Promise<Call> => ({status: r.status, body: await r.json().catch(() => null), headers: r.headers});
@@ -64,8 +45,6 @@ const failsWith = (r: Call, status: number, pattern?: RegExp) => {
 before(async () => {
   if (skip) return;
   pool = testPool();
-  await pool.query(`do $$ begin if not exists(select 1 from pg_roles where rolname='authenticator') then create role authenticator login password 'fixture-only-password' noinherit; end if; end $$`);
-  await pool.query('grant anon, authenticated to authenticator');
   await pool.query('insert into auth.users(id,email) values ($1,$5),($2,$6),($3,$7),($4,$8)', [O, M, V, X, 'owner@routes.test', 'member@routes.test', 'viewer@routes.test', 'other@routes.test']);
   await pool.query(`insert into public.crm_workspaces(id,name,owner_id,environment) values ($1,'Routes Studio',$3,'test'),($2,'Other Business',$4,'test')`, [W, W2, O, X]);
   await pool.query(`insert into public.crm_memberships(workspace_id,user_id,role) values ($1,$2,'owner'),($1,$3,'member'),($1,$4,'viewer'),($5,$6,'owner')`, [W, O, M, V, W2, X]);
@@ -73,40 +52,13 @@ before(async () => {
   customer = (await pgStore(pool, M).rpc<{customer_id: string}>('revenue_upsert_customer', {p_workspace: W, p_customer: {email: 'lee@routes.test', name: 'Lee Park', company: 'Park Dental'}})).customer_id;
   otherCustomer = (await pgStore(pool, X).rpc<{customer_id: string}>('revenue_upsert_customer', {p_workspace: W2, p_customer: {email: 'secret@other.test', name: 'Hidden', company: 'Other Co'}})).customer_id;
 
-  const dbUrl = new URL(process.env.REVENUE_TEST_DATABASE_URL!);
-  dbUrl.username = 'authenticator'; dbUrl.password = 'fixture-only-password';
-  server = spawn(bin!, [], {stdio: ['ignore', 'pipe', 'pipe'], env: {PATH: process.env.PATH, PGRST_DB_URI: dbUrl.toString(), PGRST_DB_SCHEMAS: 'public', PGRST_DB_ANON_ROLE: 'anon',
-    PGRST_JWT_SECRET: JWT_SECRET, PGRST_SERVER_HOST: '127.0.0.1', PGRST_SERVER_PORT: String(PORT), PGRST_DB_CHANNEL_ENABLED: 'false', PGRST_LOG_LEVEL: 'error'}});
-  let log = '';
-  server.stderr!.on('data', d => { log += String(d); });
-  server.stdout!.on('data', d => { log += String(d); });
-  realFetch = globalThis.fetch;
-  for (let i = 0; ; i++) {
-    const ok = await realFetch(`http://127.0.0.1:${PORT}/`).then(r => r.ok, () => false);
-    if (ok) break;
-    if (i > 100) throw new Error(`PostgREST did not start: ${log}`);
-    await new Promise(r => setTimeout(r, 150));
-  }
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    const url = new URL(input instanceof Request ? input.url : String(input));
-    if (url.origin !== SUPABASE) return realFetch(input, init);
-    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
-    if (url.pathname === '/auth/v1/user') {
-      const claims = verify(headers.get('authorization'));
-      return claims?.role === 'authenticated' && claims.sub ? Response.json({id: claims.sub, aud: 'authenticated', role: 'authenticated', is_anonymous: false})
-        : Response.json({code: 401, msg: 'invalid JWT'}, {status: 401});
-    }
-    if (url.pathname.startsWith('/rest/v1/')) return realFetch(`http://127.0.0.1:${PORT}${url.pathname.slice('/rest/v1'.length)}${url.search}`, {...init, headers});
-    return new Response('{}', {status: 404});
-  }) as typeof fetch;
-  setEnv({NEXT_PUBLIC_SUPABASE_URL: SUPABASE, NEXT_PUBLIC_SUPABASE_ANON_KEY: jwt({role: 'anon'}), STRIPE_RESTRICTED_KEY: undefined, CRON_SECRET: undefined, REVENUE_WORKER_TOKEN: undefined,
+  await pg.start(pool);
+  setEnv({STRIPE_RESTRICTED_KEY: undefined, CRON_SECRET: undefined, REVENUE_WORKER_TOKEN: undefined,
     STRIPE_WEBHOOK_SECRET: undefined, REVENUE_STRIPE_INTEGRATION_ID: undefined, REVENUE_STRIPE_INTEGRATION_TOKEN: undefined});
 });
 
 after(async () => {
-  if (realFetch) globalThis.fetch = realFetch;
-  for (const [k, v] of Object.entries(env)) { if (v === undefined) delete process.env[k]; else process.env[k] = v; }
-  server?.kill();
+  await pg.stop();
   await pool?.end();
 });
 
