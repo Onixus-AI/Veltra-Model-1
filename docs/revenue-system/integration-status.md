@@ -1,69 +1,125 @@
-# Onixus revenue system — integration status
+# Onixus revenue system: integration status
 
-**Nothing in Phase 1 has run against a real provider.** No Gmail, Stripe or calendar credentials
-were available, no email was sent, no payment was taken, and the production database was only read
-(schema and row counts during the assessment). Everything below marked "harness" ran against a
-local Postgres 16 database, a fake Gmail API and Stripe events signed with a local secret.
+**Nothing has run against a real provider.** No Gmail, Google Calendar or Stripe credentials were
+used. No email was sent, no payment was taken, and the production database was only read (schema
+and row counts during the assessment).
+
+Everything below ran against one of these:
+- a local Postgres 16 database;
+- a local PostgREST v12.2.3 (the server Supabase uses);
+- in-memory Gmail and Google Calendar APIs;
+- Stripe events signed with a local secret;
+- a fake model gateway.
+
+Two branches make up the work:
+
+| Repository | Branch / PR | Contents |
+|---|---|---|
+| Veltra-Model-1 (web) | `cursor/onixus-revenue-phase1-ca74`, PR #92 | Phase 1: records, automation, journey, UI. |
+| Veltra-Model-1 (web) | `cursor/onixus-revenue-live-gaps-ca74`, stacked on #92 | Relay RPCs, calendar ingestion, route and Chat tests. This file. |
+| Veltra-Mail | `cursor/revenue-relay-ca74`, PR Veltra-Mail#39 | The Gmail and Calendar relay inside Onixus Mail. |
+
+Merge order: #92, then the stacked web PR, then Veltra-Mail#39 (only after the migration is applied).
 
 ## What ran where
 
 | Part | Real code exercised | Provider side | Verified by |
 |---|---|---|---|
-| Database schema, RLS, RPCs | All three migrations, applied twice | Local Postgres 16 only | `supabase/tests/revenue-isolation.sql`, E2E suite |
-| Website form intake | `handleFormSubmission` → `revenue_ingest_form` | Harness (direct handler call) | E2E step 1, negative tests |
-| Gmail send | `gmailProvider` (real HTTP adapter: OAuth refresh, `messages.send`, `rfc822msgid:` lookup) | Fake Gmail API (`test/helpers/fake-gmail.ts`) that only accepts controlled recipients | E2E steps 3, 5, 9; retry/crash/dead-letter tests |
-| Gmail sync | `syncMailbox` with the same adapter (history API, pagination, expired cursor fallback) | Fake Gmail API | E2E step 4; expired-connection and history-expiry tests |
-| Job engine | `runWorker` → `revenue_worker_claim/complete` | Local Postgres | E2E steps 2–9; negative tests |
-| Stripe Checkout | `createCheckoutSession` request shape (idempotency key, metadata) | Fake fetcher — no request reached Stripe | E2E step 7 |
-| Stripe webhooks | `verifyStripeSignature` + `handleStripeWebhook` → `revenue_ingest_payment_event` | Events signed locally with a test secret | E2E step 8; forged/stale/duplicate/out-of-order/refund/cross-workspace tests |
-| Onyx context for Chat | `onyxCustomerContext` over `revenue_customer_context` under the caller's role | n/a | E2E step 10 (function level) |
-| Revenue UI | `/revenue` components with sample data | n/a | Browser checks on `/revenue/preview` (screenshots, keyboard, themes, mobile) |
+| Database schema, RLS, RPCs | All four migrations, each applied twice | Local Postgres 16 only | `supabase/tests/revenue-isolation.sql`, E2E suite |
+| HTTP routes `app/api/revenue/*` | The unmodified Next.js handlers, through supabase-js and a real PostgREST | Local PostgREST. Supabase Auth's `/auth/v1/user` is replaced by a local HS256 check of the same JWTs PostgREST verifies | `test/revenue-e2e/routes.test.ts` |
+| Chat wiring | `/api/chat`, `/api/crm/assistant`, `/api/crm/context/*`, `crmContext`, `runCrmChat`, `crmPlanner` | Local PostgREST; fake model gateway | `test/revenue-e2e/chat.test.ts` |
+| Website form intake | `handleFormSubmission` → `revenue_ingest_form` | Direct handler call, plus a route test | E2E step 1, negatives, route test |
+| Gmail send | `relayAccount` → `revenue_mail_claim` / `revenue_mail_complete` with the mailbox's CRM link token; `gmailProvider` (OAuth refresh, `messages.send`, `settings/sendAs`, `rfc822msgid:` lookup) | Fake Gmail API that only accepts controlled recipients | E2E steps 3 and 5; revoked-token, retry/crash, sender and bounce negatives; Veltra-Mail#39 tests |
+| Gmail sync | `syncMailbox` inside the relay (history API, pagination, expired-cursor fallback) → `revenue_ingest_mail_event` | Fake Gmail API | E2E step 4; history-expiry and revoked-token negatives |
+| Google Calendar | `googleCalendarProvider` + `syncCalendar` inside the relay → `revenue_mail_calendar_event` / `revenue_mail_calendar_status` | Fake Calendar API (sync tokens, 410, 403 scope, 403 API disabled) | E2E step 6; four calendar negatives; Veltra-Mail#39 tests |
+| Calendar endpoint for booking tools | `POST /api/revenue/calendar/<integration>` → `revenue_ingest_calendar_event` | Direct handler call and route test | "calendar endpoint" test, route test |
+| Internal job engine (web cron) | `runWorker` → `revenue_worker_claim/complete` with `p_send=false` | Local Postgres | E2E steps 2 and 7–9; route test (`sent=0`) |
+| Stripe Checkout | `createCheckoutSession` request shape | Fake fetcher; no request reached Stripe | E2E step 7 |
+| Stripe webhooks | `verifyStripeSignature` + `handleStripeWebhook` | Events signed locally | E2E step 8; payment negatives; route test (503 unconfigured, 400 bad signature) |
+| Revenue UI | `/revenue` components with sample data | n/a | Browser checks on `/revenue/preview` |
 
-Not exercised by any automated test:
+The Mail relay in Veltra-Mail#39 runs the same adapter files, copied with `.js` import suffixes. Its
+tests use the in-memory Gmail and Calendar plus an in-memory version of the workspace RPCs. This
+repository's E2E runs the same relay code against the real database functions.
 
-- The HTTP routes under `app/api/revenue/*` themselves (they are thin wrappers over the tested
-  handlers and RPCs; covered only by type-checking and `next build`).
-- The Chat wiring in `lib/crm/server.ts` (`crmContext` now adds the revenue context). The context
-  builder it calls is tested; the route needs a real Supabase session.
-- `revenue_ingest_calendar_event`: the RPC exists, but there is no calendar adapter and no test.
-  Meetings in the E2E suite are booked with `revenue_book_meeting`.
-- The UI against live data. It was only rendered with the labelled sample data in preview mode.
+## Acceptance journey: your numbering vs the test file
 
-## Known gap before production sending: the Mail-side sender and sync loop
+Your brief's steps 5–7 are covered by these tests in `test/revenue-e2e/acceptance.test.ts`:
 
-Gmail refresh tokens are sealed inside the separate Onixus Mail service (`Onixus-AI/Veltra-Mail`)
-and the web app deliberately has no access to them. So in production:
+| Your step | Test(s) | Through |
+|---|---|---|
+| 5. Send and provider status | Step 3 (first message) and step 5 (in-thread reply) | `relayAccount` → `revenue_mail_claim` (account token) → `gmailProvider` → fake Gmail → `revenue_mail_complete`. The status stops at `provider_accepted`. |
+| 6. Reply stops follow-ups | Step 4 | Relay sync → `revenue_ingest_mail_event` |
+| 7. Meeting booked and linked | Step 6 | Fake Calendar → relay → `revenue_mail_calendar_event`. Linked to the customer and the single open opportunity; reschedule recorded. |
 
-- `/api/revenue/worker` claims with `p_send=false`. It runs internal jobs (acknowledgement and
-  follow-up drafts, onboarding checklists) and **leaves `mail.send` jobs queued**.
-- An approved message therefore stays **Queued** until a sender exists. The UI says "Queued —
-  waiting for the sending worker. Not sent yet", which is accurate.
-- Inbound mail only reaches the revenue timeline once something calls `revenue_ingest_mail_event`.
+Negatives for the same steps:
+- **Revoked token.** A revoked Google token holds sends and shows health with a recovery.
+- **Bounce.** Covered by "unsubscribed and bounced contacts…".
+- **Duplicate and out-of-order calendar events.** Converge to one meeting.
+- **Ambiguous attendee.** Goes to identity review.
+- **Calendar access.** Missing scope, a disabled API and an expired token surface as health.
+- **Sender.** A sender the mailbox cannot use fails visibly.
 
-The follow-up is a small loop inside the Mail service that reuses this branch's code paths:
-`gmailProvider` + `runWorker(workerDeps(store, REVENUE_WORKER_TOKEN, …, providerFor))` for sending,
-and `syncMailbox` + `mailIngester` for inbound. It needs a change in the Mail repository, which
-this branch does not touch.
+## Boundary decision: per-mailbox CRM link token
 
-## Credentials needed to go live (names only; none were created or changed)
+Onixus Mail keeps the Google tokens; this app never sees them.
+
+Mail calls the relay RPCs through PostgREST with the project's public key plus the CRM link token
+it already stores for each linked mailbox. These are the same tokens `crm_ingest_mail` uses today.
+Every relay RPC checks the token against `crm_mail_connections.token_hash`, so a mailbox can only:
+- claim messages assigned to that mailbox. Unassigned messages are claimable only when the
+  workspace has exactly one linked mailbox; otherwise the overview raises "send_unassigned";
+- complete jobs it leased;
+- record mail and calendar changes for its own workspace.
+
+Mail holds no service-role key and no global worker token. Unlinking Mail in Workspace stops the
+relay for that mailbox. `/api/revenue/worker` (web cron) keeps running only internal jobs and never
+sends.
+
+## Credentials and settings needed to go live (names only; none were created or changed)
 
 | For | What | Where |
 |---|---|---|
-| Real Gmail | Nothing new on the web side. The Mail service already holds the Google OAuth client and tokens; it needs the sender/sync loop above plus a `REVENUE_WORKER_TOKEN`. | Onixus Mail (Railway) |
-| Stripe Checkout | `STRIPE_RESTRICTED_KEY` (Checkout Sessions write). Confirm which Stripe account customer payments should use — the same name is used for Onixus credit billing today. | Web (Vercel) |
-| Stripe webhooks | `STRIPE_WEBHOOK_SECRET`, `REVENUE_STRIPE_INTEGRATION_ID`, `REVENUE_STRIPE_INTEGRATION_TOKEN`, plus a webhook endpoint in the Stripe dashboard (test mode first) | Web (Vercel) + Stripe |
-| Worker | `REVENUE_WORKER_TOKEN`, `CRON_SECRET`, and a cron entry | Web (Vercel) |
-| Calendar | Not built: needs a Google Calendar scope and an adapter | Phase 2 |
+| Gmail send and sync | `REVENUE_RELAY=true` on the canonical Mail deployment. It uses Mail's existing `CHAT_SUPABASE_URL`, `CHAT_SUPABASE_PUBLIC_KEY`, `DATABASE_URL`, `SESSION_SECRET` and Google OAuth client. No new secret. | Onixus Mail (Railway) |
+| Google Calendar | Google Cloud project owner: enable the Calendar API and add `https://www.googleapis.com/auth/calendar.events.readonly` to the OAuth consent screen. Then set `GOOGLE_CALENDAR_SCOPE=true` and `REVENUE_CALENDAR=true` on Mail, and have mailbox owners reconnect. | Google Cloud console + Mail |
+| Booking tools (optional) | A `calendar` integration token per workspace (`POST /api/revenue/integrations`) | Web |
+| Stripe Checkout | `STRIPE_RESTRICTED_KEY` (Checkout Sessions write). Confirm which Stripe account customer payments should use. | Web (Vercel) |
+| Stripe webhooks | `STRIPE_WEBHOOK_SECRET`, `REVENUE_STRIPE_INTEGRATION_ID`, `REVENUE_STRIPE_INTEGRATION_TOKEN`, and a Stripe dashboard endpoint (test mode first) | Web (Vercel) + Stripe |
+| Internal worker | `REVENUE_WORKER_TOKEN`, `CRON_SECRET`, and a cron entry | Web (Vercel) |
+
+The exact order and owners are in `setup-and-recovery.md`, section 0.
+
+## Still harness-only, or not built
+
+- **Everything provider-facing.** Gmail, Calendar and Stripe calls have only reached in-memory
+  fakes. The first real send, reply, bounce, calendar event and payment still need to be watched
+  live, with addresses you control.
+- **Supabase Auth.** The route and Chat tests replace `/auth/v1/user` with a local JWT check.
+  PostgREST, RLS and the database functions are real.
+- **In-Reply-To.** Inbound Message-ID headers are not stored, so a reply sent from Onixus is
+  sent into the right Gmail thread of the sending mailbox but carries no `In-Reply-To` header
+  unless the draft supplies one. The recipient's mail client may show it as a new conversation.
+- **Recurring calendar series.** Series are skipped as series; single meetings and changed
+  occurrences are recorded. All-day events, and events that ended more than 30 days ago, are
+  skipped.
+- **Unknown calendar attendees** are ignored, not created, because invites are untrusted. Booking
+  tools posting to the calendar endpoint do create customers.
+- **Outlook mailboxes** are skipped by the relay.
+- **The UI against live data.** It was rendered only with labelled sample data.
+
+## Found and fixed while testing Chat
+
+Inbound email creates a "Reply: <subject>" task. That task title, message subjects, meeting titles
+and the raw CRM records passed to the model were not inside the untrusted-content fence. They were
+under a general "untrusted evidence" preamble, but a forged subject sat outside any fence. They are
+now fenced (`lib/revenue/chat-context.ts`, `lib/crm/suite-domain.ts`). `chat.test.ts` checks that
+every occurrence of hostile email text reaching the model is inside a fence, and that the email
+body never reaches the model at all.
 
 ## Claims deliberately not made
 
-- **No delivery claims.** Gmail's acceptance is shown as "Accepted by provider". "Delivered"
-  appears only on an explicit provider signal, and Gmail provides none for normal sends, so
-  production will rarely show it. Opens are recorded as events and never counted as reads.
-- **No performance budgets.** The harness runs the whole E2E suite in about 0.6 s on a laptop-sized
-  VM, but nothing has been load-tested. No latency or throughput targets are claimed.
-- **No live reply-rate or revenue numbers.** The overview reports "Unknown" (not zero) for payments
-  until a payment integration is active.
-- **Acceptance steps 1–11** follow my reading of the brief's journey (prospect → reply →
-  opportunity → meeting → proposal → payment → onboarding → memory → overview). The brief's exact
-  step wording was not available when the tests were written.
+- **No delivery claims.** Gmail's acceptance shows as "Accepted by provider". Gmail sends no
+  delivery confirmation, so "Delivered" will rarely appear. Opens are never counted as reads.
+- **No performance budgets.** Nothing has been load-tested.
+- **No live reply-rate or revenue numbers.** The overview reports "Unknown" (not zero) until
+  integrations are active.

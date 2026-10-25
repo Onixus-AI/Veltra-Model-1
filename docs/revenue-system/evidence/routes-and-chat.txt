@@ -1,0 +1,16 @@
+✔ Chat reads only the authorized conversation context: own workspace and customer, approved memory, fenced email (642.899544ms)
+✔ Chat drafts and previews: consequential changes need an explicit confirmation, and Chat never sends (154.915513ms)
+✔ untrusted email cannot trigger actions, even when it contains a real review id or a command (164.007361ms)
+✔ authentication: missing, malformed, API-key and forged tokens are refused before any data access (254.737272ms)
+✔ workspace isolation: callers only see and act on workspaces they belong to; others look like "not found" (121.849797ms)
+✔ roles: viewers read, members write, owners alone manage integrations; tokens are shown once and never readable (66.114823ms)
+✔ validation: workspace, ids, unknown views and actions, smuggled arguments, bad JSON and oversized bodies (19.389511ms)
+✔ provider callbacks and cron: forms, Stripe and the worker refuse missing configuration and bad credentials (15.66513ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2258.852565

@@ -1,5 +1,27 @@
-# 2026-10-25T04:20:42Z commit 9d8f189 — local postgres:16, database 'rev'
-re-applied 20261025090000_revenue_core_records.sql: ok
-re-applied 20261025090100_revenue_mail_automation.sql: ok
-re-applied 20261025090200_revenue_journey.sql: ok
+# 2026-10-25T12:20:13Z commit 8245720 — local Postgres 16; bootstrap + 4 migrations, then the 4 migrations re-applied, then revenue-isolation.sql
+applied revenue-bootstrap.sql
+applied 20261025090000_revenue_core_records.sql
+applied 20261025090100_revenue_mail_automation.sql
+applied 20261025090200_revenue_journey.sql
+applied 20261025120000_revenue_live_relay.sql
+re-applied 20261025090000_revenue_core_records.sql
+re-applied 20261025090100_revenue_mail_automation.sql
+re-applied 20261025090200_revenue_journey.sql
+re-applied 20261025120000_revenue_live_relay.sql
+                            revenue_record_memory                            
+-----------------------------------------------------------------------------
+ {"status": "approved", "memory_id": "2e4bd746-d420-4b67-a1d6-1f2887b89a0e"}
+(1 row)
+
+                            revenue_record_memory                            
+-----------------------------------------------------------------------------
+ {"status": "approved", "memory_id": "6d6d06d6-26be-42d7-88f6-6f82c65006d2"}
+(1 row)
+
+                 revenue_create_integration                 
+------------------------------------------------------------
+ {"integration_id": "1c472ae7-e951-4f92-a524-9996b09e68d3"}
+(1 row)
+
 revenue isolation tests passed
+exit 0

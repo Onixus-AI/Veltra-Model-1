@@ -109,10 +109,11 @@ async function handle(request: Request, context: Context) {
         return ok({reviews, customers});
       }
       if (view === 'integrations') {
-        const [integrations, merges] = await Promise.all([
+        const [integrations, merges, calendars] = await Promise.all([
           client.from('revenue_integrations').select('id,provider,label,status,created_at,last_success_at,last_error').eq('workspace_id', w),
-          client.from('revenue_merges').select('id,survivor_id,merged_id,merged_at,reverted_at').eq('workspace_id', w).order('merged_at', {ascending: false}).limit(20)]);
-        return ok({integrations: integrations.error ? [] : integrations.data, merges: merges.error ? [] : merges.data});
+          client.from('revenue_merges').select('id,survivor_id,merged_id,merged_at,reverted_at').eq('workspace_id', w).order('merged_at', {ascending: false}).limit(20),
+          client.from('revenue_calendar_sync_state').select('account_id,provider,calendar_id,status,last_synced_at,last_attempt_at,last_error,events_synced').eq('workspace_id', w)]);
+        return ok({integrations: integrations.error ? [] : integrations.data, merges: merges.error ? [] : merges.data, calendars: calendars.error ? [] : calendars.data});
       }
       throw new RevenueError(404, 'Not found.');
     }

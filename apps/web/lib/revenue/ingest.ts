@@ -79,3 +79,50 @@ export function requireBearer(request: Request, expected: string | undefined): v
   for (let i = 0; i < given.length; i++) diff |= given.charCodeAt(i) ^ expected.charCodeAt(i);
   if (diff) throw new RevenueError(401, 'Not authorized.');
 }
+
+const isoTime = (v: unknown) => (typeof v === 'string' && v.length <= 40 && !Number.isNaN(Date.parse(v)) ? new Date(v).toISOString() : null);
+const emailLike = (v: unknown) => (typeof v === 'string' && v.length <= 320 && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(v.trim()) ? v.trim().toLowerCase() : null);
+
+/** Validates one calendar event from an external caller into the shape revenue_ingest_calendar_event accepts. */
+export function normalizeCalendarEvent(raw: unknown): {ok: true; event: Record<string, unknown>} | {ok: false; error: string} {
+  const e = (raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  const id = text(e.provider_event_id, 1024);
+  if (!id) return {ok: false, error: 'provider_event_id is required.'};
+  const status = e.status === 'cancelled' ? 'cancelled' : e.status === undefined || e.status === 'confirmed' || e.status === 'tentative' || e.status === 'scheduled' ? 'confirmed' : null;
+  if (!status) return {ok: false, error: 'status must be confirmed, tentative or cancelled.'};
+  const updated = isoTime(e.updated_at);
+  if (!updated) return {ok: false, error: 'updated_at (ISO 8601) is required so duplicates and out-of-order updates can be ignored.'};
+  const starts = e.starts_at === undefined || e.starts_at === null ? null : isoTime(e.starts_at), ends = e.ends_at === undefined || e.ends_at === null ? null : isoTime(e.ends_at);
+  if ((e.starts_at != null && !starts) || (e.ends_at != null && !ends)) return {ok: false, error: 'starts_at and ends_at must be ISO 8601 times.'};
+  if (status !== 'cancelled' && (!starts || !ends || Date.parse(ends) <= Date.parse(starts))) return {ok: false, error: 'A booked meeting needs starts_at before ends_at.'};
+  const provider = e.provider === undefined ? 'booking_form' : e.provider;
+  if (provider !== 'google_calendar' && provider !== 'microsoft_calendar' && provider !== 'booking_form') return {ok: false, error: 'provider must be google_calendar, microsoft_calendar or booking_form.'};
+  const list = Array.isArray(e.attendees) ? e.attendees : [];
+  if (list.length > 100) return {ok: false, error: 'At most 100 attendees.'};
+  const attendees = list.map(a => (a && typeof a === 'object' ? a as Record<string, unknown> : {})).map(a => ({email: emailLike(a.email), name: text(a.name, 160) || null, self: a.self === true, resource: a.resource === true}))
+    .filter(a => a.email);
+  return {ok: true, event: {provider_event_id: id, provider, status, title: text(e.title, 300) || null, starts_at: starts, ends_at: ends, updated_at: updated,
+    organizer_email: emailLike(e.organizer_email), attendees}};
+}
+
+/** Calendar or booking tool callback: up to 100 events per call, each processed independently and idempotently. */
+export async function handleCalendarEvents(o: {integrationId: string; token: string | null; payload: unknown; store: RevenueStore}): Promise<HandlerResult> {
+  if (!o.token) return {status: 401, body: {error: 'Integration token required.'}};
+  const p = (o.payload ?? {}) as Record<string, unknown>;
+  const events = Array.isArray(p.events) ? p.events : [p];
+  if (!events.length || events.length > 100) return {status: 400, body: {error: 'Send between 1 and 100 events.'}};
+  const results: Record<string, unknown>[] = [];
+  for (const raw of events) {
+    const n = normalizeCalendarEvent(raw);
+    if (!n.ok) { results.push({provider_event_id: (raw as {provider_event_id?: unknown})?.provider_event_id ?? null, error: n.error}); continue; }
+    try {
+      results.push({provider_event_id: n.event.provider_event_id, ...await o.store.rpc<Record<string, unknown>>('revenue_ingest_calendar_event', {p_integration: o.integrationId, p_token: o.token, p_event: n.event})});
+    } catch (e) {
+      const r = toRevenueError(e);
+      if (r.status !== 400 && r.status !== 409) return {status: r.status, body: {error: r.message}};
+      results.push({provider_event_id: n.event.provider_event_id, error: r.message});
+    }
+  }
+  const failed = results.filter(r => 'error' in r).length;
+  return {status: failed === results.length ? 400 : 200, body: {received: results.length - failed, rejected: failed, results}};
+}
