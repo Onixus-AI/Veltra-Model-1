@@ -83,11 +83,44 @@ do $$ begin
  exception when insufficient_privilege then null; end;
  begin perform public.revenue_ingest_form(gen_random_uuid(),repeat('f',48),'{}'); raise exception 'bad form integration accepted';
  exception when insufficient_privilege then null; end;
+ begin perform public.revenue_mail_claim('c0000000-0000-4000-8000-000000000001',repeat('x',48),'w',1); raise exception 'bad mail token claimed sends';
+ exception when insufficient_privilege then null; end;
+ begin perform public.revenue_mail_complete('c0000000-0000-4000-8000-000000000001',repeat('x',48),gen_random_uuid(),'w','{"ok":true}'); raise exception 'bad mail token completed a send';
+ exception when insufficient_privilege then null; end;
+ begin perform public.revenue_mail_account_state('c0000000-0000-4000-8000-000000000001',repeat('x',48)); raise exception 'bad mail token read sync state';
+ exception when insufficient_privilege then null; end;
+ begin perform public.revenue_mail_calendar_event('c0000000-0000-4000-8000-000000000001',repeat('x',48),'{}'); raise exception 'bad mail token recorded a meeting';
+ exception when insufficient_privilege then null; end;
+ begin perform public.revenue_mail_calendar_status('c0000000-0000-4000-8000-000000000001',repeat('x',48),'{"status":"healthy"}'); raise exception 'bad mail token changed calendar health';
+ exception when insufficient_privilege then null; end;
+ begin perform public.revenue_ingest_calendar_event(gen_random_uuid(),repeat('c',48),'{}'); raise exception 'bad calendar integration accepted';
+ exception when insufficient_privilege then null; end;
+ begin perform revenue_private.ingest_calendar('b0000000-0000-4000-8000-000000000001','google_calendar','x','{}','{}',true,true); raise exception 'anon reached a private calendar function';
+ exception when insufficient_privilege then null; end;
+ begin perform revenue_private.complete_job(gen_random_uuid(),'w','{"ok":true}'); raise exception 'anon reached a private job function';
+ exception when insufficient_privilege then null; end;
+ begin perform * from public.revenue_calendar_sync_state; raise exception 'anon read calendar sync state';
+ exception when insufficient_privilege then null; end;
  perform public.revenue_ingest_mail_event('c0000000-0000-4000-8000-000000000001',repeat('m',48),'{"type":"sync.status","status":"healthy","mailbox":"sales@a.example"}');
+ perform public.revenue_mail_calendar_status('c0000000-0000-4000-8000-000000000001',repeat('m',48),'{"status":"healthy","sync_token":"tok-1"}');
+ if (public.revenue_mail_account_state('c0000000-0000-4000-8000-000000000001',repeat('m',48))->'calendar'->>'status')<>'healthy' then raise exception 'valid mail token cannot read its own state'; end if;
 end $$;
 reset role;
 do $$ begin
  if (select status from public.revenue_sync_state)<>'healthy' then raise exception 'valid mail token was refused'; end if;
 end $$;
+-- Calendar sync state: members of the workspace read health (never the sync token); others see nothing.
+set local role authenticated;
+do $$ declare n integer; begin
+ perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000003',true);
+ select count(*) into n from public.revenue_calendar_sync_state; if n<>1 then raise exception 'viewer cannot see calendar health'; end if;
+ begin perform sync_token from public.revenue_calendar_sync_state; raise exception 'calendar sync token readable';
+ exception when insufficient_privilege then null; end;
+ begin update public.revenue_calendar_sync_state set status='healthy'; raise exception 'direct calendar state update';
+ exception when insufficient_privilege then null; end;
+ perform set_config('request.jwt.claim.sub','a0000000-0000-4000-8000-000000000004',true);
+ select count(*) into n from public.revenue_calendar_sync_state; if n<>0 then raise exception 'cross-workspace calendar health read'; end if;
+end $$;
+reset role;
 rollback;
 \echo 'revenue isolation tests passed'

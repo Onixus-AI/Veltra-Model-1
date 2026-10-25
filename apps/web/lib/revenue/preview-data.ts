@@ -60,7 +60,7 @@ export function previewData(view: string, params: Record<string, string> = {}): 
     case 'workspaces': return {user_id: 'preview', workspaces: [previewWorkspace]};
     case 'overview': return {
       overview: {period: {from: ago(24 * 30), to: ago(0)}, environment: 'test', counts_in_production_reporting: false, generated_at: ago(0),
-        freshness: {latest_event_at: ago(6), mail_sync: [{account_id: A, status: 'healthy', last_synced_at: ago(0.2), last_error: null, mailbox: 'team@sample.example'}], integrations: [{provider: 'form', label: 'Website form', status: 'active', last_success_at: ago(120), last_error: null}]},
+        freshness: {latest_event_at: ago(6), mail_sync: [{account_id: A, status: 'healthy', last_synced_at: ago(0.2), last_error: null, mailbox: 'team@sample.example'}], calendar_sync: [{account_id: A, status: 'healthy', last_synced_at: ago(0.2), last_error: null}], integrations: [{provider: 'form', label: 'Website form', status: 'active', last_success_at: ago(120), last_error: null}]},
         metrics: {
           leads: {definition: 'Customers created in the period from inquiries, forms, Mail or manual entry (merged duplicates excluded; bulk discovery imports listed separately).', total: 3, discovery_imports: 0, by_source: {website_form: 2, mail: 1}, inquiries: 2, drill: '/revenue?view=customers'},
           pipeline: {definition: 'Open opportunities now, by stage; conversion = won / (won + lost) among opportunities closed in the period.', open_by_stage: {meeting: {count: 1, value_cents: 420000}, qualified: {count: 1, value_cents: 180000}, proposal: {count: 1, value_cents: 650000}}, currencies: ['USD'], won: 0, lost: 0, drill: '/revenue?view=pipeline'},
