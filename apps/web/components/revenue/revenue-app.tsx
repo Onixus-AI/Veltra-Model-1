@@ -33,13 +33,12 @@ const label = (s: string) => s.replace(/[_.]/g, ' ');
 
 function readUrl() {
   const p = new URLSearchParams(window.location.search);
-  return {view: (p.get('view') as View) || 'overview', customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? '', preview: p.get('preview') === '1', w: p.get('w') ?? ''};
+  return {view: (p.get('view') as View) || 'overview', customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? '', w: p.get('w') ?? ''};
 }
 
-export default function RevenueApp() {
+export default function RevenueApp({preview = false}: {preview?: boolean}) {
   const [theme, setTheme] = useState<Theme>('system');
   const [ready, setReady] = useState(false);
-  const [preview, setPreview] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [w, setW] = useState('');
@@ -55,7 +54,6 @@ export default function RevenueApp() {
     const stored = localStorage.getItem('onixus-revenue-theme') as Theme | null;
     if (stored === 'light' || stored === 'dark') setTheme(stored);
     const u = readUrl();
-    setPreview(u.preview);
     setView(u.view);
     setFocus({customer: u.customer, thread: u.thread, message: u.message, job: u.job});
     setReady(true);
@@ -124,8 +122,8 @@ export default function RevenueApp() {
   const go = useCallback((next: View, f: Partial<typeof focus> = {}) => {
     const nf = {customer: '', thread: '', message: '', job: '', ...f};
     setView(next); setFocus(nf); setError(''); setNotice('');
-    const p = new URLSearchParams({view: next, ...(preview ? {preview: '1'} : {}), ...Object.fromEntries(Object.entries(nf).filter(([, v]) => v))});
-    window.history.pushState(null, '', `/revenue?${p}`);
+    const p = new URLSearchParams({view: next, ...Object.fromEntries(Object.entries(nf).filter(([, v]) => v))});
+    window.history.pushState(null, '', `${preview ? '/revenue/preview' : '/revenue'}?${p}`);
     main.current?.focus();
   }, [preview]);
 
@@ -175,7 +173,7 @@ export default function RevenueApp() {
         {preview && <div className="rev-banner" role="note"><strong>Preview with sample data.</strong> Nothing on this page is from a real workspace, and changes are disabled.</div>}
         {error && <div className="rev-alert" role="alert">{error}</div>}
         {notice && <div className="rev-ok" role="status">{notice}</div>}
-        {signedIn === false && <section className="rev-panel"><h1>Sign in to Onixus Revenue</h1><p>Use your Onixus Workspace account. Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue?preview=1">View a preview with sample data</a></section>}
+        {signedIn === false && <section className="rev-panel"><h1>Sign in to Onixus Revenue</h1><p>Use your Onixus Workspace account. Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue/preview">View a preview with sample data</a></section>}
         {signedIn && !w && !error && <section className="rev-panel"><h1>No workspace yet</h1><p>Create a workspace in Onixus CRM first.</p><a className="rev-button primary" href="/crm">Open CRM</a></section>}
         {signedIn && w && <>
           {view === 'overview' && <Overview {...shared}/>}
@@ -273,12 +271,12 @@ function Overview(s: Shared) {
     </section>
     <div className="rev-grid">
       <section className="rev-panel" aria-labelledby="unk-h"><h2 id="unk-h">What these numbers do not include</h2>
-        {o.unknowns.length ? <ul className="rev-list">{o.unknowns.map((u: string) => <li key={u}><AlertTriangle size={15} aria-hidden/> {u}</li>)}</ul> : <Empty>All sources are connected.</Empty>}
+        {o.unknowns.length ? <ul className="rev-list">{o.unknowns.map((u: string) => <li key={u}><AlertTriangle size={15} aria-hidden/><span>{u}</span></li>)}</ul> : <Empty>All sources are connected.</Empty>}
       </section>
       <section className="rev-panel" aria-labelledby="fresh-h"><h2 id="fresh-h">Data freshness</h2>
         <ul className="rev-list">
-          {o.freshness.mail_sync.map((x: Json) => <li key={x.account_id}><Activity size={15} aria-hidden/> Mail {x.mailbox ?? 'account'}: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</li>)}
-          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/> {x.label} ({x.provider}): <strong>{x.status}</strong>, last success {since(x.last_success_at)}</li>)}
+          {o.freshness.mail_sync.map((x: Json) => <li key={x.account_id}><Activity size={15} aria-hidden/><span>Mail {x.mailbox ?? 'account'}: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
+          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/><span>{x.label} ({x.provider}): <strong>{x.status}</strong>, last success {since(x.last_success_at)}</span></li>)}
           {!o.freshness.mail_sync.length && !o.freshness.integrations.length && <li>No connected sources yet.</li>}
         </ul>
       </section>
@@ -441,9 +439,9 @@ function Customer(s: Shared) {
             <ul className="rev-signals">{h.signals.map((sg, i) => <li key={i} className={`effect-${sg.effect}`}>{sg.label}{sg.evidence && <> · <a href={sg.evidence.link} onClick={e => { e.preventDefault(); s.follow(sg.evidence!.link); }}>{label(sg.evidence.kind)} {since(sg.evidence.at)}</a></>}</li>)}</ul></>}
         </div>; })}
         {!ctx.deals.length && <Empty>No opportunities.</Empty>}
-        {ctx.meetings.length > 0 && <><h3>Meetings</h3><ul className="rev-list">{ctx.meetings.map(m => <li key={m.id}>{m.title} — {when(m.starts_at)} ({m.status})</li>)}</ul></>}
-        {ctx.proposals.length > 0 && <><h3>Proposals</h3><ul className="rev-list">{ctx.proposals.map(p => <li key={p.id}>{p.title} — {money(p.amount_cents, p.currency)} · <strong>{label(p.status)}</strong>{p.amount_paid_cents ? ` · ${money(p.amount_paid_cents, p.currency)} confirmed paid` : ''}</li>)}</ul></>}
-        {ctx.onboarding.length > 0 && <><h3>Onboarding</h3><ul className="rev-list">{ctx.onboarding.map(o => <li key={o.id}>{label(o.status)} since {when(o.started_at)}{o.hold_reason ? ` — ${o.hold_reason}` : ''}</li>)}</ul></>}
+        {ctx.meetings.length > 0 && <><h3>Meetings</h3><ul className="rev-list">{ctx.meetings.map(m => <li key={m.id}><span>{m.title} — {when(m.starts_at)} ({m.status})</span></li>)}</ul></>}
+        {ctx.proposals.length > 0 && <><h3>Proposals</h3><ul className="rev-list">{ctx.proposals.map(p => <li key={p.id}><span>{p.title} — {money(p.amount_cents, p.currency)} · <strong>{label(p.status)}</strong>{p.amount_paid_cents ? ` · ${money(p.amount_paid_cents, p.currency)} confirmed paid` : ''}</span></li>)}</ul></>}
+        {ctx.onboarding.length > 0 && <><h3>Onboarding</h3><ul className="rev-list">{ctx.onboarding.map(o => <li key={o.id}><span>{label(o.status)} since {when(o.started_at)}{o.hold_reason ? ` — ${o.hold_reason}` : ''}</span></li>)}</ul></>}
       </section>
     </div>
     <div className="rev-grid">
@@ -498,7 +496,7 @@ function Mail(s: Shared) {
   return <>
     <Heading title="Onixus Mail" sub="Nothing is sent without approval. “Accepted by provider” means Gmail took the message; it is not proof of delivery." onRefresh={reload} loading={loading} at={at}/>
     <section className="rev-panel" aria-labelledby="sync-h"><h2 id="sync-h">Mailbox sync</h2>
-      {data.sync.length ? <ul className="rev-list">{data.sync.map(x => <li key={x.account_id}><Activity size={15} aria-hidden/> {x.mailbox ?? 'Mailbox'} ({x.provider}): <strong>{label(x.status)}</strong> · last synced {since(x.last_synced_at)} · {x.messages_synced} messages{x.last_error ? <span className="rev-warn"> — {x.last_error}{x.status === 'expired' ? '. Reconnect Google in Onixus Mail.' : ''}</span> : null}</li>)}</ul>
+      {data.sync.length ? <ul className="rev-list">{data.sync.map(x => <li key={x.account_id}><Activity size={15} aria-hidden/><span>{x.mailbox ?? 'Mailbox'} ({x.provider}): <strong>{label(x.status)}</strong> · last synced {since(x.last_synced_at)} · {x.messages_synced} messages{x.last_error ? <span className="rev-warn"> — {x.last_error}{x.status === 'expired' ? '. Reconnect Google in Onixus Mail.' : ''}</span> : null}</span></li>)}</ul>
         : <Empty>No mailbox is syncing into this workspace yet. Connect Google in Onixus Mail; sync status will appear here.</Empty>}
     </section>
     <div className="rev-grid">
@@ -560,7 +558,7 @@ function ThreadPanel({s, thread, identities, onClose}: {s: Shared; thread: Threa
         <small>{m.direction === 'inbound' ? m.from_email : `To ${m.to_email}`} · {when(m.occurred_at)} · <Status status={m.status}/></small>
         <pre className={m.untrusted ? 'rev-untrusted' : undefined}>{m.body}</pre>
       </li>)}</ol>
-      {data.comments.length > 0 && <><h3>Internal comments</h3><ul className="rev-list">{data.comments.map(c => <li key={c.id}>{c.body} <small>{since(c.created_at)}</small></li>)}</ul></>}
+      {data.comments.length > 0 && <><h3>Internal comments</h3><ul className="rev-list">{data.comments.map(c => <li key={c.id}><span>{c.body} <small>{since(c.created_at)}</small></span></li>)}</ul></>}
     </>}
     {s.canEdit && <>
       {draft ? <div className="rev-form">
@@ -597,7 +595,7 @@ function Automation(s: Shared) {
         <p className="rev-muted">Daily send limit: {c?.daily_send_limit ?? 'not set'} · daily spend limit: {c?.daily_spend_limit_cents != null ? money(c.daily_spend_limit_cents) : 'not set'}</p>
       </section>
       <section className="rev-panel" aria-labelledby="runs-h"><h2 id="runs-h">Run history</h2>
-        {data.runs ? <ol className="rev-list">{data.runs.map((r, i) => <li key={i}>Attempt {r.attempt} on {r.worker}: <strong>{r.outcome ?? 'running'}</strong> · {when(r.started_at)}{r.error ? ` — ${r.error}` : ''}</li>)}</ol> : <Empty>Choose a job to see each attempt.</Empty>}
+        {data.runs ? <ol className="rev-list">{data.runs.map((r, i) => <li key={i}><span>Attempt {r.attempt} on {r.worker}: <strong>{r.outcome ?? 'running'}</strong> · {when(r.started_at)}{r.error ? ` — ${r.error}` : ''}</span></li>)}</ol> : <Empty>Choose a job to see each attempt.</Empty>}
       </section>
     </div>
     <div className="rev-table-wrap"><table className="rev-table">

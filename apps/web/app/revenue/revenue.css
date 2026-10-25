@@ -61,7 +61,7 @@
 .rev-metric-detail{padding:0 16px 14px;font-size:13px}.rev-metric-detail dl{margin:8px 0;display:grid;gap:3px}.rev-metric-detail dl div{display:flex;justify-content:space-between;gap:8px}.rev-metric-detail dt{color:var(--muted);text-transform:capitalize}.rev-metric-detail dd{margin:0;font-weight:600}
 
 .rev-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.rev-list li{display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+.rev-list li{display:flex;gap:8px;align-items:flex-start}.rev-list li>button{margin-left:auto;flex:none}
 .rev-list li>svg{flex:none;margin-top:3px;color:var(--muted)}
 .rev-list li>div{display:grid;gap:2px;flex:1}.rev-list small{color:var(--muted)}
 

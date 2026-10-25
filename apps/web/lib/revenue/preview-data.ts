@@ -1,7 +1,7 @@
 import type {CustomerContext} from './context';
 import {dealHealth, nextBestActions} from './insights';
 
-// Sample records for /revenue?preview=1. The page labels them as sample data and refuses every write,
+// Sample records for /revenue/preview. The page labels them as sample data and refuses every write,
 // so nothing here can be mistaken for a workspace's real numbers.
 const now = Date.now();
 const ago = (h: number) => new Date(now - h * 3_600_000).toISOString();
