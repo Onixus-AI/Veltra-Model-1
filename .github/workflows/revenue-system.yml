@@ -28,12 +28,12 @@ jobs:
       - name: Apply the revenue migrations to a disposable database
         run: |
           psql -d postgres -c "create database rev"
-          for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql; do
+          for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql; do
             psql -v ON_ERROR_STOP=1 -q -d rev -f "$f"
           done
       - name: Re-apply the migrations to prove they are re-runnable
         run: |
-          for f in supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql; do
+          for f in supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql; do
             psql -v ON_ERROR_STOP=1 -q -d rev -f "$f"
           done
       - name: Tenant isolation, grants and direct-write denial
@@ -45,3 +45,14 @@ jobs:
         env:
           REVENUE_TEST_DATABASE_URL: postgres://postgres:fixture-only-password@127.0.0.1:5432/rev
         run: npx tsx --test --test-concurrency=1 test/revenue-e2e/acceptance.test.ts
+      - name: Install PostgREST for the HTTP route and Chat wiring tests
+        run: |
+          curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz
+          echo "9f71269e61ac3a940281e93ff415760f5957e430e475ba4c3889f3ede7d5527c  /tmp/postgrest.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/postgrest.tar.xz -C /tmp
+      - name: HTTP route tests and Chat wiring tests (real PostgREST, local auth check, fake model gateway)
+        working-directory: apps/web
+        env:
+          REVENUE_TEST_DATABASE_URL: postgres://postgres:fixture-only-password@127.0.0.1:5432/rev
+          REVENUE_TEST_POSTGREST_BIN: /tmp/postgrest
+        run: npx tsx --test --test-concurrency=1 test/revenue-e2e/routes.test.ts test/revenue-e2e/chat.test.ts
