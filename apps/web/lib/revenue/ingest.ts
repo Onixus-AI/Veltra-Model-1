@@ -63,12 +63,12 @@ export function mailIngester(store: RevenueStore, accountId: string, token: stri
   return event => store.rpc('revenue_ingest_mail_event', {p_account: accountId, p_token: token, p_event: event});
 }
 
-export function workerDeps(store: RevenueStore, token: string, workerId: string, providerFor: (accountId: string | null, workspaceId: string) => Promise<MailProvider | null>): WorkerDeps {
+export function workerDeps(store: RevenueStore, token: string, workerId: string, providerFor: ((accountId: string | null, workspaceId: string) => Promise<MailProvider | null>) | null): WorkerDeps {
   return {
     workerId,
-    claim: limit => store.rpc<{jobs: ClaimedJob[]; processed: unknown[]}>('revenue_worker_claim', {p_token: token, p_worker: workerId, p_limit: limit}),
+    claim: limit => store.rpc<{jobs: ClaimedJob[]; processed: unknown[]}>('revenue_worker_claim', {p_token: token, p_worker: workerId, p_limit: limit, p_send: Boolean(providerFor)}),
     complete: (jobId, result) => store.rpc('revenue_worker_complete', {p_token: token, p_job: jobId, p_worker: workerId, p_result: result}),
-    providerFor,
+    providerFor: providerFor ?? (async () => null),
   };
 }
 

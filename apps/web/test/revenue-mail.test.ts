@@ -38,8 +38,8 @@ test('Gmail adapter: sends, finds earlier sends, syncs history pages and maps er
   assert.deepEqual(start.messages, []);
   const sent = await gmail.send({idempotencyKey: 'onixus-abc', from: MAILBOX, to: 'pat@customer.test', subject: 'Hello', body: 'Body text'});
   assert.equal(g.delivered[0].body, 'Body text');
-  assert.deepEqual(await gmail.findSent('onixus-abc'), sent);
-  assert.equal(await gmail.findSent('onixus-missing'), null);
+  assert.deepEqual(await gmail.findSent!('onixus-abc'), sent);
+  assert.equal(await gmail.findSent!('onixus-missing'), null);
   for (let i = 0; i < 3; i++) g.receive({from: 'pat@customer.test', fromName: 'Pat', threadId: sent.providerThreadId, subject: `Re: Hello ${i}`, text: `Reply ${i}?`});
   const page1 = await gmail.changes(start.cursor, 2);
   assert.equal(page1.more, true);

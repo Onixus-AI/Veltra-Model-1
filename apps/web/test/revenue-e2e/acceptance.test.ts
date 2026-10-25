@@ -437,6 +437,9 @@ test('negative: workspace pause, daily send limit and loop prevention hold sends
   assert.equal((await one(`select outcome from public.revenue_job_runs r join public.revenue_jobs j on j.id=r.job_id where j.message_id=$1 order by r.id desc limit 1`, [id])).outcome, 'deferred');
   await owner.rpc('revenue_set_controls', {p_workspace: W, p_paused: false, p_daily_send_limit: 200});
   await q('update public.revenue_jobs set run_at=now() where message_id=$1', [id]);
+  const internalOnly = await runWorker(workerDeps(anon, WORKER_TOKEN, 'web-cron', null), 10);
+  assert.equal(internalOnly.claimed, 0, 'a worker without a mail provider leaves sends queued');
+  assert.equal((await one('select status from public.revenue_jobs where message_id=$1', [id])).status, 'queued');
   assert.equal((await work()).sent, 1);
   await assert.rejects(q(`select revenue_private.enqueue($1,'mail.send',null,'loop-test','{}',now(),null,null,4,null)`, [W]), /chain limit/);
 });

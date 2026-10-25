@@ -696,7 +696,8 @@ begin
 end $$;
 
 -- ---------- worker ----------
-create or replace function public.revenue_worker_claim(p_token text, p_worker text, p_limit integer default 10)
+-- p_send=false lets a worker without a mail provider run internal jobs and leave sends queued.
+create or replace function public.revenue_worker_claim(p_token text, p_worker text, p_limit integer default 10, p_send boolean default true)
 returns jsonb language plpgsql security definer set search_path='' as $$
 declare j public.revenue_jobs; out jsonb := '[]'; m public.revenue_messages; ctl public.revenue_controls; block text; sent integer; spent bigint;
  wf public.revenue_workflows; nm uuid; nj uuid; ident public.revenue_sender_identities; replied boolean; src public.revenue_messages; processed jsonb := '[]';
@@ -707,6 +708,7 @@ begin
   where status='running' and locked_until<now();
  for j in select * from public.revenue_jobs where status='queued' and run_at<=now() order by run_at limit greatest(1,least(p_limit,50))*4 for update skip locked loop
   exit when jsonb_array_length(out)>=greatest(1,least(p_limit,50));
+  continue when j.kind='mail.send' and not coalesce(p_send,true);
   select * into ctl from public.revenue_controls where workspace_id=j.workspace_id;
   if coalesce(ctl.automation_paused,false) then
    update public.revenue_jobs set last_error='Workspace automation is paused',updated_at=now() where id=j.id and last_error is distinct from 'Workspace automation is paused';
@@ -860,7 +862,7 @@ do $$ declare f text; begin
   execute 'revoke all on function public.'||f||' from public, anon';
   execute 'grant execute on function public.'||f||' to authenticated';
  end loop;
- foreach f in array array['revenue_ingest_mail_event(uuid,text,jsonb)','revenue_worker_claim(text,text,integer)','revenue_worker_complete(text,uuid,text,jsonb)'] loop
+ foreach f in array array['revenue_ingest_mail_event(uuid,text,jsonb)','revenue_worker_claim(text,text,integer,boolean)','revenue_worker_complete(text,uuid,text,jsonb)'] loop
   execute 'revoke all on function public.'||f||' from public';
   execute 'grant execute on function public.'||f||' to anon, authenticated';
  end loop;
