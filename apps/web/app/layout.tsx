@@ -6,9 +6,9 @@ import "@/styles/spatial-workspace.css";
 import AuthGate from "@/components/auth-gate";
 
 export const metadata: Metadata = {
-  icons: { icon: "/veltra-logo.png", apple: "/veltra-logo.png" },
-  title: "Veltra — Think at the speed of now",
-  description: "Chat, email and customer relationships in one connected Veltra workspace.",
+  icons: { icon: "/brands/onixus-core-v1.png", apple: "/brands/onixus-core-v1.png" },
+  title: "Onixus Workspace — Build. Grow. Automate.",
+  description: "Chat, email and customer relationships in one connected Onixus workspace.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
