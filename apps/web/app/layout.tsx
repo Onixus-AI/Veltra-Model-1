@@ -6,7 +6,7 @@ import "@/styles/spatial-workspace.css";
 import AuthGate from "@/components/auth-gate";
 
 export const metadata: Metadata = {
-  icons: { icon: "/brands/onixus-gravity-v1.png", apple: "/brands/onixus-gravity-v1.png" },
+  icons: { icon: "/brands/onixus-core-v1.png", apple: "/brands/onixus-core-v1.png" },
   title: "Onixus Workspace — Build. Grow. Automate.",
   description: "Chat, email and customer relationships in one connected Onixus workspace.",
 };
