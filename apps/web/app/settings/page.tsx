@@ -20,6 +20,8 @@ type Account = {
   billing_period_end: string;
   consumption: ConsumptionDay[];
 };
+// plan_name is stored data; legacy Veltra values are relabeled for display only.
+const planLabel = (name: string) => name.replace(/^Veltra\b/, "Onixus");
 type ApiKey = {
   id: string;
   name: string;
@@ -220,9 +222,9 @@ export default function SettingsPage() {
               <h2>Account, security & privacy</h2><p>Manage access and request help with your account data.</p>
               <p><Link href="/settings/connections">Manage and disconnect connected apps →</Link></p>
               <p><Link href="/settings/keys">Manage developer access →</Link></p>
-              <h3>Export your data</h3><p>Request an export of your account and server records from your account email.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20data%20export%20request">Request data export</a>
-              <h3>Delete or close your account</h3><p>Request deletion from your account email. Support verifies ownership, confirms affected records and explains any required retention before closing the account. Separate provider subscriptions must be cancelled with those providers.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20account%20deletion%20request">Request account deletion</a>
-              <p><Link href="/privacy">Privacy policy</Link> · <Link href="/eula">Terms</Link> · <a href="mailto:info@onixus.xyz?subject=Veltra%20support">Contact support</a></p>
+              <h3>Export your data</h3><p>Request an export of your account and server records from your account email.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20data%20export%20request">Request data export</a>
+              <h3>Delete or close your account</h3><p>Request deletion from your account email. Support verifies ownership, confirms affected records and explains any required retention before closing the account. Separate provider subscriptions must be cancelled with those providers.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20account%20deletion%20request">Request account deletion</a>
+              <p><Link href="/privacy">Privacy policy</Link> · <Link href="/eula">Terms</Link> · <a href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20support">Contact support</a></p>
             </section>}
             {activeTab === "usage" && (
               <section id="settings-panel-usage" className="settings-tab-panel" role="tabpanel" aria-labelledby="settings-tab-usage">
@@ -306,15 +308,15 @@ export default function SettingsPage() {
                 <section className="settings-card subscription-card">
                   <div className="subscription-top">
                     <div className="subscription-symbol"><Sparkles size={20} /></div>
-                    <span className="plan-status">{account?.plan_name??"Plan unavailable"}</span>
+                    <span className="plan-status">{account?planLabel(account.plan_name):"Plan unavailable"}</span>
                   </div>
                   <span className="eyebrow">YOUR SUBSCRIPTION</span>
-                  <h2>{account?.plan_name??"Your plan"}</h2>
+                  <h2>{account?planLabel(account.plan_name):"Your plan"}</h2>
                   <p>Everything your team needs to think, build, and move faster.</p>
                   <div className="subscription-price"><strong>{account?new Intl.NumberFormat("en-US",{style:"currency",currency:"USD"}).format(account.monthly_price_cents/100):"Unavailable"}</strong><span>/ month</span></div>
                   <div className="subscription-rule" />
                   <h3>Manage billing</h3><p>For plan changes, invoices, payment methods, cancellation or refunds, contact billing from your account email. Self-service checkout is not connected yet.</p>
-                  <a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Veltra%20billing%20request">Contact billing</a>
+                  <a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20billing%20request">Contact billing</a>
                   <div className="allocation-row">
                     <div><span>Monthly credit allocation</span><strong>{account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits</strong></div>
                     <div><span>Active balance</span><strong>{account?.credits_remaining.toLocaleString() ?? "—"} credits</strong></div>

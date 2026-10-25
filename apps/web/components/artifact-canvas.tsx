@@ -135,7 +135,7 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
           </div>
         )}
       </div>
-      <div className="canvas-status"><span><i /> Current canvas</span><span>Veltra Canvas <b>·</b> {artifact.kind.toUpperCase()}</span></div>
+      <div className="canvas-status"><span><i /> Current canvas</span><span>Onixus Canvas <b>·</b> {artifact.kind.toUpperCase()}</span></div>
     </section>
   );
 }

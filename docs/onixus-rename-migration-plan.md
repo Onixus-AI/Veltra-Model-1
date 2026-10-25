@@ -1,0 +1,58 @@
+# Onixus rename: technical migration plan
+
+Status: **proposal only.** Nothing in this document has been performed. Customer-facing copy was rebranded in PR #90 (Onixus Workspace) and its follow-up (Onixus product names). Every item below is an internal identifier or external registration that still says "Veltra" on purpose, because renaming it in place would break sessions, integrations, stored data or deployments.
+
+## Principles
+
+1. **Display first, identifiers later.** Customers already see Onixus names. Technical renames are optional cleanup and should never block a release.
+2. **Add before remove.** Every rename ships in three steps: (a) accept both old and new (dual-read, aliases, redirects); (b) switch writers to the new value; (c) remove the old value only after telemetry shows no traffic for a full billing period (≥ 30 days).
+3. **One subsystem per release.** Each phase below is independently deployable and independently reversible.
+4. **Rollback = redeploy the previous build.** No phase may make a destructive data change before its dual-read phase has been live and verified.
+
+## Inventory
+
+| # | Area | Current value | Proposed value | Risk | Dependencies |
+|---|------|---------------|----------------|------|--------------|
+| 1 | Product decision: Mail and Chat | `Veltra Mail`, `Veltra Chat` (still customer-visible) | `Onixus Mail`, `Onixus Chat`, or keep | Low (copy), but drives items 2, 3, 12 | **Owner decision pending.** Separate Veltra-Mail service, its own UI and emails |
+| 2 | Env vars (web) | `NEXT_PUBLIC_VELTRA_API_URL`, `VELTRA_MAIL_URL`, `VELTRA_BROWSER_ENABLED`, `VELTRA_BROWSER_SNAPSHOT_ID`, `VELTRA_CODING_TEAM_ENABLED`, `VELTRA_TASK_ACCESS_ENABLED` | `NEXT_PUBLIC_ONIXUS_API_URL`, `ONIXUS_MAIL_URL`, `ONIXUS_*` | Medium: a missing var silently disables features (browser, coding team, task access) or breaks gateway calls | Vercel project env (Production, Preview, Development). `NEXT_PUBLIC_*` is inlined at build time, so a redeploy is required |
+| 3 | Env vars (tests/CI) | `VELTRA_MAIL_SOURCE`, `VELTRA_CRM_SOURCE`, `VELTRA_ESBUILD`, `VELTRA_TEST_BROWSER_CHANNEL` | `ONIXUS_*` | Low | `.github/workflows`, `test/integration/README.md`, local developer shells |
+| 4 | Package names | `@veltra/web` | `@onixus/web` | Low | `package.json`, `package-lock.json`, any workspace references or CI caches keyed on name |
+| 5 | Model aliases | `veltra-agent`, `veltra-vision`, `veltra-fast`, `veltra-fast-free`, `veltra-code-free`, `veltra-free`, `veltra-mimo`, `veltra-ling`, `veltra-logic`, … | `onixus-*` | **High**: aliases are part of the public API surface (`/v1` callers, saved client configs, `model-policy.json`, `config.yaml`, `VISION_MODELS`, browser tests) | Gateway `config.yaml`/`model-policy.json`, web callers, any customer integrations using API keys |
+| 6 | API key prefix | `veltra_sk_` | `onixus_sk_` | **High**: existing keys must keep working forever or be rotated; prefix is also used to reject keys in browser-only paths (`lib/crm/server.ts`) | Gateway key issuance/validation, Supabase key hash table, docs, secret scanners |
+| 7 | Browser storage keys | `veltra-api-key`, `veltra-connect-*`, `veltra-password-recovery`, `veltra-mail-link-state`, `veltra-workspace-mode`, `veltra-setup-timezones`, `veltra-bee-state`, `veltra-active-coder-run`, `veltra-appearance-v*`, `veltra-sidebar-v*`, `veltra-task-center-expanded-v*`, `veltra_setup_v1`; cookies `veltra_mail_frame` (web) and `veltra_session` (Veltra Mail) | `onixus-*` | Medium: renaming drops user preferences or signs users out of the Mail frame; renaming `veltra-connect-*` / `veltra-password-recovery` mid-flow breaks an in-progress OAuth or password reset | All readers/writers in `apps/web`; Veltra Mail service for `veltra_session` |
+| 8 | DOM events, postMessage types, headers | `veltra-connections-changed`, `veltra-crm-changed`, `veltra:crm-context`, `veltra:crm-refresh`, `x-veltra-task`, `x-veltra-mail-frame` | `onixus-*` / `x-onixus-*` | Medium: the CRM iframe and Veltra Mail frame can run a different build than the host during deploys | Web app, embedded CRM view, Veltra Mail service |
+| 9 | HTTP User-Agent | `VeltraCRM/1.0 contact-research`, `VeltraCRM/1.0 (https://veltra.ai)` | `OnixusCRM/1.0 …` | Medium: robots.txt rules that sites wrote for `VeltraCRM` stop matching; Overpass API usage policy requires a stable, contactable UA | `lib/crm/contact-research.ts` (`robotAllows` matches the `veltracrm` token), `lib/crm/discovery-source.ts`, `test/contact-research.test.ts` |
+| 10 | Component, file and CSS names | `components/veltra-workspace.tsx` (`VeltraWorkspace`), `styles/veltra-theme.css`, CSS variables `--veltra-*`, class `veltra-tool-logo`, assets `/veltra-logo.png`, `/brands/veltra-crm.png`, `/brands/veltra-mail.svg` | `onixus-*` | Low for code; assets are **frozen** until the logo work is delivered | Imports, tests (`test/browser-workspace/main.tsx`), CSS selectors. Asset renames wait for the new logo set |
+| 11 | Database and auth objects | Tables `public.veltra_memories` (+ indexes, RLS policies), `public.veltra_ai_tasks`, `public.veltra_ai_task_access`; RPC function `public.veltra_task_access`; auth `user_metadata.veltra_crm_connected`; agent tool name `veltra_capabilities`; `plan_name` defaults `'Veltra $59/month'` / `'Veltra Business OS'` | `onixus_*`; plan names `'Onixus Business OS'` | **High** for tables and the RPC (RLS, grants, PostgREST paths in web + gateway); Medium for `user_metadata` (dual-read the old key); Low for `plan_name` (the UI already relabels it) | Supabase migrations, gateway and web queries, any external analytics |
+| 12 | Vercel / Railway projects and domains | `veltra-model-1.vercel.app`, Vercel project serving that hostname, Railway gateway service, `veltra.ai` in UA | `onixus` project names; custom domain (e.g. `app.onixus.xyz`) | **High**: OAuth callbacks, Supabase redirect allow-list, CRM dashboard links (`components/crm/command-dashboard.tsx`) and docs reference the hostname | Items 13 and 15; DNS; Vercel/Railway dashboards |
+| 13 | OAuth apps and callbacks | GitHub, Vercel, Supabase, Railway, n8n, Google OAuth apps registered as "Veltra" with callbacks on `veltra-model-1.vercel.app` | App display names "Onixus Workspace"; callbacks on the new domain | **High**: a callback mismatch breaks every connection flow | Item 12; each provider's developer console. Register the new callback **alongside** the old one |
+| 14 | Shopify app | Registered app name "Veltra" (copy: "Uninstall Veltra in Shopify to revoke its store grant.") | "Onixus Workspace" | Medium: renaming in Shopify Partners may need app review; copy must match what merchants see in their admin | Shopify Partners dashboard. Update `components/shopify-canvas.tsx` copy **after** the rename is live |
+| 15 | Supabase auth emails | No templates in repo (`supabase/` has no `config.toml` or `templates/`); confirmation, magic-link, reset-password and invite emails are managed in the Supabase dashboard | Subject/body say "Onixus Workspace"; sender display name "Onixus Workspace" | Low (copy only), but a manual dashboard change | **Manual step**: Supabase Dashboard → Authentication → Email Templates (and SMTP sender name if custom SMTP is configured). Keep `{{ .ConfirmationURL }}` and redirect URLs untouched |
+| 16 | Outreach booking link | `https://www.onixus.xyz/book?objective=Explore%20Veltra` in campaign emails | `objective=Explore%20Onixus%20Workspace` | Low–Medium: the booking page on onixus.xyz may route or report on the `objective` value | Owner of the onixus.xyz booking page |
+| 17 | Command parsing | `lib/trash-criteria.ts` strips a leading "Veltra," and `lib/crm-actions-chat.ts` accepts "connect Veltra Mail…"; the example "Veltra, delete all email older than 1 year" is in the chat system prompt | Also accept "Onixus," / "Onixus Workspace," | Low: additive regex change | `test/mail-chat.test.ts` |
+| 18 | Gateway internals | FastAPI `title="Veltra AI Gateway"`, `/health` `service: "Veltra Model 1 AI Gateway"`, `VELTRA_SYSTEM_PROMPT` constant, `model_routing.py` policy errors ("outside Veltra … policy"), "Veltra server clock" tool source | Onixus equivalents | Low; check uptime monitors that match the `/health` body | Monitors, `test/runtime-context.test.ts` |
+| 19 | Repo and docs | GitHub repo `Veltra-Model-1`, README, `docs/veltra-*.md` | Optional rename | Low: GitHub redirects old repo URLs, but update git remotes, CI badges and Vercel/Railway Git links | Vercel and Railway Git integrations |
+
+## Phased order of operations
+
+**Phase 0 (no code).** Decide on Veltra Mail and Veltra Chat (item 1). Update the Supabase auth email templates and sender name in the dashboard (item 15). Rename the Shopify app if wanted, then update the copy (item 14). Rename the OAuth app *display names* only (item 13); this does not affect callbacks.
+
+**Phase 1: low-risk internals.** Package name (4), component/file/CSS names (10, excluding assets), gateway titles/messages (18), additive command parsing (17), test/CI env vars (3). Rollback: revert the PR.
+
+**Phase 2: env vars (2), dual-read.** Code reads `ONIXUS_X ?? VELTRA_X`. Set both values in Vercel and Railway, deploy, verify, then remove the `VELTRA_*` values one release later. Rollback: the old variables are still set.
+
+**Phase 3: browser storage, events, headers (7, 8), dual-read.** Read the new key and fall back to the old one; write only the new key; migrate on first read. Accept both event/message types and both headers for one release while the CRM iframe and the Veltra Mail service catch up. Never rename `veltra-connect-*` or `veltra-password-recovery` without a fallback read (in-flight OAuth and reset flows). Rollback: old keys are still read.
+
+**Phase 4: domain and OAuth (12, 13).** Add the new custom domain to the Vercel project; add new callback URLs to every OAuth app and to the Supabase redirect allow-list *in addition to* the old ones; switch `NEXT_PUBLIC_*` URLs; redirect `veltra-model-1.vercel.app` → new domain (keep it serving for links in sent emails). Remove the old callbacks only after 30+ days. Rollback: point the env back at the old host; the old callbacks still work.
+
+**Phase 5: public API (5, 6, 9).** Add `onixus-*` model aliases as synonyms of the existing ones; issue new keys with `onixus_sk_` while validating both prefixes indefinitely (or until customers rotate). Update docs. Change the User-Agent only with dual matching in `robotAllows` (`veltracrm` and `onixuscrm`) and keep a contact URL. Rollback: the old aliases and prefix are never removed.
+
+**Phase 6: database (11).** Create `onixus_*` views (or rename the tables and leave compatibility views under the old names), migrate RLS policies and grants, move readers, then writers, then drop the compatibility views after a full release. Update `plan_name` defaults and backfill (the UI already relabels "Veltra …" plan names). Rollback: compatibility views keep the old names working; restore from a Supabase backup if needed.
+
+**Phase 7: optional.** Repo rename and internal docs (19); asset file renames once the new logo set is delivered (10).
+
+## Known UI follow-ups (no technical rename needed)
+
+- `/workspace` suite header: the wordmark grew from `veltra` (6 characters) to `Onixus Workspace` (16 characters) at 27px (23px on mobile) and shares a row with the account nav. It may wrap or crowd on narrow screens. Fix it as a design change (font size, or two-line lockup), not by shortening the name in code.
+- `/settings` brand lockup and the Connections hub wordmark are longer; check them visually.
+- Product names still showing Veltra to customers: `Veltra Mail`, `Veltra Chat` (pending item 1) and the Shopify app name (pending item 14).
