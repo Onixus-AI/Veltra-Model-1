@@ -53,6 +53,11 @@ async function handle(request: Request, context: Context) {
         const [overview, priorities] = await Promise.all([store.rpc('revenue_overview', {p_workspace: w, p_from: from || null, p_to: to || null}), store.rpc('revenue_priorities', {p_workspace: w, p_limit: 25})]);
         return ok({overview, priorities});
       }
+      if (view === 'proposal') {
+        const id = url.searchParams.get('id');
+        if (!uuid(id)) throw new RevenueError(400, 'Choose a proposal.');
+        return ok(await store.rpc('revenue_proposal_status', {p_workspace: w, p_proposal: id}));
+      }
       if (view === 'pipeline') return ok(await store.rpc('revenue_pipeline', {p_workspace: w}));
       if (view === 'customers') {
         let query = client.from('crm_customers').select('id,company,name,email,source,owner_id,identity_review_required,suppressed,created_at').eq('workspace_id', w).is('merged_into_id', null);
