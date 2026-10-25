@@ -1,6 +1,6 @@
 import {MailProviderError, type MailProvider, type ProviderMessage} from './mail-provider';
 import {analyzeMessage} from './untrusted';
-import {RevenueError} from './store';
+import {RevenueError} from './errors';
 
 export type MailIngest = (event: Record<string, unknown>) => Promise<unknown>;
 export type SyncResult = {status: 'healthy' | 'expired' | 'error'; cursor: string | null; ingested: number; skipped?: {provider_message_id: string; reason: string}[]; error?: string; detail?: string};

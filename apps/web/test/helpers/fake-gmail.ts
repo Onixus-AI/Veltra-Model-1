@@ -12,7 +12,7 @@ const unb64url = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '
 
 export type DeliveredMail = {to: string; from: string; subject: string; body: string; messageId: string; inReplyTo: string | null; replyTo: string | null; threadId: string; gmailId: string};
 
-export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]}) {
+export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; sendAs?: {email: string; verified: boolean}[]}) {
   const messages = new Map<string, Stored>();
   const history: {id: number; messageId: string}[] = [];
   let historyId = 1000, seq = 0, revoked = false, minHistory = 0, clock = Date.now();
@@ -47,6 +47,8 @@ export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]}) 
     if (revoked) return json(401, {error: {message: 'Invalid Credentials'}});
     const path = url.pathname.replace('/gmail/v1/users/me', '');
     if (path === '/profile') return json(200, {emailAddress: o.mailbox, historyId: String(historyId)});
+    if (path === '/settings/sendAs') return json(200, {sendAs: [{sendAsEmail: o.mailbox, isPrimary: true, verificationStatus: 'accepted'},
+      ...(o.sendAs ?? []).map(a => ({sendAsEmail: a.email, isPrimary: false, verificationStatus: a.verified ? 'accepted' : 'pending'}))]});
     if (path === '/messages/send' && init?.method === 'POST') {
       const failure = failures.shift();
       if (failure) return json(failure.status, {error: {message: failure.message}});

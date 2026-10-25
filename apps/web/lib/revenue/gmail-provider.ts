@@ -1,4 +1,5 @@
 import {buildMime, isAutomatedSender, MailProviderError, addressOf, nameOf, parseBounce, type ChangePage, type MailProvider, type OutboundMail, type ProviderMessage} from './mail-provider';
+import {googleAccessToken, type GoogleCredentials} from './google-auth';
 
 // Gmail REST adapter: users.messages.send for sending, users.history.list for incremental
 // two-way sync. Uses the existing Onixus Mail OAuth client and refresh token (scopes
@@ -7,7 +8,7 @@ import {buildMime, isAutomatedSender, MailProviderError, addressOf, nameOf, pars
 type Part = {mimeType?: string; filename?: string; body?: {data?: string; size?: number; attachmentId?: string}; parts?: Part[]; headers?: {name: string; value: string}[]};
 type GmailMessage = {id: string; threadId: string; labelIds?: string[]; internalDate: string; payload: Part};
 
-export type GmailCredentials = {clientId: string; clientSecret: string; refreshToken: string};
+export type GmailCredentials = GoogleCredentials;
 
 const decode = (data?: string) => (data ? Buffer.from(data.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8') : '');
 function textOf(part: Part): string {
@@ -40,28 +41,15 @@ export function toProviderMessage(m: GmailMessage, mailbox: string): ProviderMes
 export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeof fetch; apiUrl?: string; tokenUrl?: string} = {}): MailProvider {
   const fetcher = o.fetcher ?? fetch;
   const api = (o.apiUrl ?? 'https://gmail.googleapis.com/gmail/v1/users/me').replace(/\/$/, '');
-  let access: {token: string; until: number} | null = null;
+  const token = googleAccessToken(credentials, o);
   let mailbox: string | null = null;
 
-  async function token() {
-    if (access && access.until > Date.now() + 30_000) return access.token;
-    const response = await fetcher(o.tokenUrl ?? 'https://oauth2.googleapis.com/token', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: new URLSearchParams({client_id: credentials.clientId, client_secret: credentials.clientSecret, refresh_token: credentials.refreshToken, grant_type: 'refresh_token'}), signal: AbortSignal.timeout(15000)});
-    const data = await response.json().catch(() => ({})) as {access_token?: string; expires_in?: number; error?: string};
-    if (!response.ok || !data.access_token) {
-      if (data.error === 'invalid_grant' || response.status === 400 || response.status === 401) throw new MailProviderError('auth_expired', 'Google connection expired or was revoked. Reconnect Google in Onixus Mail.', false);
-      throw new MailProviderError('temporary', 'Google sign-in is temporarily unavailable.', true);
-    }
-    access = {token: data.access_token, until: Date.now() + (data.expires_in ?? 3600) * 1000};
-    return access.token;
-  }
-
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetcher(api + path, {...init, headers: {...(init.headers ?? {}), Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json'}, signal: AbortSignal.timeout(20000)});
+    const response = await fetcher(api + path, {...init, headers: {...(init.headers ?? {}), Authorization: `Bearer ${await token.get()}`, 'Content-Type': 'application/json'}, signal: AbortSignal.timeout(20000)});
     if (response.ok) return response.json() as Promise<T>;
     const detail = await response.json().catch(() => ({})) as {error?: {message?: string; status?: string}};
     const message = detail.error?.message?.slice(0, 200) ?? `Gmail returned ${response.status}`;
-    if (response.status === 401) { access = null; throw new MailProviderError('auth_expired', 'Google connection expired. Reconnect Google in Onixus Mail.', false); }
+    if (response.status === 401) { token.reset(); throw new MailProviderError('auth_expired', 'Google connection expired. Reconnect Google in Onixus Mail.', false); }
     if (response.status === 404 && path.startsWith('/history')) throw new MailProviderError('cursor_expired', 'Gmail sync position expired; a recent-mail resync is required.', true);
     if (response.status === 429 || (response.status === 403 && /rate|quota/i.test(message))) throw new MailProviderError('rate_limited', 'Gmail rate limit reached; retrying later.', true);
     if (response.status === 400 && /recipient|address|invalid to/i.test(message)) throw new MailProviderError('invalid_recipient', message, false);
@@ -81,6 +69,11 @@ export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeo
       const raw = Buffer.from(buildMime(mail)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       const sent = await call<{id: string; threadId: string}>('/messages/send', {method: 'POST', body: JSON.stringify({raw, ...(mail.threadId ? {threadId: mail.threadId} : {})})});
       return {providerMessageId: sent.id, providerThreadId: sent.threadId};
+    },
+    async senders() {
+      const me = await address();
+      const list = await call<{sendAs?: {sendAsEmail: string; isPrimary?: boolean; verificationStatus?: string}[]}>('/settings/sendAs');
+      return [...new Set([me, ...(list.sendAs ?? []).filter(s => s.isPrimary || s.verificationStatus === 'accepted').map(s => s.sendAsEmail.toLowerCase())])];
     },
     async findSent(idempotencyKey: string) {
       const found = await call<{messages?: {id: string; threadId: string}[]}>(`/messages?maxResults=1&q=${encodeURIComponent(`in:sent rfc822msgid:${idempotencyKey}@onixus.mail`)}`);

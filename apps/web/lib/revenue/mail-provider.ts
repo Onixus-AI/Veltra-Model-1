@@ -18,7 +18,7 @@ export type ProviderMessage = {
 
 export type ChangePage = {messages: ProviderMessage[]; cursor: string; more: boolean};
 
-export type MailErrorCode = 'auth_expired' | 'rate_limited' | 'invalid_recipient' | 'cursor_expired' | 'temporary' | 'rejected' | 'provider_unavailable';
+export type MailErrorCode = 'auth_expired' | 'rate_limited' | 'invalid_recipient' | 'cursor_expired' | 'temporary' | 'rejected' | 'provider_unavailable' | 'scope_missing' | 'sender_not_allowed';
 
 export class MailProviderError extends Error {
   constructor(public code: MailErrorCode, message: string, public retryable: boolean) {
@@ -32,6 +32,8 @@ export interface MailProvider {
   send(mail: OutboundMail): Promise<{providerMessageId: string; providerThreadId: string}>;
   /** Finds a message already sent with this idempotency key (its Message-ID), so a retried job after a crash never sends twice. */
   findSent?(idempotencyKey: string): Promise<{providerMessageId: string; providerThreadId: string} | null>;
+  /** Addresses this mailbox may send as (its own plus verified aliases); the provider would otherwise rewrite or reject From. */
+  senders?(): Promise<string[]>;
   /** Changes since the cursor; with no cursor, returns the current position and recent messages. */
   changes(cursor: string | null, limit: number): Promise<ChangePage>;
 }
