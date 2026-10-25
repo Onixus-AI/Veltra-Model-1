@@ -71,7 +71,7 @@ with sync_playwright() as p:
  page.get_by_role('textbox',name='Find a workspace action').fill('Open Mail')
  page.keyboard.press('Enter')
  expect(page.get_by_role('dialog')).not_to_be_visible()
- expect(page.locator('.canvas-heading')).to_contain_text('Veltra Mail')
+ expect(page.locator('.canvas-heading')).to_contain_text('Onixus Mail')
  page.keyboard.press('Control+k');page.keyboard.press('Escape')
  expect(page.get_by_role('dialog')).not_to_be_visible()
  page.get_by_role('button',name='Expand sidebar',exact=True).click()

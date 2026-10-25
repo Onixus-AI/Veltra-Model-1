@@ -5,7 +5,7 @@ test('Mail recognizes only supported explicit requests and rejects destructive o
 test('Mail calls carry the user token and fixed tool; upstream errors never claim success',async()=>{
  let calls=0;const auth='Bearer caller-token';const mock:typeof fetch=async(url,init)=>{calls++;assert.equal(String(url),'https://mail.test/chat/mail-mcp');assert.equal(new Headers(init?.headers).get('authorization'),auth);const body=JSON.parse(String(init?.body));assert.equal(body.params.name,'find_unanswered_quotes');return Response.json({result:{content:[{type:'text',text:JSON.stringify({items:[],scope:'This page only.'})}]}});};
  const intent=mailIntent('Find quotes with no response')!;assert.match(await executeMailIntent(intent,auth,'https://mail.test',mock),/No matching records/);assert.equal(calls,1);
- await assert.rejects(()=>executeMailIntent(intent,auth,'https://mail.test',async()=>Response.json({error:'disconnected'},{status:409})),/Connect Veltra Mail/);
+ await assert.rejects(()=>executeMailIntent(intent,auth,'https://mail.test',async()=>Response.json({error:'disconnected'},{status:409})),/Connect Onixus Mail/);
  await assert.rejects(()=>executeMailIntent(intent,auth,'http://internal',mock),/not configured/);
 });
 test('Receipts escape mailbox text, preserve unknown reasons and match Chat streaming format',async()=>{

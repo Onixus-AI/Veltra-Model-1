@@ -416,12 +416,12 @@ export default function VeltraWorkspace() {
       {accessRequest&&<TaskAccessDialog request={accessRequest} onDecision={answerAppAccess}/>}
       <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
         <nav aria-label="Workspace tools">
-          <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Veltra Chat</span></button>
+          <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Onixus Chat</span></button>
           <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           {workspaceMode==="dev"&&<button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>}
           {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><LayoutDashboard size={17}/><span>Business overview</span></Link>}
-          {workspaceMode!=="dev"&&<button title="Veltra Mail" aria-label="Veltra Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Veltra Mail</span></button>}
+          {workspaceMode!=="dev"&&<button title="Onixus Mail" aria-label="Onixus Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Onixus Mail</span></button>}
           {workspaceMode==="business"&&<button title="Onixus CRM" aria-label="Onixus CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Onixus CRM</span></button>}
           {workspaceMode==="business"&&<button title="Onixus Business OS" aria-pressed={businessOsOpen} onClick={()=>openTool("business")}><BriefcaseBusiness size={17}/><span>Onixus Business OS</span></button>}
           <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setPanelFull(false);setBusinessOsOpen(false);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
@@ -437,7 +437,7 @@ export default function VeltraWorkspace() {
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Onixus Workspace</span></div>
       </aside>
       <section className="chat-panel">
-        <div className="chat-toolbar"><strong className="chat-product-name">Veltra Chat</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={stopTask}>End app access</button>}
+        <div className="chat-toolbar"><strong className="chat-product-name">Onixus Chat</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={stopTask}>End app access</button>}
           <button className="new-chat-button" disabled={sending} onClick={startNewChat} aria-label="New chat"><SquarePen size={16}/></button>
         <ChatSetup busy={sending||!historyLoaded} autoOpen={historyLoaded&&messages.length===0} businessReady={Boolean(cloud?.workspace_id&&!cloud.customer_id&&(!crmOpen||!crmScope||cloud.workspace_id===crmScope.workspace_id&&!crmScope.customer_id))} onContext={setSavedSetup} onMode={changeWorkspaceMode} onTool={tool=>openTool(tool,false)} onStart={prompt=>{setImageMode(false);setInput(prompt);}}/>
           <div className="model-selector-wrap">
@@ -529,7 +529,7 @@ export default function VeltraWorkspace() {
 
       <section className="canvas-column" aria-label="Workspace app area">
         <div className="canvas-shell-head">
-          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"Onixus CRM":codeOpen?"Code":mailOpen?"Veltra Mail":"Canvas"}</strong></div></div>
+          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"Onixus CRM":codeOpen?"Code":mailOpen?"Onixus Mail":"Canvas"}</strong></div></div>
           <div className="canvas-head-actions"><button className="workspace-ask-button" aria-pressed={!panelFull} onClick={()=>{setPanelFull(value=>!value);setMobileView(panelFull?"chat":"canvas");}}><MessageSquare size={16}/><span>{panelFull?"Ask Onixus Workspace":"Hide Chat"}</span></button><details className="workspace-layout-options"><summary>Layout</summary><label className="panel-width-control">Width<input type="range" min="40" max="75" step="5" aria-label="Tool panel width" value={panelWidth} disabled={panelFull} onChange={event=>setPanelWidth(Number(event.target.value))}/></label></details><button aria-label={panelFull?"Retract tool panel":"Expand tool panel"} aria-pressed={panelFull} onClick={()=>setPanelFull(value=>!value)}>{panelFull?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label="Close tool panel" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><X size={16}/></button>
             {!crmOpen&&!mailOpen&&<button onClick={() => void copyLastAnswer()} title="Copy latest answer"><Copy size={14} />{copied ? <Check size={13} /> : null}</button>}
             {!crmOpen&&!mailOpen&&<button className="canvas-add-button" onClick={() => { setBusinessOsOpen(false);setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>}

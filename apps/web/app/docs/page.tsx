@@ -33,7 +33,7 @@ const sections = [
   },
   {
     "id": "mail",
-    "title": "Veltra Mail",
+    "title": "Onixus Mail",
     "body": "Mail works independently at veltra-production-5b9c.up.railway.app. You can optionally connect it to Chat with Google from Connections and open the full Mail workspace in the canvas. Review Mail business settings and approval rules before enabling sending, follow-ups or cleanup. Disconnecting Mail from Chat preserves standalone Mail access and mailbox authorization."
   },
   {

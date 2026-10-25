@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
   if(cleanup){
     if(!authorization)return Response.json({detail:'Sign in to manage your mailbox.'},{status:401});
     const base=process.env.VELTRA_MAIL_URL;
-    if(!base)return Response.json({detail:'Veltra Mail is not configured.'},{status:503});
+    if(!base)return Response.json({detail:'Onixus Mail is not configured.'},{status:503});
     try{
       const response=await fetch(base.replace(/\/$/,'')+'/chat/mail-cleanup',{method:'POST',headers:{Authorization:authorization,'Content-Type':'application/json'},body:JSON.stringify(cleanup),redirect:'error',cache:'no-store',signal:AbortSignal.timeout(100000)});
       const data=await response.json();
