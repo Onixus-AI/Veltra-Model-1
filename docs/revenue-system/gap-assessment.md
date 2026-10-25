@@ -107,8 +107,9 @@ contacts become a cache to retire in Phase 2.
   adds nullable columns without defaults (metadata-only in Postgres 11+), new tables, new indexes
   (`create index` — see rollout for `concurrently`), and replaces the `crm_deals` stage CHECK with a
   trigger (0 rows today). No data is rewritten or deleted.
-- **Secrets**: Mail seals tokens at rest; web never sees them. Keep it so: the web worker talks to
-  Mail through its authenticated API, not raw Gmail tokens.
+- **Secrets**: Mail seals tokens at rest; web never sees them. Phase 1 keeps it so: the web worker
+  never holds Gmail tokens and leaves `mail.send` jobs for a Mail-side sender (see
+  `integration-status.md` — that sender is not built yet).
 - **Observability**: failures are mostly `console.error` in Mail; CRM shows only outbox counts.
   Phase 1 makes failures first-class rows (jobs, events with `error`, sync state) with recovery
   actions in the UI.

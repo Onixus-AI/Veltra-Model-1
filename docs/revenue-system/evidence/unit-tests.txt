@@ -1,0 +1,748 @@
+TAP version 13
+# Subtest: the model tool loop waits for review, carries selected context and uses the actual action receipt
+ok 1 - the model tool loop waits for review, carries selected context and uses the actual action receipt
+  ---
+  duration_ms: 28.847185
+  type: 'test'
+  ...
+# Subtest: Bee routes explicit member requests and leaves unrelated or quoted text alone
+ok 2 - Bee routes explicit member requests and leaves unrelated or quoted text alone
+  ---
+  duration_ms: 5.644495
+  type: 'test'
+  ...
+# Subtest: Bee tool receipts can be read by the existing streaming chat UI
+ok 3 - Bee tool receipts can be read by the existing streaming chat UI
+  ---
+  duration_ms: 15.143516
+  type: 'test'
+  ...
+# Subtest: manager lists within scope, includes expired only on request and does not change automatic recall
+ok 4 - manager lists within scope, includes expired only on request and does not change automatic recall
+  ---
+  duration_ms: 12.929605
+  type: 'test'
+  ...
+# Subtest: manager writes require a server review, scope binding and single-use confirmation
+ok 5 - manager writes require a server review, scope binding and single-use confirmation
+  ---
+  duration_ms: 3.945853
+  type: 'test'
+  ...
+# Subtest: viewer roles, authentication, origin, invalid actions and input bounds are enforced
+ok 6 - viewer roles, authentication, origin, invalid actions and input bounds are enforced
+  ---
+  duration_ms: 2.496749
+  type: 'test'
+  ...
+# Subtest: Chat proposals resolve owned, versioned sources and reject duplicates before review
+ok 7 - Chat proposals resolve owned, versioned sources and reject duplicates before review
+  ---
+  duration_ms: 2.850632
+  type: 'test'
+  ...
+# Subtest: public browser URLs reject network and credential targets, including encoded IPs
+ok 8 - public browser URLs reject network and credential targets, including encoded IPs
+  ---
+  duration_ms: 5.67119
+  type: 'test'
+  ...
+# Subtest: browser setup finishes before restricted page loading; results have verified origin and screenshot, and VM is discarded
+ok 9 - browser setup finishes before restricted page loading; results have verified origin and screenshot, and VM is discarded
+  ---
+  duration_ms: 0.876138
+  type: 'test'
+  ...
+# Subtest: failed or wrong-origin browser results cannot claim success and always stop the VM
+ok 10 - failed or wrong-origin browser results cannot claim success and always stop the VM
+  ---
+  duration_ms: 0.578438
+  type: 'test'
+  ...
+# Subtest: every industry has editable offers and a first-party booking path
+ok 11 - every industry has editable offers and a first-party booking path
+  ---
+  duration_ms: 1.700714
+  type: 'test'
+  ...
+# Subtest: natural-language campaign commands prepare only a bounded template
+ok 12 - natural-language campaign commands prepare only a bounded template
+  ---
+  duration_ms: 1.039752
+  type: 'test'
+  ...
+# Subtest: preparing a campaign never calls Mail and links the selected workspace
+ok 13 - preparing a campaign never calls Mail and links the selected workspace
+  ---
+  duration_ms: 0.648996
+  type: 'test'
+  ...
+# Subtest: routes explicit reads without accepting external URLs, traversal or credentials
+ok 14 - routes explicit reads without accepting external URLs, traversal or credentials
+  ---
+  duration_ms: 3.759788
+  type: 'test'
+  ...
+# Subtest: reports observed connection states and does not claim custom MCP support
+ok 15 - reports observed connection states and does not claim custom MCP support
+  ---
+  duration_ms: 0.385981
+  type: 'test'
+  ...
+# Subtest: retries a network failure without generating another answer
+ok 16 - retries a network failure without generating another answer
+  ---
+  duration_ms: 1.085248
+  type: 'test'
+  ...
+# Subtest: a committed write with a lost response is verified without a duplicate write
+ok 17 - a committed write with a lost response is verified without a duplicate write
+  ---
+  duration_ms: 0.188959
+  type: 'test'
+  ...
+# Subtest: never overwrites a different reply from another tab
+ok 18 - never overwrites a different reply from another tab
+  ---
+  duration_ms: 0.337054
+  type: 'test'
+  ...
+# Subtest: authentication failures are not retried as writes
+ok 19 - authentication failures are not retried as writes
+  ---
+  duration_ms: 0.249626
+  type: 'test'
+  ...
+# Subtest: repository write routing requires an exact explicit reviewed-change command
+ok 20 - repository write routing requires an exact explicit reviewed-change command
+  ---
+  duration_ms: 1.535008
+  type: 'test'
+  ...
+# Subtest: repository writes use only the selected backend endpoint and require a real PR receipt
+ok 21 - repository writes use only the selected backend endpoint and require a real PR receipt
+  ---
+  duration_ms: 14.854426
+  type: 'test'
+  ...
+# Subtest: website research excludes local addresses and unsafe URLs
+ok 22 - website research excludes local addresses and unsafe URLs
+  ---
+  duration_ms: 5.136099
+  type: 'test'
+  ...
+# Subtest: robots policy respects the applicable agent and longest path rule
+ok 23 - robots policy respects the applicable agent and longest path rule
+  ---
+  duration_ms: 0.435173
+  type: 'test'
+  ...
+# Subtest: only visible shared contacts are candidates, never scripts or named inboxes
+ok 24 - only visible shared contacts are candidates, never scripts or named inboxes
+  ---
+  duration_ms: 1.024862
+  type: 'test'
+  ...
+# Subtest: crawl stays on the supplied company site and saves partial-page limitations
+ok 25 - crawl stays on the supplied company site and saves partial-page limitations
+  ---
+  duration_ms: 1.065385
+  type: 'test'
+  ...
+# Subtest: CRM controls require explicit user commands, never embedded source instructions or Bee
+ok 26 - CRM controls require explicit user commands, never embedded source instructions or Bee
+  ---
+  duration_ms: 6.267742
+  type: 'test'
+  ...
+# Subtest: non-owners cannot reach an outreach mutation
+ok 27 - non-owners cannot reach an outreach mutation
+  ---
+  duration_ms: 0.702052
+  type: 'test'
+  ...
+# Subtest: campaign draft forces selected workspace and creates only a paused draft request
+ok 28 - campaign draft forces selected workspace and creates only a paused draft request
+  ---
+  duration_ms: 13.599465
+  type: 'test'
+  ...
+# Subtest: failed provider actions never produce a success receipt
+ok 29 - failed provider actions never produce a success receipt
+  ---
+  duration_ms: 0.3716
+  type: 'test'
+  ...
+# Subtest: customer-friendly commands use the saved conversation, never a guessed customer
+ok 30 - customer-friendly commands use the saved conversation, never a guessed customer
+  ---
+  duration_ms: 0.237512
+  type: 'test'
+  ...
+# Subtest: embedded CRM has no internal chat; top-level CRM keeps its own chat even with a stale embedded URL
+ok 31 - embedded CRM has no internal chat; top-level CRM keeps its own chat even with a stale embedded URL
+  ---
+  duration_ms: 1.115338
+  type: 'test'
+  ...
+# Subtest: command payloads are allowlisted and dates, stages and record IDs are checked
+ok 32 - command payloads are allowlisted and dates, stages and record IDs are checked
+  ---
+  duration_ms: 2.193782
+  type: 'test'
+  ...
+# Subtest: workspace membership, viewer writes and cross-workspace customer selection fail closed
+ok 33 - workspace membership, viewer writes and cross-workspace customer selection fail closed
+  ---
+  duration_ms: 1.652681
+  type: 'test'
+  ...
+# Subtest: preview never mutates customer data, confirmations are durable single-use and user/customer bound
+ok 34 - preview never mutates customer data, confirmations are durable single-use and user/customer bound
+  ---
+  duration_ms: 1.163982
+  type: 'test'
+  ...
+# Subtest: expired or changed reviews cannot execute; task changes recheck current state
+ok 35 - expired or changed reviews cannot execute; task changes recheck current state
+  ---
+  duration_ms: 0.894223
+  type: 'test'
+  ...
+# Subtest: confirmed customer and task creation use the server scope and stable IDs
+ok 36 - confirmed customer and task creation use the server scope and stable IDs
+  ---
+  duration_ms: 1.675509
+  type: 'test'
+  ...
+# Subtest: campaign activation is owner-only, reviewed, and never approves messages
+ok 37 - campaign activation is owner-only, reviewed, and never approves messages
+  ---
+  duration_ms: 0.732599
+  type: 'test'
+  ...
+# Subtest: record titles and campaign names resolve only to unique records in the selected scope
+ok 38 - record titles and campaign names resolve only to unique records in the selected scope
+  ---
+  duration_ms: 0.814703
+  type: 'test'
+  ...
+# Subtest: CRM API verifies identity and workspace, returns a preview, and persists only an explicitly confirmed action through the real SDK
+ok 39 - CRM API verifies identity and workspace, returns a preview, and persists only an explicitly confirmed action through the real SDK
+  ---
+  duration_ms: 63.456088
+  type: 'test'
+  ...
+# Subtest: only the latest explicit company-discovery command selects CRM controls
+ok 40 - only the latest explicit company-discovery command selects CRM controls
+  ---
+  duration_ms: 2.721044
+  type: 'test'
+  ...
+# Subtest: enquiry details are bounded and preserve the supplied source and timestamp
+ok 41 - enquiry details are bounded and preserve the supplied source and timestamp
+  ---
+  duration_ms: 1.101101
+  type: 'test'
+  ...
+# Subtest: enquiry writes keep the exact workspace/customer and retry ID; stale updates are rejected
+ok 42 - enquiry writes keep the exact workspace/customer and retry ID; stale updates are rejected
+  ---
+  duration_ms: 21.999229
+  type: 'test'
+  ...
+# Subtest: snapshot preserves full totals, stable page order and bounded page concurrency
+ok 43 - snapshot preserves full totals, stable page order and bounded page concurrency
+  ---
+  duration_ms: 19.620792
+  type: 'test'
+  ...
+# Subtest: snapshot errors do not produce a misleading partial result and deadlines release stalled UI
+ok 44 - snapshot errors do not produce a misleading partial result and deadlines release stalled UI
+  ---
+  duration_ms: 6.200055
+  type: 'test'
+  ...
+# Subtest: workspace creation reuses the authenticated RPC and validates its receipt
+ok 45 - workspace creation reuses the authenticated RPC and validates its receipt
+  ---
+  duration_ms: 4.272048
+  type: 'test'
+  ...
+# Subtest: pipeline and weighted scenario use USD only and never count closed opportunities
+ok 46 - pipeline and weighted scenario use USD only and never count closed opportunities
+  ---
+  duration_ms: 12.764867
+  type: 'test'
+  ...
+# Subtest: cohort filters apply to linked deals and tasks together
+ok 47 - cohort filters apply to linked deals and tasks together
+  ---
+  duration_ms: 0.807646
+  type: 'test'
+  ...
+# Subtest: no closed deals means unknown win rate and modified probabilities do not mutate data
+ok 48 - no closed deals means unknown win rate and modified probabilities do not mutate data
+  ---
+  duration_ms: 0.510156
+  type: 'test'
+  ...
+# Subtest: paid social is counted once and lead-to-won conversion uses distinct customers
+ok 49 - paid social is counted once and lead-to-won conversion uses distinct customers
+  ---
+  duration_ms: 0.877058
+  type: 'test'
+  ...
+# Subtest: only installs a bounded index.html from task artifacts
+ok 50 - only installs a bounded index.html from task artifacts
+  ---
+  duration_ms: 0.518182
+  type: 'test'
+  ...
+# Subtest: preview policy precedes generated scripts and denies remote services
+ok 51 - preview policy precedes generated scripts and denies remote services
+  ---
+  duration_ms: 0.245684
+  type: 'test'
+  ...
+# Subtest: an investigation can finish after the old six-round cutoff
+ok 52 - an investigation can finish after the old six-round cutoff
+  ---
+  duration_ms: 36.436518
+  type: 'test'
+  ...
+# Subtest: budget exhaustion summarizes the collected transcript without executable tools, and safely falls back on failure
+ok 53 - budget exhaustion summarizes the collected transcript without executable tools, and safely falls back on failure
+  ---
+  duration_ms: 24.241576
+  type: 'test'
+  ...
+# Subtest: Mail recognizes only supported explicit requests and rejects destructive or unrelated text
+ok 54 - Mail recognizes only supported explicit requests and rejects destructive or unrelated text
+  ---
+  duration_ms: 2.466492
+  type: 'test'
+  ...
+# Subtest: Mail calls carry the user token and fixed tool; upstream errors never claim success
+ok 55 - Mail calls carry the user token and fixed tool; upstream errors never claim success
+  ---
+  duration_ms: 25.045539
+  type: 'test'
+  ...
+# Subtest: Receipts escape mailbox text, preserve unknown reasons and match Chat streaming format
+ok 56 - Receipts escape mailbox text, preserve unknown reasons and match Chat streaming format
+  ---
+  duration_ms: 0.53743
+  type: 'test'
+  ...
+# Subtest: direct deletion is routed to authenticated Trash; quoted or permanent deletion is not executed
+ok 57 - direct deletion is routed to authenticated Trash; quoted or permanent deletion is not executed
+  ---
+  duration_ms: 0.379632
+  type: 'test'
+  ...
+# Subtest: recognizes explicit cleanup requests but never treats deletion text as confirmation
+ok 58 - recognizes explicit cleanup requests but never treats deletion text as confirmation
+  ---
+  duration_ms: 2.4836
+  type: 'test'
+  ...
+# Subtest: renders review scope, batch limit and confirmation while neutralizing email markdown
+ok 59 - renders review scope, batch limit and confirmation while neutralizing email markdown
+  ---
+  duration_ms: 0.341285
+  type: 'test'
+  ...
+# Subtest: an enabled source is scheduled, never assumed running
+ok 60 - an enabled source is scheduled, never assumed running
+  ---
+  duration_ms: 0.51082
+  type: 'test'
+  ...
+# Subtest: missing queues do not invent reviews or success alerts
+ok 61 - missing queues do not invent reviews or success alerts
+  ---
+  duration_ms: 0.504858
+  type: 'test'
+  ...
+# Subtest: review alerts preserve source errors and exact outreach problems
+ok 62 - review alerts preserve source errors and exact outreach problems
+  ---
+  duration_ms: 0.151198
+  type: 'test'
+  ...
+# Subtest: approved and provider accepted messages are not flagged for approval
+ok 63 - approved and provider accepted messages are not flagged for approval
+  ---
+  duration_ms: 0.16949
+  type: 'test'
+  ...
+# Subtest: approvals in paused campaigns surface activation as the next step
+ok 64 - approvals in paused campaigns surface activation as the next step
+  ---
+  duration_ms: 0.639865
+  type: 'test'
+  ...
+# Subtest: uncertain delivery takes precedence over drafts and cannot imply a safe retry
+ok 65 - uncertain delivery takes precedence over drafts and cannot imply a safe retry
+  ---
+  duration_ms: 0.186345
+  type: 'test'
+  ...
+# Subtest: drafts and stopped recipients are not reported as conversions or deliveries
+ok 66 - drafts and stopped recipients are not reported as conversions or deliveries
+  ---
+  duration_ms: 0.115927
+  type: 'test'
+  ...
+# Subtest: publishing tools are hidden and stale calls cannot contact a provider
+ok 67 - publishing tools are hidden and stale calls cannot contact a provider
+  ---
+  duration_ms: 1.068728
+  type: 'test'
+  ...
+# Subtest: proposal evidence preserves host verification limits without a write approval
+ok 68 - proposal evidence preserves host verification limits without a write approval
+  ---
+  duration_ms: 14.475236
+  type: 'test'
+  ...
+# Subtest: repository verification requires owned completed task and claim, then fetches source with caller auth
+ok 69 - repository verification requires owned completed task and claim, then fetches source with caller auth
+  ---
+  duration_ms: 14.336099
+  type: 'test'
+  ...
+# Subtest: comparison uses separate offline VMs, identical tests, host baseline and actual exit codes
+ok 70 - comparison uses separate offline VMs, identical tests, host baseline and actual exit codes
+  ---
+  duration_ms: 2.089457
+  type: 'test'
+  ...
+# Subtest: a runtime failure stops the sandbox and produces no passing receipt
+ok 71 - a runtime failure stops the sandbox and produces no passing receipt
+  ---
+  duration_ms: 0.63994
+  type: 'test'
+  ...
+# Subtest: nonzero workspace initialization never uploads files or runs a test
+ok 72 - nonzero workspace initialization never uploads files or runs a test
+  ---
+  duration_ms: 0.224437
+  type: 'test'
+  ...
+# Subtest: message status transitions mirror the database and never skip to delivered from a reply
+ok 73 - message status transitions mirror the database and never skip to delivered from a reply
+  ---
+  duration_ms: 1.164784
+  type: 'test'
+  ...
+# Subtest: untrusted content: injections flagged, delimiters neutralized, quoted history ignored, due hints parsed
+ok 74 - untrusted content: injections flagged, delimiters neutralized, quoted history ignored, due hints parsed
+  ---
+  duration_ms: 2.985769
+  type: 'test'
+  ...
+# Subtest: deal health uses recorded evidence only and explains itself
+ok 75 - deal health uses recorded evidence only and explains itself
+  ---
+  duration_ms: 0.628151
+  type: 'test'
+  ...
+# Subtest: next-best actions carry reasons, sources and approval requirements, and never act
+ok 76 - next-best actions carry reasons, sources and approval requirements, and never act
+  ---
+  duration_ms: 0.702778
+  type: 'test'
+  ...
+# Subtest: drafts and Onyx context: facts vs inferences, fenced customer text, statuses as recorded
+ok 77 - drafts and Onyx context: facts vs inferences, fenced customer text, statuses as recorded
+  ---
+  duration_ms: 0.874004
+  type: 'test'
+  ...
+# Subtest: MIME output strips header injection and carries the idempotent Message-ID
+ok 78 - MIME output strips header injection and carries the idempotent Message-ID
+  ---
+  duration_ms: 1.144684
+  type: 'test'
+  ...
+# Subtest: automated senders and DSN bounces are recognized; bounce text from customers is not
+ok 79 - automated senders and DSN bounces are recognized; bounce text from customers is not
+  ---
+  duration_ms: 1.231224
+  type: 'test'
+  ...
+# Subtest: Gmail adapter: sends, finds earlier sends, syncs history pages and maps errors
+ok 80 - Gmail adapter: sends, finds earlier sends, syncs history pages and maps errors
+  ---
+  duration_ms: 21.805759
+  type: 'test'
+  ...
+# Subtest: sync: cursor advances only after a whole page, invalid messages are skipped, outages are reported
+ok 81 - sync: cursor advances only after a whole page, invalid messages are skipped, outages are reported
+  ---
+  duration_ms: 4.073968
+  type: 'test'
+  ...
+# Subtest: ingest events: bounces become bounce events, our own sent mail is observed, never a reply
+ok 82 - ingest events: bounces become bounce events, our own sent mail is observed, never a reply
+  ---
+  duration_ms: 0.332675
+  type: 'test'
+  ...
+# Subtest: worker: retries use findSent so a crash after sending never double-sends; errors map to retryable or final
+ok 83 - worker: retries use findSent so a crash after sending never double-sends; errors map to retryable or final
+  ---
+  duration_ms: 0.636956
+  type: 'test'
+  ...
+# Subtest: Stripe signatures: valid, tampered, wrong secret, stale, malformed and unconfigured
+ok 84 - Stripe signatures: valid, tampered, wrong secret, stale, malformed and unconfigured
+  ---
+  duration_ms: 1.719532
+  type: 'test'
+  ...
+# Subtest: Stripe events normalize to one payment record per PaymentIntent
+ok 85 - Stripe events normalize to one payment record per PaymentIntent
+  ---
+  duration_ms: 0.498034
+  type: 'test'
+  ...
+# Subtest: webhook handler: bad signature never reaches the database; workspace mismatch is acknowledged without changes
+ok 86 - webhook handler: bad signature never reaches the database; workspace mismatch is acknowledged without changes
+  ---
+  duration_ms: 0.794535
+  type: 'test'
+  ...
+# Subtest: form handler validates input, drops honeypot submissions and maps database errors
+ok 87 - form handler validates input, drops honeypot submissions and maps database errors
+  ---
+  duration_ms: 0.305445
+  type: 'test'
+  ...
+# Subtest: error mapping keeps statuses from the database and hides unexpected detail
+ok 88 - error mapping keeps statuses from the database and hides unexpected detail
+  ---
+  duration_ms: 0.437492
+  type: 'test'
+  ...
+# Subtest: bearer check is constant-length and refuses short or missing secrets
+ok 89 - bearer check is constant-length and refuses short or missing secrets
+  ---
+  duration_ms: 14.00904
+  type: 'test'
+  ...
+# Subtest: checkout sessions require a Stripe key and send idempotency + metadata
+ok 90 - checkout sessions require a Stripe key and send idempotency + metadata
+  ---
+  duration_ms: 2.067933
+  type: 'test'
+  ...
+# Subtest: clock handles date boundaries, DST, explicit zones and invalid timezone input
+ok 91 - clock handles date boundaries, DST, explicit zones and invalid timezone input
+  ---
+  duration_ms: 12.288567
+  type: 'test'
+  ...
+# Subtest: chat supplies fresh server facts for each turn and keeps timezone metadata out of provider fields
+ok 92 - chat supplies fresh server facts for each turn and keeps timezone metadata out of provider fields
+  ---
+  duration_ms: 21.47216
+  type: 'test'
+  ...
+# Subtest: clock tool requires a signed-in customer but no business connection or workspace
+ok 93 - clock tool requires a signed-in customer but no business connection or workspace
+  ---
+  duration_ms: 5.519087
+  type: 'test'
+  ...
+# Subtest: setup validates goals and timezones, strips authority claims, and supports resumable drafts
+ok 94 - setup validates goals and timezones, strips authority claims, and supports resumable drafts
+  ---
+  duration_ms: 14.366135
+  type: 'test'
+  ...
+# Subtest: setup saves only the current user preference key and reloads it through a fresh client
+ok 95 - setup saves only the current user preference key and reloads it through a fresh client
+  ---
+  duration_ms: 0.694958
+  type: 'test'
+  ...
+# Subtest: expired or anonymous accounts cannot save, and failed writes never produce a saved receipt
+ok 96 - expired or anonymous accounts cannot save, and failed writes never produce a saved receipt
+  ---
+  duration_ms: 1.851674
+  type: 'test'
+  ...
+# Subtest: focused setup resumes draft questions and skips unnecessary connection steps
+ok 97 - focused setup resumes draft questions and skips unnecessary connection steps
+  ---
+  duration_ms: 0.765961
+  type: 'test'
+  ...
+# Subtest: brain commands preserve scope intent and reject invalid or invented actions
+ok 98 - brain commands preserve scope intent and reject invalid or invented actions
+  ---
+  duration_ms: 2.117887
+  type: 'test'
+  ...
+# Subtest: a proposal needs confirmation and approval, then is recalled consistently from other app surfaces
+ok 99 - a proposal needs confirmation and approval, then is recalled consistently from other app surfaces
+  ---
+  duration_ms: 3.117593
+  type: 'test'
+  ...
+# Subtest: personal, business and selected customer recall excludes other customers, proposed and expired facts
+ok 100 - personal, business and selected customer recall excludes other customers, proposed and expired facts
+  ---
+  duration_ms: 5.981981
+  type: 'test'
+  ...
+# Subtest: reviews are expiring, single-use, owner/scope bound and stale corrections cannot overwrite a changed fact
+ok 101 - reviews are expiring, single-use, owner/scope bound and stale corrections cannot overwrite a changed fact
+  ---
+  duration_ms: 1.455496
+  type: 'test'
+  ...
+# Subtest: correction requires reapproval and forgetting removes saved recall without storing content in its completed review
+ok 102 - correction requires reapproval and forgetting removes saved recall without storing content in its completed review
+  ---
+  duration_ms: 1.389302
+  type: 'test'
+  ...
+# Subtest: agent CRM tools execute only reviewed changes and reject wrong tool classes and conversation scopes
+ok 103 - agent CRM tools execute only reviewed changes and reject wrong tool classes and conversation scopes
+  ---
+  duration_ms: 3.599038
+  type: 'test'
+  ...
+# Subtest: query recall finds older matching memories and ranks coverage without mixing scopes or approvals
+ok 104 - query recall finds older matching memories and ranks coverage without mixing scopes or approvals
+  ---
+  duration_ms: 0.976011
+  type: 'test'
+  ...
+# Subtest: query terms are bounded and latest user text excludes model/tool instructions and image URLs
+ok 105 - query terms are bounded and latest user text excludes model/tool instructions and image URLs
+  ---
+  duration_ms: 0.831296
+  type: 'test'
+  ...
+# Subtest: real Supabase query serialization keeps expiry, customer and token OR groups separate
+ok 106 - real Supabase query serialization keeps expiry, customer and token OR groups separate
+  ---
+  duration_ms: 7.381093
+  type: 'test'
+  ...
+# Subtest: AI tool and direct-chat routes stop before Mail provider access unless this user and task have Allow
+ok 107 - AI tool and direct-chat routes stop before Mail provider access unless this user and task have Allow
+  ---
+  duration_ms: 51.451953
+  type: 'test'
+  ...
+# Subtest: disabled rollout does not authenticate, create a task, or contact an app
+ok 108 - disabled rollout does not authenticate, create a task, or contact an app
+  ---
+  duration_ms: 0.936757
+  type: 'test'
+  ...
+# Subtest: task-marked developer and commerce proxy reads require their named app while manual navigation stays independent
+ok 109 - task-marked developer and commerce proxy reads require their named app while manual navigation stays independent
+  ---
+  duration_ms: 43.866489
+  type: 'test'
+  ...
+# Subtest: capabilities do not probe connected apps, and Bee or browser requests stop on Deny
+ok 110 - capabilities do not probe connected apps, and Bee or browser requests stop on Deny
+  ---
+  duration_ms: 4.939831
+  type: 'test'
+  ...
+# Subtest: task access fails closed on denial, expiry, completion, missing grants and database errors
+ok 111 - task access fails closed on denial, expiry, completion, missing grants and database errors
+  ---
+  duration_ms: 3.538856
+  type: 'test'
+  ...
+# Subtest: Allow runs Mail only for its task; Deny never reaches the provider and completion closes access
+ok 112 - Allow runs Mail only for its task; Deny never reaches the provider and completion closes access
+  ---
+  duration_ms: 31.347755
+  type: 'test'
+  ...
+# Subtest: stopping while task creation is in flight closes the new task without opening a late permission dialog
+ok 113 - stopping while task creation is in flight closes the new task without opening a late permission dialog
+  ---
+  duration_ms: 0.555298
+  type: 'test'
+  ...
+# Subtest: task state preserves failure without steps, review, skipped actions and late receipts after stopping
+ok 114 - task state preserves failure without steps, review, skipped actions and late receipts after stopping
+  ---
+  duration_ms: 0.992995
+  type: 'test'
+  ...
+# Subtest: candidate matching requires a unique exact email and preserves bounded page limitations
+ok 115 - candidate matching requires a unique exact email and preserves bounded page limitations
+  ---
+  duration_ms: 0.58302
+  type: 'test'
+  ...
+# Subtest: follow-up workflow requires a separate review, uses actual receipts, and stops safely on denial, failure or cancellation
+ok 116 - follow-up workflow requires a separate review, uses actual receipts, and stops safely on denial, failure or cancellation
+  ---
+  duration_ms: 27.421657
+  type: 'test'
+  ...
+# Subtest: a failed tool receipt cannot become a green completed task even if a model returns a final answer
+ok 117 - a failed tool receipt cannot become a green completed task even if a model returns a final answer
+  ---
+  duration_ms: 13.045169
+  type: 'test'
+  ...
+# Subtest: stored Work preference migrates to Business while invalid modes are rejected
+ok 118 - stored Work preference migrates to Business while invalid modes are rejected
+  ---
+  duration_ms: 0.557216
+  type: 'test'
+  ...
+# Subtest: opening development and business tools chooses the right mode; Mail keeps current mode
+ok 119 - opening development and business tools chooses the right mode; Mail keeps current mode
+  ---
+  duration_ms: 0.113299
+  type: 'test'
+  ...
+# Subtest: connector sections separate development from customer tools, with selected personal tools
+ok 120 - connector sections separate development from customer tools, with selected personal tools
+  ---
+  duration_ms: 0.116427
+  type: 'test'
+  ...
+# Subtest: Creator is a first-class mode with creative tools and no CRM or developer catalogue
+ok 121 - Creator is a first-class mode with creative tools and no CRM or developer catalogue
+  ---
+  duration_ms: 0.127165
+  type: 'test'
+  ...
+# Subtest: each mode has focused starter prompts without claiming integrations are live
+ok 122 - each mode has focused starter prompts without claiming integrations are live
+  ---
+  duration_ms: 1.967677
+  type: 'test'
+  ...
+# Subtest: catalog keys stay stable while customers see Onixus product names
+ok 123 - catalog keys stay stable while customers see Onixus product names
+  ---
+  duration_ms: 0.125768
+  type: 'test'
+  ...
+1..123
+# tests 123
+# suites 0
+# pass 123
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2883.585373

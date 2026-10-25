@@ -1,0 +1,7 @@
+.......Coding provider step rejected: role=planner model=inclusionai/ling-3.0-flash status=402
+..Coding provider step rejected: role=planner model=inclusionai/ling-3.0-flash status=unknown
+.................
+----------------------------------------------------------------------
+Ran 26 tests in 0.108s
+
+OK

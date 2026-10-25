@@ -1,0 +1,29 @@
+✔ 1. website inquiry creates one customer, inquiry, opportunity, timeline event and reply task (idempotent) (67.122065ms)
+✔ 2. acknowledgement workflow drafts a reply and does not send without approval (5.458918ms)
+✔ 3. a member approves; the worker sends through the Gmail adapter; status stops at provider_accepted (11.79889ms)
+✔ 4. the customer replies; sync links it, marks our message replied, stops the follow-up and opens a reply task (13.290393ms)
+✔ 5. Onyx drafts a contextual reply; reply locks prevent double replies; the approved reply is sent in-thread (17.117688ms)
+✔ 6. a meeting is booked and the stage moves only by a member decision; health and next actions cite evidence (16.140012ms)
+✔ 7. a proposal is prepared and sent with a Stripe Checkout link (fake Stripe API) (6.44392ms)
+✔ 8. a verified payment webhook marks the proposal paid, wins the deal and starts onboarding exactly once (10.887365ms)
+✔ 9. onboarding kickoff creates the checklist and a welcome draft that still needs approval (6.424795ms)
+✔ 10. memory keeps provenance and visibility; Onyx in Chat reads the same context under the caller role (13.719563ms)
+✔ 11. the company overview and daily priorities reflect recorded states; test workspaces stay out of production reporting (8.038318ms)
+✔ negative: expired Google connection stops sync and sends visibly, and both recover after reconnecting (24.408901ms)
+✔ negative: an expired Gmail history cursor triggers a recent-mail resync instead of losing messages (7.518628ms)
+✔ negative: failed sends retry with backoff, never send twice after a crash, and dead-letter permanent failures (38.997812ms)
+✔ negative: workspace pause, daily send limit and loop prevention hold sends (15.13737ms)
+✔ negative: follow-ups without a reply become drafts for approval (never auto-sent unless authorized) (18.580987ms)
+✔ negative: duplicate, out-of-order, forged and cross-workspace payment webhooks converge safely (27.059446ms)
+✔ negative: ambiguous identities go to review, merges are reversible, and legacy duplicate emails are not auto-merged (44.319133ms)
+✔ negative: unsubscribed and bounced contacts are never emailed again until an owner records why (31.643564ms)
+✔ negative: other workspaces, viewers, anonymous callers and bad tokens cannot read or act (13.216653ms)
+✔ negative: untrusted email content is flagged and fenced and cannot trigger any action (9.844337ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 567.502651
