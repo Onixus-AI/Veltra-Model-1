@@ -8,7 +8,7 @@ async function proxy(request:NextRequest,context:{params:Promise<{path:string[]}
   const allowed=path.length===1&&path[0]==="status"||["github","vercel","supabase","railway","n8n"].includes(path[0])&&path.length<=2&&(!path[1]||["start","resources","select","tree","file","pull-request","change-set","proposal-evidence","verification-files","development-policy","pull-request-set","checks","deployments","project"].includes(path[1]));
   if(!allowed)return new Response("Not found",{status:404});
   const authorization=request.headers.get("authorization");
-  if(!authorization?.startsWith("Bearer "))return Response.json({error:"Sign in to Veltra first."},{status:401});
+  if(!authorization?.startsWith("Bearer "))return Response.json({error:"Sign in to Onixus Workspace first."},{status:401});
   const base=process.env.VELTRA_MAIL_URL;
   if(!base)return Response.json({error:"Workspace connections are not configured."},{status:503});
   try {

@@ -183,7 +183,7 @@ export default function SettingsPage() {
     <main className="settings-page">
       <header className="settings-header">
         <Link href="/" className="back-link"><ArrowLeft size={16} /> Back to workspace</Link>
-        <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Veltra V logo" /></span> veltra</div>
+        <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Onixus Workspace logo" /></span> Onixus Workspace</div>
       </header>
 
       <section className="settings-content settings-dashboard">
@@ -297,7 +297,7 @@ export default function SettingsPage() {
                     </div>
                   ) : <p className="empty-keys">No developer keys yet. Generate one to connect your tools.</p>}
                 </section>
-                <p className="settings-note">Store your secret keys securely. Veltra stores only a one-way hash and will not show a key again after creation.</p>
+                <p className="settings-note">Store your secret keys securely. Onixus Workspace stores only a one-way hash and will not show a key again after creation.</p>
               </section>
             )}
 

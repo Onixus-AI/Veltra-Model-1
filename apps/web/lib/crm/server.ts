@@ -3,7 +3,7 @@ export async function crmUser(request:Request){
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  if(!url||!key)throw new Error('503:CRM is not configured.');
  const authorization=request.headers.get('authorization')??'';
- if(!/^Bearer [^ ]+$/.test(authorization)||authorization.includes('veltra_sk_'))throw new Error('401:Sign in with your Veltra account to use CRM memory.');
+ if(!/^Bearer [^ ]+$/.test(authorization)||authorization.includes('veltra_sk_'))throw new Error('401:Sign in with your Onixus Workspace account to use CRM memory.');
  const client=createClient(url,key,{auth:{persistSession:false,autoRefreshToken:false},global:{headers:{Authorization:authorization}}});
  const {data,error}=await client.auth.getUser();
  if(error||!data.user||data.user.is_anonymous)throw new Error('401:Sign in again.');

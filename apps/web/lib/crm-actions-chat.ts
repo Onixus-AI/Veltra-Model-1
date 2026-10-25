@@ -34,7 +34,7 @@ export async function executeCrmAction(client:SupabaseClient,user:string,workspa
  if(!['status','contacts','contact_status','campaigns','campaign','mail_status'].includes(intent.action)){const {data,error}=await client.from('crm_workspaces').select('id').eq('id',workspace).eq('owner_id',user).maybeSingle();if(error||!data)throw Error('403:Only this business owner can perform this CRM action.');}
  if(intent.action==='campaign_brief'){
   const t=campaignTemplate(intent.industry);const q=new URLSearchParams({view:'Automation',workspace,industry:intent.industry,pillar:'suite'});
-  return 'Prepared a Veltra outreach template for '+safe(intent.industry)+'.\n\nSubject: '+safe(t.subject)+'\n\n'+t.body+'\n\nVisual story: '+t.story+'. Includes the original Onixus logo.\n\n[Review the campaign in CRM](/crm?'+q.toString()+')\n\nThis is a prepared template, not a saved or sent campaign. Select the correct business workspace and recipients, add your postal address, then review the exact branded drafts before activation.';
+  return 'Prepared an Onixus Workspace outreach template for '+safe(intent.industry)+'.\n\nSubject: '+safe(t.subject)+'\n\n'+t.body+'\n\nVisual story: '+t.story+'. Includes the original Onixus logo.\n\n[Review the campaign in CRM](/crm?'+q.toString()+')\n\nThis is a prepared template, not a saved or sent campaign. Select the correct business workspace and recipients, add your postal address, then review the exact branded drafts before activation.';
  }
  if('customer' in intent&&intent.customer==='current'){
   if(!o.customer)throw Error('400:Open this customer’s business conversation first, so the action is saved to the correct company.');

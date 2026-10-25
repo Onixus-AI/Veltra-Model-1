@@ -117,7 +117,7 @@ export default function ArtifactCanvas({ artifact, onChange }: ArtifactCanvasPro
       </div>
       <div className="canvas-workarea">
         {artifact.kind === "image" ? (
-          <figure className="canvas-image-preview"><img src={artifact.content} alt={artifact.title} /><figcaption>Generated with Veltra · Use Export to download</figcaption></figure>
+          <figure className="canvas-image-preview"><img src={artifact.content} alt={artifact.title} /><figcaption>Generated with Onixus Workspace · Use Export to download</figcaption></figure>
         ) : showCode || (artifact.kind === "markdown" && editing) ? (
           <div className="code-view">
             <div className="editor-label"><span>{artifact.kind === "markdown" && editing ? "EDIT MARKDOWN" : "SOURCE"}</span>

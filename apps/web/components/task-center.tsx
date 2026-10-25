@@ -10,7 +10,7 @@ export default function TaskCenter({task,busy,onStop,onRetry,onOpen,onFollowups,
  const [expanded,setExpanded]=useState(false),detailsId=useId();
  useEffect(()=>{try{setExpanded(localStorage.getItem(EXPANSION_KEY)==='true');}catch{}},[]);
  function toggle(){setExpanded(current=>{try{localStorage.setItem(EXPANSION_KEY,String(!current));}catch{}return !current;});}
- return <section className="task-center task-center-compact" aria-label="Veltra task center">
+ return <section className="task-center task-center-compact" aria-label="Onixus Workspace task center">
   <header className="task-center-bar">
    <div className="task-center-heading"><Clock3 size={15}/><h2>Task center</h2>{task&&<span className={'task-state '+task.state} role="status">{names[task.state]}</span>}</div>
    <div className="task-center-controls">{busy&&<button className="task-stop" type="button" onClick={onStop} aria-label="Stop pending work"><Square size={12}/>Stop</button>}<button className="task-expand" type="button" onClick={toggle} aria-expanded={expanded} aria-controls={detailsId} aria-label={expanded?'Collapse task center':'Expand task center'}>{expanded?'Collapse':'Expand'}<ChevronDown size={15} className={expanded?'is-expanded':''}/></button></div>
