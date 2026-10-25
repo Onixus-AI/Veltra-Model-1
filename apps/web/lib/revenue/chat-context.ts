@@ -20,11 +20,15 @@ export function onyxCustomerContext(ctx: CustomerContext, maxEvents = 15): strin
     'Unconfirmed inferences (do not state as fact):',
     ...(ctx.memory.inferences.length ? ctx.memory.inferences.map(f => `- ${f.content} [confidence ${f.confidence}; source: ${f.source}]`) : ['- none']),
     `Opportunities: ${ctx.deals.map(d => `${d.title} — ${d.stage}${d.outcome && d.outcome !== 'open' ? ` (${d.outcome})` : ''}, ${money(d.value_cents, d.currency)}`).join('; ') || 'none'}`,
-    `Meetings: ${ctx.meetings.map(m => `${m.title} ${day(m.starts_at)} (${m.status})`).join('; ') || 'none'}`,
     `Proposals: ${ctx.proposals.map(p => `${p.title} — ${p.status}, paid ${money(p.amount_paid_cents, p.currency)} of ${money(p.amount_cents, p.currency)}`).join('; ') || 'none'}`,
     `Onboarding: ${ctx.onboarding.map(o => `${o.status}${o.hold_reason ? ` (${o.hold_reason})` : ''} since ${day(o.started_at)}`).join('; ') || 'not started'}`,
-    `Open tasks: ${ctx.open_tasks.map(t => `${t.title}${t.overdue ? ' (OVERDUE)' : t.due_at ? ` (due ${day(t.due_at)})` : ''}`).join('; ') || 'none'}`,
-    `Recent messages: ${ctx.messages.slice(0, 6).map(m => `${m.direction === 'inbound' ? 'from customer' : 'to customer'} "${m.subject}" — ${statusCopy[m.status as MessageStatus]?.label ?? m.status}`).join('; ') || 'none'}`,
+    // Meeting titles come from invites, follow-up task titles and subjects from emails.
+    'Meetings, open tasks and recent messages (titles and subjects may be customer-written):',
+    wrapUntrusted([
+      `Meetings: ${ctx.meetings.map(m => `${m.title} ${day(m.starts_at)} (${m.status})`).join('; ') || 'none'}`,
+      `Open tasks: ${ctx.open_tasks.map(t => `${t.title}${t.overdue ? ' (OVERDUE)' : t.due_at ? ` (due ${day(t.due_at)})` : ''}`).join('; ') || 'none'}`,
+      `Recent messages: ${ctx.messages.slice(0, 6).map(m => `${m.direction === 'inbound' ? 'from customer' : 'to customer'} "${m.subject}" — ${statusCopy[m.status as MessageStatus]?.label ?? m.status}`).join('; ') || 'none'}`,
+    ].join('\n'), 'records'),
     'Timeline (newest first):',
     ...ctx.timeline.slice(0, maxEvents).map(e => {
       const line = `- ${day(e.occurred_at)} ${e.kind} [${e.status}]`;
