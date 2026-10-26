@@ -54,7 +54,7 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
              patch('main.call_model', call), patch('main.settle_credits', settle):
             response = await main.create_chat_completion(request, None)
         body = call.call_args.args[0]['extra_body']
-        self.assertEqual(body['models'], ['moonshotai/kimi-k3.1-pro', 'z-ai/glm-5.3', 'deepseek/deepseek-v4-pro-0813'])
+        self.assertEqual(body['models'], ['moonshotai/kimi-k3.1-pro', 'z-ai/glm-5.3', 'xiaomi/mimo-v2.6-flash'])
         self.assertTrue(body['provider']['require_parameters'])
         self.assertEqual(body['provider']['data_collection'], 'deny')
         self.assertEqual(body['provider']['max_price'], {'prompt': 2, 'completion': 10})
@@ -69,8 +69,10 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
             options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []), chat=chat)
             self.assertEqual(options['provider']['data_collection'], 'deny')
             if chat:
-                self.assertTrue(all(model in POLICY['chat_models'] for model in options['models']), alias)
                 self.assertEqual(len(options['models']), 3)
+                self.assertTrue(all(model in POLICY['chat_models'] for model in options['models'][:2]), alias)
+                # Keeps Chat working when the guardrail has not yet allowed the newer models.
+                self.assertIn(options['models'][-1], POLICY['paid_models'], alias)
                 self.assertEqual(options['provider']['max_price'], {'prompt': 2, 'completion': 10})
             else:
                 self.assertTrue(options['models'][0].endswith(':free'))

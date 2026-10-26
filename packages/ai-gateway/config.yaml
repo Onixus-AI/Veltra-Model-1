@@ -95,17 +95,18 @@ coding_team:
   vision: nvidia/nemotron-3.5-super-vl:free
   design: nvidia/nemotron-3.5-super-vl:free
 
-# Chat routes (model-policy chat_routes) use capable paid models in this order.
+# Chat routes (model-policy chat_routes) use capable paid models in this order and
+# end with a low-cost model already on the OpenRouter guardrail allowlist.
 # Every other route starts free; only approved cheap models can follow.
 chat_fallbacks:
   veltra-free: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
   veltra-fast-free: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
   veltra-code-free: [inception/mercury-3, qwen/qwen3.8-flash]
   veltra-dev: [inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
-  veltra-fast: [deepseek/deepseek-v4-pro-0813, minimax/minimax-m3]
-  veltra-logic: [qwen/qwen3.8-2.4t-a95b, z-ai/glm-5.3]
-  veltra-agent: [z-ai/glm-5.3, deepseek/deepseek-v4-pro-0813]
-  veltra-vision: [xiaomi/mimo-v2.6-pro, minimax/minimax-m3]
+  veltra-fast: [deepseek/deepseek-v4-pro-0813, minimax/minimax-m3.1-flash]
+  veltra-logic: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
+  veltra-agent: [z-ai/glm-5.3, xiaomi/mimo-v2.6-flash]
+  veltra-vision: [minimax/minimax-m3, inclusionai/ling-3.0-flash-vl]
   veltra-mimo: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
   veltra-ling: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
 

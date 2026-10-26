@@ -48,9 +48,7 @@
     "moonshotai/kimi-k3.1-pro",
     "deepseek/deepseek-v4-pro-0813",
     "z-ai/glm-5.3",
-    "qwen/qwen3.8-2.4t-a95b",
-    "minimax/minimax-m3",
-    "xiaomi/mimo-v2.6-pro"
+    "minimax/minimax-m3"
   ],
   "image_max_usd": 0.02,
   "image_models": [
