@@ -154,8 +154,14 @@ test('sync: customers linked by normalized email, idempotent resyncs, reschedule
   const viaMail = await anon<{ignored?: string}>('revenue_mail_calendar_event', {p_account: MAILBOX, p_token: MAIL_TOKEN, p_event: {provider_event_id: 'evt-lee', status: 'confirmed', title: 'x',
     starts_at: moved, ends_at: new Date(Date.parse(moved) + 1_800_000).toISOString(), updated_at: new Date().toISOString(), mailbox: OWNER_GOOGLE.toUpperCase(), organizer_self: true, attendees: [{email: 'lee@park.test'}]}});
   assert.equal(viaMail.ignored, 'dedicated_calendar_connection');
+  // Sharing off: nothing new reaches the CRM, but a recorded meeting's cancellation still does.
+  await asUser(O, 'revenue_calendar_settings', {p_workspace: W, p_share: false});
+  google.book('evt-private', ['lee@park.test'], start.toISOString(), {title: 'Private'});
   google.cancel('evt-lee');
   await sync(); await sync();
+  assert.equal((await meetings('evt-private')).length, 0, 'sharing off adds no new meetings');
+  google.cancel('evt-private'); await sync();
+  await asUser(O, 'revenue_calendar_settings', {p_workspace: W, p_share: true});
   [m] = await meetings('evt-lee');
   assert.equal(m.status, 'cancelled'); assert.equal(m.title, 'Discovery call (renamed)');
   assert.equal((await timeline('meeting.cancelled')).length, 1);

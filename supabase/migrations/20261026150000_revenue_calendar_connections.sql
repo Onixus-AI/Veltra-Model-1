@@ -416,7 +416,11 @@ begin
  if k.connection_id is null then raise exception '404:Calendar not found for this connection.'; end if;
  -- Events created through Onixus Workspace are recorded even when the calendar itself is not synced.
  if not k.sync_enabled and coalesce(p_event->>'origin','')<>'workspace' then return jsonb_build_object('ignored','calendar_not_synced'); end if;
- if not c.share_meetings then return jsonb_build_object('ignored','sharing_off'); end if;
+ -- With sharing off nothing new is added, but meetings already on a timeline still get their
+ -- reschedules and cancellations so the CRM does not show a meeting that is not happening.
+ if not c.share_meetings and not exists(select 1 from public.revenue_meetings where workspace_id=c.workspace_id and provider='google_calendar' and provider_event_id=nullif(p_event->>'provider_event_id','')) then
+  return jsonb_build_object('ignored','sharing_off');
+ end if;
  return revenue_private.ingest_calendar(c.workspace_id,'google_calendar','Google Calendar',
   (p_event-'origin')||jsonb_build_object('calendar_id',p_calendar,'connection_id',c.id,'time_zone',coalesce(nullif(p_event->>'time_zone',''),k.time_zone)),
   array[c.google_email],false,false);
