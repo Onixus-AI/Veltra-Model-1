@@ -28,6 +28,7 @@ const actions: Record<string, string[]> = {
   revenue_create_proposal: ['p_customer', 'p_deal', 'p_title', 'p_amount_cents', 'p_currency', 'p_rule', 'p_deposit_percent', 'p_line_items'],
   revenue_mark_proposal_sent: ['p_proposal', 'p_checkout_reference', 'p_checkout_url'], revenue_cancel_proposal: ['p_proposal', 'p_reason'],
   revenue_score_prospects: [],
+  revenue_calendar_select: ['p_calendar', 'p_sync', 'p_write_default'], revenue_calendar_settings: ['p_timezone', 'p_share'],
 };
 
 const ok = (data: unknown) => Response.json(data, {headers: noStore});
@@ -60,6 +61,8 @@ async function handle(request: Request, context: Context) {
         return ok(await store.rpc('revenue_proposal_status', {p_workspace: w, p_proposal: id}));
       }
       if (view === 'pipeline') return ok(await store.rpc('revenue_pipeline', {p_workspace: w}));
+      // Only the caller's own calendar connection; the database never returns another user's.
+      if (view === 'calendar') return ok({connections: await store.rpc('revenue_calendar_connections', {p_workspace: w})});
       if (view === 'prospects') {
         const tier = url.searchParams.get('tier');
         const offset = Number(url.searchParams.get('offset') ?? 0);
