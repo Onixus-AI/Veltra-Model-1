@@ -1,0 +1,4 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {campaignPlaybooks,playbookSteps,personalizedPreview} from '../lib/crm/campaign-playbooks';
+test('customer playbooks use only supplied business facts, bounded sequences and exact personalization',()=>{
+ for(const p of campaignPlaybooks){const steps=playbookSteps(p.id,'Example Studio','A real offer','https://example.test/book');assert.equal(steps.length,2);assert.ok(steps[1].delay_days>=1&&steps[1].delay_days<=30);for(const s of steps){assert.ok(!/onixus|veltra/i.test(s.body));assert.ok(s.body.includes('Example Studio'));assert.ok(s.body.includes('A real offer'));const preview=personalizedPreview(s,{company:'Acme\nBcc: no',name:'Jo'},'100 Example Road');assert.ok(!preview.subject.includes('\n'));assert.ok(preview.body.includes('reply STOP or unsubscribe'));assert.ok(preview.body.includes('100 Example Road'));assert.ok(!/{{/.test(preview.body));}}
+});
