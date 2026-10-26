@@ -529,3 +529,17 @@ body,.workspace.unified-workspace{background:var(--veltra-bg);color:var(--veltra
 .image-thumb { position: relative; display: inline-block; }
 .image-thumb img { width: 56px; height: 56px; border-radius: 8px; border: 1px solid var(--line); object-fit: cover; display: block; }
 .image-thumb button { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; display: grid; place-items: center; border: 0; border-radius: 999px; background: #17181e; color: #ddd; cursor: pointer; }
+
+/* Google files shares Workspace's quiet surfaces and approved green actions. */
+.google-files-panel { background:#000; color:var(--ink); min-height:100vh; }
+.google-files-panel section, .google-files-panel article, .google-files-panel input,
+.google-files-panel textarea, .google-files-panel select, .google-files-panel button { border-color:var(--line); }
+.google-files-panel section { background:#050505; }
+.google-files-panel button { transition:background .15s ease; }
+.google-files-panel button:hover:not(:disabled) { background:rgba(255,255,255,.07); }
+.google-files-panel button:disabled { opacity:.45; cursor:not-allowed; }
+.google-files-panel :is(input,textarea,select,button,a):focus-visible { outline:2px solid #08d99a; outline-offset:3px; }
+.google-files-panel .google-primary { background:#08d99a; color:#001c13; border-color:#08d99a; font-weight:600; }
+.google-files-panel .google-primary:hover:not(:disabled) { background:#28e8af; }
+.google-files-panel pre { font-family:inherit; font-size:14px; line-height:1.7; }
+@media(max-width:600px) { .google-files-panel form.flex { flex-wrap:wrap; } .google-files-panel { padding:20px 16px; } }
