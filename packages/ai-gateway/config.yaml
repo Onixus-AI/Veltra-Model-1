@@ -97,18 +97,19 @@ coding_team:
 
 # Chat routes (model-policy chat_routes) use capable paid models in this order and
 # end with a low-cost model already on the OpenRouter guardrail allowlist.
-# Every other route starts free; only approved cheap models can follow.
+# Every other route is background work: free-only groups first (no deny; the
+# account allows training on free endpoints), then paid groups with deny.
 chat_fallbacks:
-  veltra-free: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
-  veltra-fast-free: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
-  veltra-code-free: [inception/mercury-3, qwen/qwen3.8-flash]
-  veltra-dev: [inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
+  veltra-free: [nvidia/nemotron-3-ultra-550b-a55b:free, recursive/flint-v1.0:free, poolside/laguna-s-2.1:free, xingchen-agi/xing4.0-29b-a4b:free, dots-studio/dots-3-note-preview:free, inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
+  veltra-fast-free: [recursive/flint-v1.0:free, liquid/lfm-2.5-2.6b:free, inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
+  veltra-code-free: [poolside/laguna-s-2.1:free, recursive/flint-v1.0:free, inception/mercury-3, qwen/qwen3.8-flash]
+  veltra-dev: [poolside/laguna-xs-2.1:free, nvidia/nemotron-3.5-lightning:free, inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
   veltra-fast: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
   veltra-logic: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
   veltra-agent: [moonshotai/kimi-k3.1-pro, xiaomi/mimo-v2.6-flash]
   veltra-vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
-  veltra-mimo: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
-  veltra-ling: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
+  veltra-mimo: [nvidia/nemotron-3-ultra-550b-a55b:free, recursive/flint-v1.0:free, xiaomi/mimo-v2.6-flash, inclusionai/ling-3.0-flash]
+  veltra-ling: [nvidia/nemotron-3-ultra-550b-a55b:free, recursive/flint-v1.0:free, inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
 
 coding_fallbacks:
   planner: [minimax/minimax-m3.1-flash, deepseek/deepseek-v4.1-flash-1017]

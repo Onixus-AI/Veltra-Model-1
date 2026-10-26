@@ -1,15 +1,18 @@
-"""Optional ElevenLabs speech. Without ELEVENLABS_API_KEY the browser's own speech input stays the only voice path."""
+"""ElevenLabs speech through OpenRouter's audio endpoints, using the gateway's OpenRouter key."""
 import math
 import os
 
 import httpx
 
-API = 'https://api.elevenlabs.io/v1'
-# Premade "Rachel" voice, available on every ElevenLabs account.
-DEFAULT_VOICE = '21m00Tcm4TlvDq8ikWAM'
+from model_routing import POLICY
+
+API = 'https://openrouter.ai/api/v1'
 MAX_SPEECH_CHARS = 2000
 MAX_AUDIO_BYTES = 10_000_000
 MIN_TRANSCRIPTION_CREDITS = 10
+FORMATS = {'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/wav': 'wav'}
+# Audio requests ignore provider.ignore, so the blocklist is enforced by pinning exact models.
+PROVIDER = {'data_collection': 'deny'}
 
 
 class VoiceUnavailable(Exception):
@@ -17,15 +20,16 @@ class VoiceUnavailable(Exception):
 
 
 def _key():
-    key = os.environ.get('ELEVENLABS_API_KEY', '').strip()
+    key = os.environ.get('OPENROUTER_API_KEY', '').strip()
     if not key:
-        raise VoiceUnavailable('ElevenLabs is not configured')
+        raise VoiceUnavailable('OpenRouter is not configured')
     return key
 
 
 def status():
-    configured = bool(os.environ.get('ELEVENLABS_API_KEY', '').strip())
-    return {'provider': 'elevenlabs' if configured else 'browser', 'speech': configured, 'transcription': configured}
+    configured = bool(os.environ.get('OPENROUTER_API_KEY', '').strip())
+    return {'provider': 'elevenlabs' if configured else 'browser', 'speech': configured, 'transcription': configured,
+            'speech_model': POLICY['voice']['speech_model'], 'transcription_model': POLICY['voice']['transcription_model']}
 
 
 def speech_credits(text):
@@ -33,24 +37,25 @@ def speech_credits(text):
 
 
 def transcription_credits(result, audio_bytes):
-    # Bill by spoken duration; without timestamps assume low-bitrate (32 kbps) audio.
-    ends = [word.get('end') for word in result.get('words') or [] if isinstance(word.get('end'), (int, float))]
-    seconds = max(ends) if ends else audio_bytes / 4000
+    # Bill by spoken duration; without it assume low-bitrate (32 kbps) audio.
+    usage = result.get('usage') or {}
+    seconds = next((value for value in (usage.get('seconds'), result.get('duration'))
+                    if isinstance(value, (int, float)) and value >= 0), audio_bytes / 4000)
     return max(MIN_TRANSCRIPTION_CREDITS, math.ceil(seconds))
 
 
 async def synthesize(client: httpx.AsyncClient, text: str) -> bytes:
-    voice = os.environ.get('ELEVENLABS_VOICE_ID', '').strip() or DEFAULT_VOICE
-    response = await client.post(f'{API}/text-to-speech/{voice}', params={'output_format': 'mp3_44100_128'},
-                                 headers={'xi-api-key': _key()},
-                                 json={'text': text, 'model_id': os.environ.get('ELEVENLABS_TTS_MODEL', 'eleven_flash_v2_5')})
+    response = await client.post(f'{API}/audio/speech', headers={'Authorization': f'Bearer {_key()}'}, json={
+        'model': POLICY['voice']['speech_model'], 'input': text, 'voice': POLICY['voice']['voice'],
+        'response_format': 'mp3', 'provider': PROVIDER})
     response.raise_for_status()
     return response.content
 
 
-async def transcribe(client: httpx.AsyncClient, audio: bytes, mime_type: str) -> dict:
-    response = await client.post(f'{API}/speech-to-text', headers={'xi-api-key': _key()},
-                                 data={'model_id': os.environ.get('ELEVENLABS_STT_MODEL', 'scribe_v1')},
-                                 files={'file': ('audio', audio, mime_type)})
+async def transcribe(client: httpx.AsyncClient, audio_base64: str, mime_type: str) -> dict:
+    response = await client.post(f'{API}/audio/transcriptions', headers={'Authorization': f'Bearer {_key()}'}, json={
+        'model': POLICY['voice']['transcription_model'],
+        'input_audio': {'data': audio_base64, 'format': FORMATS[mime_type]},
+        'response_format': 'verbose_json', 'provider': PROVIDER})
     response.raise_for_status()
     return response.json()

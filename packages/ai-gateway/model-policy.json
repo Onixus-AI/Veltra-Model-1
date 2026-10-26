@@ -28,6 +28,22 @@
     "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     "nvidia/nemotron-3-super-120b-a12b:free"
   ],
+  "free_tool_choice": {
+    "nvidia/nemotron-3.5-lightning:free": ["none", "auto", "required", "function"],
+    "nvidia/nemotron-3.5-super-vl:free": ["none", "auto", "required", "function"],
+    "nvidia/nemotron-3-ultra-550b-a55b:free": ["none", "auto", "required", "function"],
+    "recursive/flint-v1.0:free": ["none", "auto", "required", "function"],
+    "xingchen-agi/xing4.0-29b-a4b:free": ["none", "auto"],
+    "dots-studio/dots-3-note-preview:free": ["none", "auto"],
+    "liquid/lfm-2.5-2.6b:free": ["auto", "required", "function"],
+    "thinkingmachines/inkling-small:free": [],
+    "poolside/laguna-s-2.1:free": ["auto"],
+    "thinkingmachines/inkling:free": [],
+    "poolside/laguna-xs-2.1:free": ["auto"],
+    "cohere/north-mini-code:free": ["none", "auto", "required", "function"],
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": [],
+    "nvidia/nemotron-3-super-120b-a12b:free": ["auto", "required", "function"]
+  },
   "paid_models": [
     "inclusionai/ling-3.0-flash",
     "inclusionai/ling-3.0-flash-vl",
@@ -56,6 +72,11 @@
     "z-ai/glm-5.3",
     "minimax/minimax-m3"
   ],
+  "voice": {
+    "speech_model": "elevenlabs/eleven-flash-v2.5",
+    "transcription_model": "elevenlabs/scribe-v2",
+    "voice": "sarah"
+  },
   "image_max_usd": 0.02,
   "image_models": [
     "recraft/recraft-v4.1-flash",
