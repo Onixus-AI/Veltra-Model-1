@@ -66,7 +66,9 @@ export function calendarApi(o: {token: TokenSource; fetch?: Fetch; apiUrl?: stri
     if (status === 410) throw new CalendarApiError('sync_expired', 'Calendar sync position expired; a full resync is required.', true);
     const limited = status === 429 || (status === 403 && /rateLimitExceeded|userRateLimitExceeded|quotaExceeded/i.test(reasons));
     if (limited || status >= 500 || status === 0) {
-      if (attempt < retries) {
+      // A write that failed mid-flight may have reached Google; repeating it could invite people twice.
+      const repeatable = limited || !init.method || init.method === 'GET';
+      if (attempt < retries && repeatable) {
         const after = Number(response?.headers.get('retry-after'));
         await sleep(Math.min(10_000, Number.isFinite(after) && after > 0 ? after * 1000 : 500 * 2 ** attempt + Math.floor(Math.random() * 250)));
         return call<T>(path, init, attempt + 1, refreshed);
