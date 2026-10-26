@@ -5,12 +5,22 @@ import math
 
 POLICY = json.loads(Path(__file__).with_name('model-policy.json').read_text())
 ALLOWED = set(POLICY['free_models'] + POLICY['paid_models'])
+CHAT_ALLOWED = ALLOWED | set(POLICY['chat_models'])
 
 
-def routing_options(primary, fallbacks=(), *, tools=False):
+def routing_options(primary, fallbacks=(), *, tools=False, chat=False):
     models = list(dict.fromkeys(model.removeprefix('openrouter/') for model in [primary, *fallbacks]))
-    if not models or any(model not in ALLOWED for model in models):
+    if not models or any(model not in (CHAT_ALLOWED if chat else ALLOWED) for model in models):
         raise ValueError('Model is outside Veltra free/low-cost policy')
+    if chat:
+        # Chat keeps its quality order; free models may only be a last resort.
+        if models[0] in POLICY['free_models']:
+            raise ValueError('Chat primary must not be a free model')
+        provider = {'allow_fallbacks': True, 'data_collection': 'deny', 'sort': 'latency',
+                    'ignore': POLICY['blocked_providers'], 'max_price': POLICY['chat_max_price']}
+        if tools:
+            provider['require_parameters'] = True
+        return {'models': models[:3], 'provider': provider}
     # Free first even for environment overrides. No unconstrained router aliases.
     models.sort(key=lambda model: model not in POLICY['free_models'])
     provider = {'allow_fallbacks': True, 'data_collection': 'deny', 'sort': 'price',
