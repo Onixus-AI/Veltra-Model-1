@@ -9,3 +9,5 @@ Server scopes, callback registration, consent verification and recovery are docu
 The proxy requires the verified Workspace bearer session and forwards it only to the configured Mail backend. It allowlists paths and methods; it does not accept arbitrary Google URLs. Task-scoped calls are rejected until Google has a dedicated Chat permission and tool integration. Creation reviews use an owner-bound one-use server ticket. Google credentials and provider responses are not exposed by this frontend.
 
 Validation: `npm run typecheck` from `apps/web`; backend security and functional boundary tests are in Veltra-Mail. Live OAuth and real file creation remain required after OAuth registration and deployment. Do not label the feature connected solely because a tile is visible.
+
+The Files page now includes a text editor and a spreadsheet grid; see the Mail backend's matching `docs/google-workspace.md` for API setup and editing limits. Use the separate Google files grant. The main sidebar opens `/workspace/files`; the existing settings URL still works.

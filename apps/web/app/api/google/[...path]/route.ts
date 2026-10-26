@@ -4,8 +4,8 @@ export const maxDuration=60;
 async function proxy(request:NextRequest,context:{params:Promise<{path:string[]}>}){
  const {path}=await context.params;
  const route=path.join('/');
- if(!['status','start','files','file','propose','create','disconnect'].includes(route))return new Response('Not found',{status:404});
- const methods:Record<string,string>={status:'GET',start:'POST',files:'GET',file:'GET',propose:'POST',create:'POST',disconnect:'DELETE'};
+ if(!['status','start','files','file','propose','create','editor','save','disconnect'].includes(route))return new Response('Not found',{status:404});
+ const methods:Record<string,string>={status:'GET',start:'POST',files:'GET',file:'GET',propose:'POST',create:'POST',editor:'GET',save:'POST',disconnect:'DELETE'};
  if(request.method!==methods[route])return new Response('Method not allowed',{status:405});
  const authorization=request.headers.get('authorization');
  if(!authorization?.startsWith('Bearer '))return Response.json({error:'Sign in to Onixus Workspace first.'},{status:401});

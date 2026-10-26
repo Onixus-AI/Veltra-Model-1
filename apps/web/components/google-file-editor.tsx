@@ -1,0 +1,25 @@
+'use client';
+import {useEffect,useState} from 'react';
+export type GoogleRequest=<T>(path:string,method?:string,body?:object)=>Promise<T>;
+type Document={kind:'doc';id:string;title:string;content:string;snapshot:string};
+type Spreadsheet={kind:'sheet';id:string;title:string;grid:string[][];rows:number;cols:number;tab:number;tabs:{id:number;title:string}[];snapshot:string};
+type Model=Document|Spreadsheet;
+export const toCsv=(rows:string[][])=>rows.map(row=>row.map(v=>'"'+v.replace(/"/g,'""')+'"').join(',')).join('\n');
+export function CellGrid({grid,onChange,disabled=false}:{grid:string[][];onChange:(row:number,col:number,value:string)=>void;disabled?:boolean}){
+ return <div className="google-sheet-scroll"><table className="google-sheet-grid"><thead><tr><th aria-label="Row"/>{grid[0]?.map((_,col)=><th key={col} scope="col">{String.fromCharCode(65+col)}</th>)}</tr></thead><tbody>{grid.map((row,r)=><tr key={r}><th scope="row">{r+1}</th>{row.map((value,c)=><td key={c}><input aria-label={`${String.fromCharCode(65+c)}${r+1}`} value={value} disabled={disabled} onChange={e=>onChange(r,c,e.target.value)}/></td>)}</tr>)}</tbody></table></div>;
+}
+export default function GoogleFileEditor({id,request,onClose}:{id:string;request:GoogleRequest;onClose:()=>void}){
+ const [model,setModel]=useState<Model|null>(null),[text,setText]=useState(''),[grid,setGrid]=useState<string[][]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
+ const dirty=!!model&&(model.kind==='doc'?text!==model.content:JSON.stringify(grid)!==JSON.stringify(model.grid));
+ useEffect(()=>{const warn=(e:BeforeUnloadEvent)=>{if(dirty){e.preventDefault();e.returnValue='';}};window.addEventListener('beforeunload',warn);return()=>window.removeEventListener('beforeunload',warn);},[dirty]);
+ async function load(tab?:number){setBusy(true);setError('');try{const next=await request<Model>(`editor?${new URLSearchParams({id,...(tab===undefined?{}:{tab:String(tab)})})}`);setModel(next);if(next.kind==='doc')setText(next.content);else setGrid(next.grid.map(row=>[...row]));}catch(e){setError(e instanceof Error?e.message:'Could not open file.');}finally{setBusy(false);}}
+ useEffect(()=>{void load();},[id]);
+ async function save(){if(!model)return;setBusy(true);setError('');setNotice('');try{const latest=await request<Model>(`editor?${new URLSearchParams({id,...(model.kind==='sheet'?{tab:String(model.tab)}:{})})}`);const {snapshot:oldTicket,...original}=model;const {snapshot:newTicket,...current}=latest;void oldTicket;if(JSON.stringify(original)!==JSON.stringify(current))throw Error('This file changed in Google. Reload before saving.');const cells=model.kind==='sheet'?grid.flatMap((row,r)=>row.flatMap((value,c)=>value===model.grid[r]?.[c]?[]:[{row:r,col:c,value}])):undefined;await request('save','POST',{id,snapshot:newTicket,...(model.kind==='doc'?{content:text}:{cells})});setNotice('Saved to Google Drive.');if(model.kind==='doc')setModel({...model,content:text});else setModel({...model,grid:grid.map(r=>[...r])});await load(model.kind==='sheet'?model.tab:undefined);}catch(e){setError((e instanceof Error?e.message:'Save failed.')+' Your draft remains in this editor. Check Google before retrying an uncertain save.');}finally{setBusy(false);}}
+ function discard(){return !dirty||window.confirm('Discard your unsaved changes?');}
+ return <section className="google-editor rounded-xl border p-5 space-y-4" aria-label="Google file editor"><header className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold">{model?.title??'Open file'}</h2><p role="status">{dirty?'Unsaved changes':model?'Saved version loaded':'Loading editor…'}</p></div><div className="flex gap-3"><button disabled={busy} onClick={()=>{if(discard())void load(model?.kind==='sheet'?model.tab:undefined);}}>Reload</button><button disabled={busy} onClick={()=>{if(discard())onClose();}}>Close editor</button></div></header>
+ {error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}
+ {model?.kind==='doc'&&<><p>Text editor. Saving replaces the document body as plain text; existing text formatting may change. Tables and embedded content open in Google.</p><label className="block">Document body<textarea className="google-document" value={text} maxLength={200000} disabled={busy} onChange={e=>setText(e.target.value)}/></label></>}
+ {model?.kind==='sheet'&&<><label>Sheet tab <select disabled={busy} value={model.tab} onChange={e=>{if(discard())void load(Number(e.target.value));}}>{model.tabs.map(tab=><option key={tab.id} value={tab.id}>{tab.title}</option>)}</select></label><p>Edit the first {model.rows} rows and {model.cols} columns. Start with = for a formula; formulas recalculate in Google after Save. Only changed cells are saved; formatting stays intact.</p><CellGrid grid={grid} disabled={busy} onChange={(r,c,value)=>setGrid(old=>old.map((row,i)=>i===r?row.map((cell,j)=>j===c?value:cell):row))}/></>}
+ {model&&<button className="google-primary rounded border px-4 py-2" disabled={busy||!dirty} onClick={()=>void save()}>{busy?'Saving…':'Save to Google'}</button>}
+ </section>;
+}

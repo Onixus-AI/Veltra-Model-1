@@ -430,6 +430,7 @@ export default function VeltraWorkspace() {
           <WorkspaceAppearance navigation/>
           <Link href="/design" title="Design"><PenTool size={17}/><span>Design</span></Link>
           {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
+          <Link href="/workspace/files" title="Documents and spreadsheets" aria-label="Documents and spreadsheets"><span>Docs &amp; Sheets</span></Link>
           <Link href={"/settings/connections?mode="+workspaceMode} title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar key={workspaceMode} business={workspaceMode==="business"} scope={crmOpen?crmScope:null} disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
