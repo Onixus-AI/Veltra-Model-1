@@ -10,7 +10,7 @@ type Stored = {id: string; threadId: string; labelIds: string[]; internalDate: s
 const b64url = (s: string) => Buffer.from(s).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 
-export type DeliveredMail = {to: string; from: string; subject: string; body: string; messageId: string; inReplyTo: string | null; references: string | null; replyTo: string | null; threadId: string; gmailId: string};
+export type DeliveredMail = {to: string; from: string; subject: string; body: string; messageId: string; inReplyTo: string | null; references: string | null; replyTo: string | null; threadId: string; gmailId: string; headers: Header[]};
 
 export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; sendAs?: {email: string; verified: boolean}[]}) {
   const messages = new Map<string, Stored>();
@@ -59,7 +59,7 @@ export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; s
       if (!o.controlledRecipients.includes(to)) return json(400, {error: {message: 'Invalid To header'}});
       const thread = threadId && [...messages.values()].some(m => m.threadId === threadId) ? threadId : `thread${(++seq).toString().padStart(6, '0')}`;
       const id = add({threadId: thread, labelIds: ['SENT'], headers, body});
-      delivered.push({to, from: h('from') ?? '', subject: h('subject') ?? '', body, messageId: h('message-id') ?? '', inReplyTo: h('in-reply-to'), references: h('references'), replyTo: h('reply-to'), threadId: thread, gmailId: id});
+      delivered.push({to, from: h('from') ?? '', subject: h('subject') ?? '', body, messageId: h('message-id') ?? '', inReplyTo: h('in-reply-to'), references: h('references'), replyTo: h('reply-to'), threadId: thread, gmailId: id, headers});
       return json(200, {id, threadId: thread, labelIds: ['SENT']});
     }
     if (path === '/messages') {
