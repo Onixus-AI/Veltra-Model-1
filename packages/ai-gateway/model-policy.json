@@ -72,6 +72,11 @@
     "z-ai/glm-5.3",
     "minimax/minimax-m3"
   ],
+  "voice": {
+    "speech_model": "elevenlabs/eleven-flash-v2.5",
+    "transcription_model": "elevenlabs/scribe-v2",
+    "voice": "sarah"
+  },
   "image_max_usd": 0.02,
   "image_models": [
     "recraft/recraft-v4.1-flash",

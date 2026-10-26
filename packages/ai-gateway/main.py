@@ -665,7 +665,7 @@ class TranscriptionRequest(BaseModel):
 async def voice_wallet(credentials: HTTPAuthorizationCredentials | None, credits: int) -> str:
     principal = await get_authenticated_principal(credentials)
     if not voice.status()["speech"]:
-        raise HTTPException(status_code=503, detail="Voice is not set up. Browser voice input still works.")
+        raise HTTPException(status_code=503, detail="Voice is not available right now. Browser voice input still works.")
     wallet = await get_wallet(principal["organization_id"])
     if wallet is None or wallet["credits_remaining"] < credits:
         raise HTTPException(status_code=402, detail="Insufficient credits")
@@ -692,7 +692,7 @@ async def create_speech(
         async with httpx.AsyncClient(timeout=60) as client:
             audio = await voice.synthesize(client, text)
     except (httpx.HTTPError, voice.VoiceUnavailable) as error:
-        logger.error("ElevenLabs speech failed (%s)", type(error).__name__)
+        logger.error("Speech failed (%s: %s)", type(error).__name__, getattr(getattr(error, "response", None), "text", "")[:300])
         raise HTTPException(status_code=503, detail="Voice playback couldn’t finish. Please try again shortly.") from error
     await settle_credits(organization_id, credits, "elevenlabs-tts")
     return Response(content=audio, media_type="audio/mpeg", headers={"X-Credits": str(credits)})
@@ -712,9 +712,9 @@ async def create_transcription(
     organization_id = await voice_wallet(credentials, voice.MIN_TRANSCRIPTION_CREDITS)
     try:
         async with httpx.AsyncClient(timeout=120) as client:
-            result = await voice.transcribe(client, audio, request.mime_type)
+            result = await voice.transcribe(client, request.audio_base64, request.mime_type)
     except (httpx.HTTPError, voice.VoiceUnavailable) as error:
-        logger.error("ElevenLabs transcription failed (%s)", type(error).__name__)
+        logger.error("Transcription failed (%s: %s)", type(error).__name__, getattr(getattr(error, "response", None), "text", "")[:300])
         raise HTTPException(status_code=503, detail="Voice input couldn’t finish. Please try again shortly.") from error
     credits = voice.transcription_credits(result, len(audio))
     await settle_credits(organization_id, credits, "elevenlabs-stt")
