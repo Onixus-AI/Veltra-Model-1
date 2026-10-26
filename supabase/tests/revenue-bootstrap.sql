@@ -59,6 +59,15 @@ create table public.crm_customers(
  unique(workspace_id,id)
 );
 create index crm_customer_email on public.crm_customers(workspace_id,lower(email));
+-- Published contact evidence (production: CRM discovery), read by prospect scoring.
+create table public.crm_contact_evidence(
+ workspace_id uuid not null,customer_id uuid not null,email text not null,source_url text not null,
+ source_kind text not null check(source_kind in('official_registry','map_listing','company_website')),
+ observed_at timestamptz not null default now(),verification text not null default 'published_unverified' check(verification='published_unverified'),
+ primary key(workspace_id,customer_id,email,source_url),
+ foreign key(workspace_id,customer_id) references public.crm_customers(workspace_id,id) on delete cascade
+);
+alter table public.crm_contact_evidence enable row level security;
 create table public.crm_deals(
  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, customer_id uuid not null,
  title text not null check(length(trim(title)) between 1 and 300),
