@@ -21,5 +21,5 @@ export function playbookSteps(id:PlaybookId,business:string,offer:string,booking
 }
 export function personalizedPreview(step:CampaignStep,person:{company:string;name:string},address:string){
  const render=(s:string)=>s.replace(/{{\s*(company|name)\s*}}/g,(_,key:'company'|'name')=>(person[key]||person.company).replace(/[\r\n]/g,' '));
- return {subject:render(step.subject),body:render(step.body)+`\n\n${address}\nTo stop these emails, reply STOP or unsubscribe.`};
+ return {subject:render(step.subject),body:render(step.body)+`\n\n${address}\nTo stop these messages, reply STOP or unsubscribe.`};
 }
