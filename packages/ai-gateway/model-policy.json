@@ -39,6 +39,19 @@
     "nvidia/nemotron-3.5-super-vl",
     "deepseek/deepseek-v4.1-flash-1017"
   ],
+  "chat_routes": ["veltra-fast", "veltra-logic", "veltra-agent", "veltra-vision"],
+  "chat_max_price": {
+    "prompt": 2,
+    "completion": 10
+  },
+  "chat_models": [
+    "moonshotai/kimi-k3.1-pro",
+    "deepseek/deepseek-v4-pro-0813",
+    "z-ai/glm-5.3",
+    "qwen/qwen3.8-2.4t-a95b",
+    "minimax/minimax-m3",
+    "xiaomi/mimo-v2.6-pro"
+  ],
   "image_max_usd": 0.02,
   "image_models": [
     "recraft/recraft-v4.1-flash",

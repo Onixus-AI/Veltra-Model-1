@@ -41,7 +41,7 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
         states = [kwargs['payload']['state'] for table, kwargs in calls if 'state' in kwargs.get('payload', {})]
         self.assertEqual(states[-1]['receipts'][0]['model'], 'backup/actual')
 
-    async def test_tools_preserve_nvidia_first_and_settle_returned_usage(self):
+    async def test_chat_tools_keep_quality_order_privacy_and_settle_returned_usage(self):
         import main
         result = {'model': 'backup/served', 'choices': [], 'usage': {'total_tokens': 12}}
         call = AsyncMock(return_value=SimpleNamespace(model_dump=lambda: result))
@@ -54,18 +54,28 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
              patch('main.call_model', call), patch('main.settle_credits', settle):
             response = await main.create_chat_completion(request, None)
         body = call.call_args.args[0]['extra_body']
-        self.assertEqual(body['models'][0], 'nvidia/nemotron-3.5-super-vl:free')
-        self.assertEqual(body['models'][1], 'xiaomi/mimo-v2.6-flash')
+        self.assertEqual(body['models'], ['moonshotai/kimi-k3.1-pro', 'z-ai/glm-5.3', 'deepseek/deepseek-v4-pro-0813'])
         self.assertTrue(body['provider']['require_parameters'])
+        self.assertEqual(body['provider']['data_collection'], 'deny')
+        self.assertEqual(body['provider']['max_price'], {'prompt': 2, 'completion': 10})
         self.assertEqual(response['model'], 'backup/served')
         settle.assert_awaited_once_with('test', 12, 'veltra-agent')
 
-    async def test_every_default_route_is_free_first_and_within_policy(self):
+    async def test_chat_routes_are_capable_paid_and_other_routes_free_first(self):
         import main
+        from model_routing import POLICY
         for alias, config in main.MODELS.items():
-            options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []))
-            self.assertTrue(options['models'][0].endswith(':free'))
-            self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
+            chat = alias in POLICY['chat_routes']
+            options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []), chat=chat)
+            self.assertEqual(options['provider']['data_collection'], 'deny')
+            if chat:
+                self.assertTrue(all(model in POLICY['chat_models'] for model in options['models']), alias)
+                self.assertEqual(len(options['models']), 3)
+                self.assertEqual(options['provider']['max_price'], {'prompt': 2, 'completion': 10})
+            else:
+                self.assertTrue(options['models'][0].endswith(':free'))
+                self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
+        self.assertEqual(set(POLICY['chat_routes']) - set(main.MODELS), set())
         for role, primary in main.MODEL_CONFIG['coding_team'].items():
             self.assertTrue(primary.endswith(':free'))
             routing_options(primary, main.MODEL_CONFIG['coding_fallbacks'][role])

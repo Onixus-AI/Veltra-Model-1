@@ -23,7 +23,7 @@ model_list:
   # Complex logic, deep reasoning, and code
   - model_name: veltra-logic
     litellm_params:
-      model: openrouter/nvidia/nemotron-3-ultra-550b-a55b:free
+      model: openrouter/deepseek/deepseek-v4-pro-0813
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.2
@@ -31,7 +31,7 @@ model_list:
   # Fast text, email triage, and CRM actions
   - model_name: veltra-fast
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-lightning:free
+      model: openrouter/z-ai/glm-5.3
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.3
@@ -39,7 +39,7 @@ model_list:
   # Agentic workflow execution and tool calling
   - model_name: veltra-agent
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-super-vl:free
+      model: openrouter/moonshotai/kimi-k3.1-pro
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -59,7 +59,7 @@ model_list:
   # Image understanding for chat attachments (requires image_url content parts)
   - model_name: veltra-vision
     litellm_params:
-      model: openrouter/nvidia/nemotron-3.5-super-vl:free
+      model: openrouter/moonshotai/kimi-k3.1-pro
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -95,16 +95,17 @@ coding_team:
   vision: nvidia/nemotron-3.5-super-vl:free
   design: nvidia/nemotron-3.5-super-vl:free
 
-# Every production route starts free; only approved cheap models can follow.
+# Chat routes (model-policy chat_routes) use capable paid models in this order.
+# Every other route starts free; only approved cheap models can follow.
 chat_fallbacks:
   veltra-free: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
   veltra-fast-free: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
   veltra-code-free: [inception/mercury-3, qwen/qwen3.8-flash]
   veltra-dev: [inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
-  veltra-fast: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
-  veltra-logic: [minimax/minimax-m3.1-flash, deepseek/deepseek-v4.1-flash-1017]
-  veltra-agent: [xiaomi/mimo-v2.6-flash, qwen/qwen3.8-flash]
-  veltra-vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
+  veltra-fast: [deepseek/deepseek-v4-pro-0813, minimax/minimax-m3]
+  veltra-logic: [qwen/qwen3.8-2.4t-a95b, z-ai/glm-5.3]
+  veltra-agent: [z-ai/glm-5.3, deepseek/deepseek-v4-pro-0813]
+  veltra-vision: [xiaomi/mimo-v2.6-pro, minimax/minimax-m3]
   veltra-mimo: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
   veltra-ling: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
 
