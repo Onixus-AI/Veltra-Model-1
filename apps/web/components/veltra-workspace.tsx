@@ -431,6 +431,7 @@ export default function VeltraWorkspace() {
           <Link href="/design" title="Design"><PenTool size={17}/><span>Design</span></Link>
           {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
           <Link href="/workspace/files" title="Documents and spreadsheets" aria-label="Documents and spreadsheets"><span>Docs &amp; Sheets</span></Link>
+          <Link href="/workspace/brand" title="Brand folder"><span>Brand folder</span></Link>
           <Link href={"/settings/connections?mode="+workspaceMode} title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar key={workspaceMode} business={workspaceMode==="business"} scope={crmOpen?crmScope:null} disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
@@ -471,7 +472,7 @@ export default function VeltraWorkspace() {
         <div className="conversation" ref={scrollRef} onScroll={event=>{const area=event.currentTarget;stickToBottom.current=area.scrollHeight-area.scrollTop-area.clientHeight<100;}}>
           {messages.length === 0 ? (
             <div className="welcome">
-              <span className="welcome-orb"><img src="/veltra-logo.png" alt="Onixus Core logo" width={34} height={34}/></span>
+              <span className="welcome-orb"><img src="/brands/onixus-chat-icon-v2.png" alt="Onixus Chat logo" width={34} height={34}/></span>
               <h1>{codeOpen?"What are we building?":workspaceMode==="business"?"What’s next for your business?":workspaceMode==="dev"?"What are we building?":workspaceMode==="creator"?"What will you create?":"What’s on your mind?"}</h1>
               <div className="suggestion-grid">
                 {workspaceStarters[workspaceMode].map((starter,index)=><button key={starter.title} onClick={()=>{setInput(starter.prompt);if(workspaceMode==='creator'&&starter.title==='Create an image')setImageMode(true);}}><span className="suggestion-icon">{index===0?<Layers3 size={15}/>:index===1?<Zap size={15}/>:<FileText size={15}/>}</span><span><b>{starter.title}</b><small>{starter.description}</small></span><ArrowDown size={14}/></button>)}
@@ -481,7 +482,7 @@ export default function VeltraWorkspace() {
             <div className="message-list">
               {messages.map((message, index) => (
                 <article className={`message ${message.role}`} key={`${index}-${message.role}`}>
-                  {message.role === "assistant" ? <span className="assistant-avatar"><img src="/veltra-logo.png" alt="Onixus Core logo" width={22} height={22}/></span> : <span className="user-avatar">Y</span>}
+                  {message.role === "assistant" ? <span className="assistant-avatar"><img src="/brands/onixus-chat-icon-v2.png" alt="Onixus Chat logo" width={22} height={22}/></span> : <span className="user-avatar">Y</span>}
                   <div className="message-body">
                     <div className="message-meta">{message.role === "assistant" ? "Onixus Workspace" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{imageMode ? "Creating…" : message.content ? "Replying…" : "Thinking…"}</span>}</div>
                     {message.image && <figure className="generated-image"><img src={message.image} alt="Image generated from your prompt" /><figcaption><button type="button" onClick={() => openImageInCanvas(message.image!)}>Open in canvas</button><a href={message.image} download={`veltra-${message.imageId || "image"}.png`}>Download image</a></figcaption></figure>}

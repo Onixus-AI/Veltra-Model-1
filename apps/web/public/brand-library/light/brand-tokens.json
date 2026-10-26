@@ -1,0 +1,19 @@
+{
+  "colors": {
+    "Purple": "#9254FF",
+    "Cyan": "#00CBE8",
+    "Magenta": "#E625A5",
+    "Hot green": "#00D67A",
+    "Jet black": "#000000",
+    "Platinum": "#EEF0F4"
+  },
+  "fontFamily": "Arial, Helvetica, sans-serif",
+  "products": [
+    "Workspace",
+    "Mail",
+    "CRM",
+    "Signal",
+    "Chat"
+  ],
+  "logo": "assets/onixus-metallic-white.png"
+}
