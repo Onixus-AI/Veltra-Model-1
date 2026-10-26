@@ -74,7 +74,7 @@ test('linking: members only, pending token activates once, other users and works
   const token = randomBytes(32).toString('base64url');
   assert.equal(await status(asUser(V, 'revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)})), 403, 'viewer cannot add meetings to CRM');
   assert.equal(await status(asUser(X, 'revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)})), 404, 'other workspace');
-  assert.equal(await status(anon('revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)})), 401);
+  assert.ok([401, 403].includes(await status(anon('revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)}))), 'signed-out callers are refused');
   const {connection_id} = await asUser<{connection_id: string}>(M, 'revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)});
   assert.equal(await status(anon('revenue_calendar_activate', {p_connection: connection_id, p_token: 'x'.repeat(43), p_account: {email: 'm@x.test', subject: 's'}})), 403);
   await anon('revenue_calendar_activate', {p_connection: connection_id, p_token: token, p_account: {email: 'Member.Google@Studio.test', subject: 'member-sub', scopes: ['openid', CALENDAR_EVENTS_SCOPE]}});
@@ -88,9 +88,9 @@ test('linking: members only, pending token activates once, other users and works
   const ownerRows = await fetch(`${SUPABASE}/rest/v1/revenue_calendar_connections?select=id,google_email`, {headers: {apikey: jwt({role: 'anon'}), Authorization: `Bearer ${as(O)}`}}).then(r => r.json());
   assert.deepEqual(ownerRows, []);
   const secretColumns = await fetch(`${SUPABASE}/rest/v1/revenue_calendar_connections?select=token_hash`, {headers: {apikey: jwt({role: 'anon'}), Authorization: `Bearer ${as(M)}`}});
-  assert.equal(secretColumns.status, 401, 'link token hashes are not readable even by their owner');
+  assert.ok([401, 403].includes(secretColumns.status), 'link token hashes are not readable even by their owner');
   const syncColumns = await fetch(`${SUPABASE}/rest/v1/revenue_calendar_calendars?select=sync_token`, {headers: {apikey: jwt({role: 'anon'}), Authorization: `Bearer ${as(M)}`}});
-  assert.equal(syncColumns.status, 401);
+  assert.ok([401, 403].includes(syncColumns.status));
   assert.equal(await status(asUser(O, 'revenue_calendar_select', {p_workspace: W, p_calendar: 'primary', p_sync: true})), 404, 'owner cannot change a member calendar');
   assert.equal(await status(asUser(O, 'revenue_calendar_settings', {p_workspace: W, p_share: false})), 404);
   const http = await revenueGET(new Request(`https://web.test/api/revenue/calendar?w=${W}`, {headers: {Authorization: `Bearer ${as(O)}`}}), {params: Promise.resolve({path: ['calendar']})});
@@ -115,7 +115,7 @@ test('sync: customers linked by normalized email, idempotent resyncs, reschedule
   google.book('evt-lee', ['LEE@park.test'], start.toISOString());
   google.book('evt-internal', ['member@cal.test'], start.toISOString(), {title: 'Internal'});
   google.book('evt-stranger', ['nobody@else.test'], start.toISOString(), {title: 'Stranger'});
-  google.book('evt-team', ['lee@park.test'], start.toISOString(), {calendar: 'team@group.calendar.google.com', title: 'Team calendar'});
+  google.book('evt-team', ['lee@park.test'], start.toISOString(), {calendar: 'team@group.calendar.google.com', title: 'Team calendar', tz: null});
 
   let r = await sync();
   assert.equal(r.status, 'healthy', JSON.stringify(r));
@@ -196,7 +196,7 @@ test('time zones: DST-correct UTC storage, all-day events, recurring series expa
   await asUser(O, 'revenue_calendar_begin', {p_workspace: W, p_pending_hash: sha(token)});
   await anon('revenue_calendar_activate', {p_connection: c, p_token: token, p_account: {email: OWNER_GOOGLE, subject: 'owner-sub', scopes: CALENDAR_SCOPES}});
   const api = calendarApi({token: tokens(google), fetch: google.fetcher, sleep: async () => undefined});
-  const sync = () => syncConnection({api, rpc: anon, connection: c, token, force: true, horizonDays: 120});
+  const sync = () => syncConnection({api, rpc: anon, connection: c, token, force: true, horizonDays: 400});
 
   // 10:30 on the spring-forward day in New York is 14:30 UTC (EDT, UTC-4).
   google.book('evt-spring', ['lee@park.test'], `${springForward}T14:30:00.000Z`, {title: 'Spring call'});

@@ -113,7 +113,7 @@ export function fakeGoogleCalendar(o: {email: string; sub?: string; calendars?: 
     if (pageToken) { const [mode, a, b] = pageToken.split(':'); full = mode === 'full'; after = Number(a); offset = Number(b); }
     else if (syncToken) {
       after = Number(syncToken.replace(`sync-${cal.id}-`, ''));
-      if (!syncToken.startsWith(`sync-${cal.id}-`) || after < minToken) return err(410, 'Sync token is no longer valid, a full sync is required.', 'fullSyncRequired');
+      if (!syncToken.startsWith(`sync-${cal.id}-`) || after < minToken || after > seq) return err(410, 'Sync token is no longer valid, a full sync is required.', 'fullSyncRequired');
     }
     let items: Stored[];
     if (full) items = mine.filter(e => e.status !== 'cancelled');
@@ -131,8 +131,8 @@ export function fakeGoogleCalendar(o: {email: string; sub?: string; calendars?: 
     fetcher: fetcher as typeof fetch, state, sent, calls,
     grant(scopes: string[]) { state.grantedScopes = scopes; },
     /** The connected user organizes a timed meeting with these guests. */
-    book(id: string, guests: string[], startUtc: string, o2: {calendar?: string; minutes?: number; title?: string; tz?: string; organizer?: string} = {}) {
-      const end = new Date(Date.parse(startUtc) + (o2.minutes ?? 30) * 60_000).toISOString(), tz = o2.tz ?? 'America/New_York';
+    book(id: string, guests: string[], startUtc: string, o2: {calendar?: string; minutes?: number; title?: string; tz?: string | null; organizer?: string} = {}) {
+      const end = new Date(Date.parse(startUtc) + (o2.minutes ?? 30) * 60_000).toISOString(), tz = o2.tz === null ? undefined : o2.tz ?? 'America/New_York';
       const organizer = o2.organizer ? {email: o2.organizer} : {email: o.email, self: true};
       return pub(save({id, calendarId: o2.calendar ?? calendars[0].id, status: 'confirmed', summary: o2.title ?? 'Discovery call', updated: tick(), organizer,
         start: {dateTime: startUtc, timeZone: tz}, end: {dateTime: end, timeZone: tz},
