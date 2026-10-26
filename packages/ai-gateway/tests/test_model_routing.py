@@ -54,7 +54,7 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
              patch('main.call_model', call), patch('main.settle_credits', settle):
             response = await main.create_chat_completion(request, None)
         body = call.call_args.args[0]['extra_body']
-        self.assertEqual(body['models'], ['moonshotai/kimi-k3.1-pro', 'z-ai/glm-5.3', 'xiaomi/mimo-v2.6-flash'])
+        self.assertEqual(body['models'], ['deepseek/deepseek-v4-pro-0813', 'moonshotai/kimi-k3.1-pro', 'xiaomi/mimo-v2.6-flash'])
         self.assertTrue(body['provider']['require_parameters'])
         self.assertEqual(body['provider']['data_collection'], 'deny')
         self.assertEqual(body['provider']['max_price'], {'prompt': 2, 'completion': 10})
@@ -66,14 +66,21 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
         from model_routing import POLICY
         for alias, config in main.MODELS.items():
             chat = alias in POLICY['chat_routes']
-            options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []), chat=chat)
+            options = routing_options(config['model'], main.MODEL_CONFIG['chat_fallbacks'].get(alias, []), route=alias)
             self.assertEqual(options['provider']['data_collection'], 'deny')
             if chat:
                 self.assertEqual(len(options['models']), 3)
-                self.assertTrue(all(model in POLICY['chat_models'] for model in options['models'][:2]), alias)
+                self.assertIn(options['models'][0], POLICY['chat_models'], alias)
+                self.assertFalse(any(model.endswith(':free') for model in options['models']), alias)
                 # Keeps Chat working when the guardrail has not yet allowed the newer models.
                 self.assertIn(options['models'][-1], POLICY['paid_models'], alias)
-                self.assertEqual(options['provider']['max_price'], {'prompt': 2, 'completion': 10})
+                if alias == 'veltra-vision':
+                    self.assertEqual(options['models'][0], 'minimax/minimax-m3')
+                    self.assertNotIn('moonshotai/kimi-k3.1-pro', options['models'])
+                    self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})
+                else:
+                    self.assertEqual(options['models'][0], 'deepseek/deepseek-v4-pro-0813', alias)
+                    self.assertEqual(options['provider']['max_price'], {'prompt': 2, 'completion': 10})
             else:
                 self.assertTrue(options['models'][0].endswith(':free'))
                 self.assertEqual(options['provider']['max_price'], {'prompt': .5, 'completion': 1})

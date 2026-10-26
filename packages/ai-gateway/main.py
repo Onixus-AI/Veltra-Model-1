@@ -520,7 +520,7 @@ async def create_chat_completion(
         params["temperature"] = request.temperature
     params["extra_body"] = routing_options(
         model_config["model"], MODEL_CONFIG.get("chat_fallbacks", {}).get(request.model, []),
-        tools=bool(request.tools), chat=request.model in POLICY["chat_routes"],
+        tools=bool(request.tools), route=request.model,
     )
     if request.tools:
         # Tool definitions are supplied by the web app's allowlisted connector tools.

@@ -44,6 +44,12 @@
     "prompt": 2,
     "completion": 10
   },
+  "chat_route_max_price": {
+    "veltra-vision": {
+      "prompt": 0.5,
+      "completion": 1
+    }
+  },
   "chat_models": [
     "moonshotai/kimi-k3.1-pro",
     "deepseek/deepseek-v4-pro-0813",

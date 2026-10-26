@@ -35,7 +35,7 @@ class CostPolicyTests(unittest.TestCase):
 
     def test_chat_tier_keeps_order_privacy_and_blocklist(self):
         options = routing_options('z-ai/glm-5.3', ['deepseek/deepseek-v4-pro-0813', 'nvidia/nemotron-3.5-lightning:free'],
-                                  tools=True, chat=True)
+                                  tools=True, route='veltra-fast')
         self.assertEqual(options['models'], ['z-ai/glm-5.3', 'deepseek/deepseek-v4-pro-0813', 'nvidia/nemotron-3.5-lightning:free'])
         self.assertEqual(options['provider']['data_collection'], 'deny')
         self.assertEqual(options['provider']['max_price'], {'prompt': 2, 'completion': 10})
@@ -43,10 +43,17 @@ class CostPolicyTests(unittest.TestCase):
         for excluded in ['openai', 'anthropic', 'google-ai-studio', 'google-vertex', 'xai']:
             self.assertIn(excluded, options['provider']['ignore'])
         with self.assertRaises(ValueError):
-            routing_options('nvidia/nemotron-3.5-lightning:free', ['z-ai/glm-5.3'], chat=True)
+            routing_options('nvidia/nemotron-3.5-lightning:free', ['z-ai/glm-5.3'], route='veltra-fast')
         for model in ['openai/gpt-5', 'anthropic/claude-opus', 'google/gemini-pro', 'x-ai/grok', 'openrouter/auto']:
             with self.subTest(model=model), self.assertRaises(ValueError):
-                routing_options('z-ai/glm-5.3', [model], chat=True)
+                routing_options('z-ai/glm-5.3', [model], route='veltra-fast')
+
+    def test_baseten_elevenlabs_and_recursive_free_are_not_blocked(self):
+        from model_routing import POLICY
+        for provider in ['baseten', 'elevenlabs', 'recursive']:
+            self.assertNotIn(provider, POLICY['blocked_providers'])
+        options = routing_options('recursive/flint-v1.0:free')
+        self.assertEqual(options['models'], ['recursive/flint-v1.0:free'])
 
     def test_fallback_list_respects_openrouter_three_model_limit(self):
         route = routing_options('nvidia/nemotron-3.5-lightning:free',

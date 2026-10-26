@@ -31,7 +31,7 @@ model_list:
   # Fast text, email triage, and CRM actions
   - model_name: veltra-fast
     litellm_params:
-      model: openrouter/z-ai/glm-5.3
+      model: openrouter/deepseek/deepseek-v4-pro-0813
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
       temperature: 0.3
@@ -39,7 +39,7 @@ model_list:
   # Agentic workflow execution and tool calling
   - model_name: veltra-agent
     litellm_params:
-      model: openrouter/moonshotai/kimi-k3.1-pro
+      model: openrouter/deepseek/deepseek-v4-pro-0813
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -59,7 +59,7 @@ model_list:
   # Image understanding for chat attachments (requires image_url content parts)
   - model_name: veltra-vision
     litellm_params:
-      model: openrouter/moonshotai/kimi-k3.1-pro
+      model: openrouter/minimax/minimax-m3
       api_base: https://openrouter.ai/api/v1
       api_key: os.environ/OPENROUTER_API_KEY
 
@@ -103,10 +103,10 @@ chat_fallbacks:
   veltra-fast-free: [inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
   veltra-code-free: [inception/mercury-3, qwen/qwen3.8-flash]
   veltra-dev: [inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
-  veltra-fast: [deepseek/deepseek-v4-pro-0813, minimax/minimax-m3.1-flash]
+  veltra-fast: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
   veltra-logic: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
-  veltra-agent: [z-ai/glm-5.3, xiaomi/mimo-v2.6-flash]
-  veltra-vision: [minimax/minimax-m3, inclusionai/ling-3.0-flash-vl]
+  veltra-agent: [moonshotai/kimi-k3.1-pro, xiaomi/mimo-v2.6-flash]
+  veltra-vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
   veltra-mimo: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
   veltra-ling: [inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
 
