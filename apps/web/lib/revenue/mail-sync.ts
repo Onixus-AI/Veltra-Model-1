@@ -7,10 +7,11 @@ export type SyncResult = {status: 'healthy' | 'expired' | 'error'; cursor: strin
 
 export function toIngestEvent(m: ProviderMessage): Record<string, unknown> {
   if (m.bounce) return {type: 'message.bounced', recipient: m.bounce.recipient, status: m.bounce.status, diagnostic: m.bounce.diagnostic, occurred_at: m.occurredAt};
-  const common = {provider_message_id: m.providerMessageId, thread_id: m.threadId, to: m.to, from_email: m.from, subject: m.subject.slice(0, 500), text: m.text, occurred_at: m.occurredAt};
+  const common = {provider_message_id: m.providerMessageId, thread_id: m.threadId, to: m.to, from_email: m.from, subject: m.subject.slice(0, 500), text: m.text, occurred_at: m.occurredAt,
+    message_id_header: m.messageIdHeader, in_reply_to: m.inReplyTo, references: m.references};
   if (m.direction === 'outbound') return {type: 'message.outbound_observed', ...common};
   const analysis = analyzeMessage(m.text);
-  return {type: 'message.inbound', ...common, from_name: m.fromName, automated: m.automated, in_reply_to: m.inReplyTo, attachments: m.attachments,
+  return {type: 'message.inbound', ...common, from_name: m.fromName, automated: m.automated, attachments: m.attachments,
     analysis: {questions: analysis.questions, injection_flags: analysis.injection.map(f => f.kind)}};
 }
 

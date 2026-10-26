@@ -18,6 +18,7 @@ const pg = postgrestHarness();
 const {jwt, as, setEnv} = pg;
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const O = randomUUID(), M = randomUUID(), V = randomUUID(), X = randomUUID(), W = randomUUID(), W2 = randomUUID(), A = randomUUID();
+const MAIL_TOKEN = randomBytes(32).toString('hex');
 const SUPABASE = 'https://supabase.test';
 let pool: Pool, customer: string, otherCustomer: string;
 
@@ -48,7 +49,7 @@ before(async () => {
   await pool.query('insert into auth.users(id,email) values ($1,$5),($2,$6),($3,$7),($4,$8)', [O, M, V, X, 'owner@routes.test', 'member@routes.test', 'viewer@routes.test', 'other@routes.test']);
   await pool.query(`insert into public.crm_workspaces(id,name,owner_id,environment) values ($1,'Routes Studio',$3,'test'),($2,'Other Business',$4,'test')`, [W, W2, O, X]);
   await pool.query(`insert into public.crm_memberships(workspace_id,user_id,role) values ($1,$2,'owner'),($1,$3,'member'),($1,$4,'viewer'),($5,$6,'owner')`, [W, O, M, V, W2, X]);
-  await pool.query('insert into public.crm_mail_connections(account_id,workspace_id,token_hash,connected_by) values ($1,$2,$3,$4)', [A, W, sha(randomBytes(32).toString('hex')), O]);
+  await pool.query('insert into public.crm_mail_connections(account_id,workspace_id,token_hash,connected_by) values ($1,$2,$3,$4)', [A, W, sha(MAIL_TOKEN), O]);
   customer = (await pgStore(pool, M).rpc<{customer_id: string}>('revenue_upsert_customer', {p_workspace: W, p_customer: {email: 'lee@routes.test', name: 'Lee Park', company: 'Park Dental'}})).customer_id;
   otherCustomer = (await pgStore(pool, X).rpc<{customer_id: string}>('revenue_upsert_customer', {p_workspace: W2, p_customer: {email: 'secret@other.test', name: 'Hidden', company: 'Other Co'}})).customer_id;
 
@@ -152,6 +153,27 @@ test('validation: workspace, ids, unknown views and actions, smuggled arguments,
   failsWith(await post('integrations', as(O), {workspace_id: W, provider: 'paypal', label: 'x'}), 400, /provider/);
   failsWith(await post('checkout', as(M), {workspace_id: W, proposal_id: randomUUID()}), 503, /Stripe is not configured/);
   failsWith(await post('nothing-here', as(M), {workspace_id: W}), 404);
+});
+
+test('thread view: reply threading ids are readable by workspace members only, and only well-formed ids are stored', {skip}, async () => {
+  const thread = `t-thread-${randomUUID().slice(0, 8)}`;
+  const ingest = (event: Record<string, unknown>) => pgStore(pool, null).rpc('revenue_ingest_mail_event', {p_account: A, p_token: MAIL_TOKEN, p_event: {
+    type: 'message.inbound', thread_id: thread, to: 'sales@routes.test', from_email: 'lee@routes.test', from_name: 'Lee Park', subject: 'Quote', text: 'Hello', occurred_at: new Date().toISOString(), ...event}});
+  await ingest({provider_message_id: 'g-1', message_id_header: '<first@lee.routes.test>'});
+  await ingest({provider_message_id: 'g-2', message_id_header: '<second@lee.routes.test>\r\nBcc: evil@x.test', in_reply_to: '<first@lee.routes.test>', references: '<first@lee.routes.test>'});
+  await ingest({provider_message_id: 'g-3', message_id_header: 'not-a-message-id', in_reply_to: 'garbage'});
+
+  const view = await get('thread', as(V), {w: W, account: A, thread});
+  assert.equal(view.status, 200, JSON.stringify(view.body));
+  assert.deepEqual(view.body.messages.map((m: any) => [m.message_id_header, m.in_reply_to]),
+    [['<first@lee.routes.test>', null], ['<second@lee.routes.test>', '<first@lee.routes.test>'], [null, null]], 'CR/LF and anything after it never reach the record; malformed ids are dropped');
+  const stored = await pool.query('select references_header from public.revenue_messages where workspace_id=$1 and thread_id=$2 order by occurred_at', [W, thread]);
+  assert.deepEqual(stored.rows.map(r => r.references_header), [null, '<first@lee.routes.test>', null]);
+
+  const outsider = await get('thread', as(X), {w: W, account: A, thread});
+  assert.deepEqual(outsider.body.messages, [], 'row-level security returns nothing to another workspace');
+  const asOther = await pgStore(pool, X).rpc('revenue_ingest_mail_event', {p_account: A, p_token: randomBytes(32).toString('hex'), p_event: {type: 'sync.status', status: 'healthy'}}).then(() => 'accepted', e => e.status);
+  assert.equal(asOther, 403, 'another token cannot write into this mailbox');
 });
 
 test('provider callbacks and cron: forms, Stripe and the worker refuse missing configuration and bad credentials', {skip}, async () => {

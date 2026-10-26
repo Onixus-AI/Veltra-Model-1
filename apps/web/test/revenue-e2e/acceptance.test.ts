@@ -38,7 +38,7 @@ const W = randomUUID(), W2 = randomUUID(), A = randomUUID(), B = randomUUID();
 const MAIL_TOKEN = secret(), MAIL_TOKEN_W2 = secret(), WORKER_TOKEN = secret(), FORM_TOKEN = secret(), STRIPE_TOKEN = secret(), STRIPE_TOKEN_W2 = secret();
 const WEBHOOK_SECRET = `whsec_${secret()}`;
 const MAILBOX = 'sales@onixus-harness.test';
-const RECIPIENTS = ['jordan@harness.test', 'casey@harness.test', 'riley@harness.test', 'morgan@harness.test', 'taylor@harness.test', 'unsub@harness.test', 'bounce@harness.test', 'paused@harness.test', 'sam@harness.test'];
+const RECIPIENTS = ['jordan@harness.test', 'casey@harness.test', 'riley@harness.test', 'morgan@harness.test', 'taylor@harness.test', 'unsub@harness.test', 'bounce@harness.test', 'paused@harness.test', 'sam@harness.test', 'quinn@harness.test', 'drew@harness.test', 'blake@harness.test'];
 
 let pool: Pool;
 let owner: RevenueStore, member: RevenueStore, viewer: RevenueStore, outsider: RevenueStore, anon: RevenueStore;
@@ -123,7 +123,7 @@ before(async () => {
 after(async () => { if (pool) await pool.end(); });
 
 // Shared state across the journey steps.
-let customer: string, deal: string, ack: string, thread: string, proposal: string;
+let customer: string, deal: string, ack: string, thread: string, proposal: string, customerReplyId: string;
 
 test('1. website inquiry creates one customer, inquiry, opportunity, timeline event and reply task (idempotent)', {skip}, async () => {
   const payload = {submission_id: 'sub-1001', email: 'Jordan@Harness.test', name: 'Jordan Rivera', company: 'Rivera Dental', phone: '+1 555 010 2000',
@@ -173,6 +173,7 @@ test('3. a member approves; the Onixus Mail relay claims with its account token 
   const mail = gmail.delivered[0];
   assert.equal(mail.to, 'jordan@harness.test');
   assert.equal(mail.messageId, `<onixus-${ack}@onixus.mail>`);
+  assert.deepEqual([mail.inReplyTo, mail.references], [null, null], 'a first message carries no threading headers');
   assert.match(mail.body, /— Harness Studio/);
   assert.equal(mail.from, `"Harness Studio Sales" <${MAILBOX}>`);
   assert.equal(mail.replyTo, 'replies@onixus-harness.test', 'reply-to comes from the sender identity');
@@ -180,6 +181,7 @@ test('3. a member approves; the Onixus Mail relay claims with its account token 
   assert.equal(m.status, 'provider_accepted');
   assert.equal(m.delivered_at, null, 'Gmail gives no delivery receipt; delivered must not be claimed');
   assert.equal(m.provider_message_id, mail.gmailId);
+  assert.equal(m.message_id_header, `<onixus-${ack}@onixus.mail>`, 'the Message-ID Mail sent with is recorded');
   thread = m.thread_id;
   assert.equal(thread, mail.threadId);
   const steps = lifecycleSteps(m);
@@ -191,8 +193,9 @@ test('3. a member approves; the Onixus Mail relay claims with its account token 
 test('4. the customer replies; the relay sync links it, marks our message replied, stops the follow-up and opens a reply task', {skip}, async () => {
   const runAt = new Date(Date.now() + 2 * 86_400_000).toISOString();
   const f = await member.rpc<{job_id: string}>('revenue_schedule_follow_up', {p_workspace: W, p_message: ack, p_run_at: runAt, p_body: 'Just checking in on your website project.'});
-  gmail.receive({from: 'jordan@harness.test', fromName: 'Jordan Rivera', threadId: thread, subject: 'Re: New website for our clinic',
-    text: 'Thanks! Could you send pricing for the booking feature? Do you also handle hosting?\n\nOn Mon, Harness Studio wrote:\n> Thank you for contacting us'});
+  customerReplyId = gmail.receive({from: 'jordan@harness.test', fromName: 'Jordan Rivera', threadId: thread, subject: 'Re: New website for our clinic',
+    inReplyTo: `<onixus-${ack}@onixus.mail>`, references: `<onixus-${ack}@onixus.mail>`,
+    text: 'Thanks! Could you send pricing for the booking feature? Do you also handle hosting?\n\nOn Mon, Harness Studio wrote:\n> Thank you for contacting us'}).messageId!;
   const pass = await relay();
   assert.equal(sent(pass).claimed, 0);
   const r = pass.sync;
@@ -201,6 +204,8 @@ test('4. the customer replies; the relay sync links it, marks our message replie
   assert.equal((await one(`select count(*)::int n from public.revenue_messages where workspace_id=$1 and direction='outbound' and status<>'drafted'`, [W])).n, 1, 'our own sent copy is not duplicated');
   assert.equal((await one('select count(*)::int n from public.crm_customers where workspace_id=$1', [W])).n, 1, 'reply linked to the same customer');
   assert.equal((await message(ack)).status, 'replied');
+  const inbound = await one(`select message_id_header, in_reply_to, references_header from public.revenue_messages where workspace_id=$1 and thread_id=$2 and direction='inbound'`, [W, thread]);
+  assert.deepEqual(inbound, {message_id_header: customerReplyId, in_reply_to: `<onixus-${ack}@onixus.mail>`, references_header: `<onixus-${ack}@onixus.mail>`});
   const job = await one('select status, cancel_reason from public.revenue_jobs where id=$1', [f.job_id]);
   assert.deepEqual(job, {status: 'cancelled', cancel_reason: 'Customer replied'});
   const t = await one('select state, unanswered_questions from public.crm_mail_threads where workspace_id=$1 and account_id=$2 and thread_id=$3', [W, A, thread]);
@@ -231,6 +236,10 @@ test('5. Onyx drafts a contextual reply; reply locks prevent double replies; the
   const mail = gmail.delivered[1];
   assert.equal(mail.threadId, thread, 'reply stays in the Gmail thread');
   assert.match(mail.subject, /^Re: New website/);
+  assert.equal(mail.inReplyTo, customerReplyId, 'the reply answers the customer\'s latest message');
+  assert.equal(mail.references, `<onixus-${ack}@onixus.mail> ${customerReplyId}`, 'References carries the whole conversation, ending with the parent');
+  const reply = await message(d.message_id);
+  assert.deepEqual([reply.message_id_header, reply.in_reply_to, reply.references_header], [`<onixus-${d.message_id}@onixus.mail>`, customerReplyId, mail.references]);
   assert.equal((await message(d.message_id)).status, 'provider_accepted');
   const after = await context(member, customer);
   assert.ok(!after.open_tasks.some(x => x.title.startsWith('Reply: ')), 'sending the reply completes the reply task');
@@ -866,4 +875,47 @@ test('negative: untrusted email content is flagged and fenced and cannot trigger
   assert.match(prompt[1].content, /flagged=instruction_override/);
   assert.equal(prompt[1].content.split('<<<END_UNTRUSTED_CUSTOMER_CONTENT>>>').length, 2, 'a forged end delimiter inside the email is neutralized');
   assert.deepEqual(summarizeThread(msgs).flags.includes('payment_change_request'), true);
+});
+
+test('reply threading: follow-ups thread on our last send, forged ids are dropped, and threads without a stored Message-ID fall back to the Gmail thread', {skip}, async () => {
+  const quinn = await newCustomer('quinn@harness.test', 'Quinn Hale', 'Hale Bakery');
+  const first = await draftAndApprove(quinn, 'quinn@harness.test', 'Catering menu');
+  assert.equal(sent(await relay()).sent, 1);
+  const src = await message(first);
+  await owner.rpc('revenue_set_workflow', {p_workspace: W, p_key: 'follow_up_no_reply', p_enabled: true, p_auto_send: true, p_settings: {}});
+  try {
+    const f = await member.rpc<{job_id: string}>('revenue_schedule_follow_up', {p_workspace: W, p_message: first, p_run_at: new Date(Date.now() + 3_600_000).toISOString(), p_body: 'Any thoughts on the menu?'});
+    await q('update public.revenue_jobs set run_at=now() where id=$1', [f.job_id]);
+    await cron();
+  } finally {
+    await owner.rpc('revenue_set_workflow', {p_workspace: W, p_key: 'follow_up_no_reply', p_enabled: true, p_auto_send: false, p_settings: {}});
+  }
+  const followUp = await one('select id, status, in_reply_to from public.revenue_messages where follow_up_of=$1', [first]);
+  assert.deepEqual([followUp.status, followUp.in_reply_to], ['queued', src.provider_message_id], 'follow-up drafts point at Gmail\'s API id, which is not a Message-ID');
+  assert.equal(sent(await relay()).sent, 1);
+  const fu = gmail.delivered.at(-1)!;
+  assert.equal(fu.threadId, src.thread_id);
+  assert.deepEqual([fu.inReplyTo, fu.references, fu.subject], [`<onixus-${first}@onixus.mail>`, `<onixus-${first}@onixus.mail>`, 'Re: Catering menu'],
+    'the follow-up threads on the Message-ID we recorded for the first send');
+  assert.equal((await message(followUp.id)).in_reply_to, `<onixus-${first}@onixus.mail>`);
+
+  const drew = await newCustomer('drew@harness.test', 'Drew Park', 'Park Gym');
+  const forged = await draftAndApprove(drew, 'drew@harness.test', 'Membership', {in_reply_to: '<earlier@drew.test>\r\nBcc: evil@harness.test'});
+  assert.equal(sent(await relay()).sent, 1);
+  const fd = gmail.delivered.at(-1)!;
+  assert.deepEqual([fd.to, fd.inReplyTo, fd.references, fd.subject], ['drew@harness.test', '<earlier@drew.test>', '<earlier@drew.test>', 'Re: Membership'], 'only the well-formed id survives');
+  assert.equal((await message(forged)).in_reply_to, '<earlier@drew.test>');
+
+  const blake = gmail.receive({from: 'blake@harness.test', fromName: 'Blake Kim', subject: 'Opening hours', text: 'Are you open on Sundays?', messageId: null});
+  await relay();
+  const inbound = await one('select customer_id, message_id_header from public.revenue_messages where workspace_id=$1 and thread_id=$2', [W, blake.threadId]);
+  assert.equal(inbound.message_id_header, null);
+  const d = await member.rpc<{message_id: string}>('revenue_draft_message', {p_workspace: W, p_draft: {customer_id: inbound.customer_id, account_id: A, thread_id: blake.threadId,
+    to: 'blake@harness.test', subject: 'Opening hours', body: 'Yes, 10 to 4.', sender_identity_id: IDENTITY}});
+  await member.rpc('revenue_approve_message', {p_workspace: W, p_message: d.message_id});
+  assert.equal(sent(await relay()).sent, 1);
+  const fb = gmail.delivered.at(-1)!;
+  assert.equal(fb.threadId, blake.threadId, 'still sent into the Gmail thread');
+  assert.deepEqual([fb.inReplyTo, fb.references, fb.subject], [null, null, 'Opening hours'], 'no threading headers without a stored Message-ID, as before');
+  assert.equal((await message(d.message_id)).status, 'provider_accepted');
 });

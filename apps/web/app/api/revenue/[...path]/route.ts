@@ -98,7 +98,7 @@ async function handle(request: Request, context: Context) {
         const account = url.searchParams.get('account'), thread = url.searchParams.get('thread');
         if (!uuid(account) || !thread) throw new RevenueError(400, 'Choose a conversation.');
         const [m, comments] = await Promise.all([
-          client.from('revenue_messages').select('id,direction,status,subject,body,from_email,to_email,occurred_at,untrusted,ai_generated,failure').eq('workspace_id', w).eq('account_id', account).eq('thread_id', thread).order('occurred_at', {ascending: true}).limit(100),
+          client.from('revenue_messages').select('id,direction,status,subject,body,from_email,to_email,occurred_at,untrusted,ai_generated,failure,message_id_header,in_reply_to').eq('workspace_id', w).eq('account_id', account).eq('thread_id', thread).order('occurred_at', {ascending: true}).limit(100),
           client.from('revenue_thread_comments').select('id,author_id,body,created_at').eq('workspace_id', w).eq('account_id', account).eq('thread_id', thread).order('created_at', {ascending: true})]);
         const messages = must(m) as {direction: string; body: string; occurred_at: string}[];
         return ok({messages, comments: must(comments), summary: summarizeThread(messages.map(x => ({direction: x.direction, text: x.body, occurred_at: x.occurred_at})))});
