@@ -46,7 +46,7 @@ with sync_playwright() as p:
     for choice in ['Run my business', 'Build software', 'Create something']:
         context = browser.new_context(viewport={'width': 390, 'height': 844})
         mobile = context.new_page()
-        mobile.goto('http://127.0.0.1:3189/')
+        mobile.goto('http://127.0.0.1:3189/' + ('?business-ready' if choice == 'Run my business' else ''))
         expect(mobile.get_by_role('button', name='Make everyday life easier', exact=False)).to_have_count(0)
         mobile.get_by_role('button', name=choice, exact=False).click()
         mobile.get_by_role('textbox', name='Your first goal', exact=True).fill('Help with my first project')
