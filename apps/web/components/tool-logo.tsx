@@ -1,9 +1,9 @@
 import { CalendarDays, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
 
 const brandAssets: Record<string, string> = {
-  Signal: "signal.png",
+  Signal: "onixus-signal-icon-v2.png",
   "Onixus TMS": "onixus-tms-gold.png",
-  "Veltra Mail": "veltra-mail.svg", "Veltra CRM": "veltra-crm.png",
+  "Veltra Mail": "onixus-mail-icon-v2.png", "Veltra CRM": "onixus-crm-icon-v2.png", "Onixus Mail": "onixus-mail-icon-v2.png", "Onixus CRM": "onixus-crm-icon-v2.png",
   "LiveAskew / Bee": "liveaskew.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
   n8n: "n8n.svg", Railway: "railway.svg", Gmail: "gmail.png",
