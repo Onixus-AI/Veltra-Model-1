@@ -1,9 +1,9 @@
-import {MailProviderError, type MailProvider} from './mail-provider';
+import {MailProviderError, messageIdFor, type MailProvider} from './mail-provider';
 
 export type ClaimedJob = {
   job_id: string; kind: string; workspace_id: string; attempt: number;
   message?: {id: string; account_id: string | null; thread_id: string | null; to: string; cc: string | null; subject: string; body: string;
-    from_email: string | null; from_name: string | null; reply_to: string | null; in_reply_to: string | null; idempotency_key: string};
+    from_email: string | null; from_name: string | null; reply_to: string | null; in_reply_to: string | null; references?: string | null; idempotency_key: string};
 };
 
 export type WorkerDeps = {
@@ -36,8 +36,9 @@ export async function runWorker(deps: WorkerDeps, limit = 10): Promise<WorkerRep
     try {
       const previous = job.attempt > 1 && provider.findSent ? await provider.findSent(m.idempotency_key) : null;
       const sent = previous ?? await provider.send({idempotencyKey: m.idempotency_key, from: m.from_email ?? await provider.address(), fromName: m.from_name, replyTo: m.reply_to,
-        to: m.to, cc: m.cc, subject: m.subject, body: m.body, threadId: m.thread_id, inReplyTo: m.in_reply_to});
-      const r = await deps.complete(job.job_id, {ok: true, provider: provider.name, provider_message_id: sent.providerMessageId, provider_thread_id: sent.providerThreadId}) as {status?: string};
+        to: m.to, cc: m.cc, subject: m.subject, body: m.body, threadId: m.thread_id, inReplyTo: m.in_reply_to, references: m.references});
+      const r = await deps.complete(job.job_id, {ok: true, provider: provider.name, provider_message_id: sent.providerMessageId, provider_thread_id: sent.providerThreadId,
+        message_id_header: messageIdFor(m.idempotency_key)}) as {status?: string};
       report.sent++;
       report.outcomes.push({job_id: job.job_id, outcome: r?.status ?? 'succeeded'});
     } catch (e) {

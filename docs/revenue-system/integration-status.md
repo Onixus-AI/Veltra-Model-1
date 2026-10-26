@@ -25,7 +25,7 @@ Merge order: #92, then the stacked web PR, then Veltra-Mail#39 (only after the m
 
 | Part | Real code exercised | Provider side | Verified by |
 |---|---|---|---|
-| Database schema, RLS, RPCs | All four migrations, each applied twice | Local Postgres 16 only | `supabase/tests/revenue-isolation.sql`, E2E suite |
+| Database schema, RLS, RPCs | All revenue migrations, each applied twice | Local Postgres 16 only | `supabase/tests/revenue-isolation.sql`, `supabase/tests/revenue-threading.sql`, E2E suite |
 | HTTP routes `app/api/revenue/*` | The unmodified Next.js handlers, through supabase-js and a real PostgREST | Local PostgREST. Supabase Auth's `/auth/v1/user` is replaced by a local HS256 check of the same JWTs PostgREST verifies | `test/revenue-e2e/routes.test.ts` |
 | Chat wiring | `/api/chat`, `/api/crm/assistant`, `/api/crm/context/*`, `crmContext`, `runCrmChat`, `crmPlanner` | Local PostgREST; fake model gateway | `test/revenue-e2e/chat.test.ts` |
 | Website form intake | `handleFormSubmission` → `revenue_ingest_form` | Direct handler call, plus a route test | E2E step 1, negatives, route test |
@@ -96,9 +96,6 @@ The exact order and owners are in `setup-and-recovery.md`, section 0.
   live, with addresses you control.
 - **Supabase Auth.** The route and Chat tests replace `/auth/v1/user` with a local JWT check.
   PostgREST, RLS and the database functions are real.
-- **In-Reply-To.** Inbound Message-ID headers are not stored, so a reply sent from Onixus is
-  sent into the right Gmail thread of the sending mailbox but carries no `In-Reply-To` header
-  unless the draft supplies one. The recipient's mail client may show it as a new conversation.
 - **Recurring calendar series.** Series are skipped as series; single meetings and changed
   occurrences are recorded. All-day events, and events that ended more than 30 days ago, are
   skipped.
@@ -106,6 +103,30 @@ The exact order and owners are in `setup-and-recovery.md`, section 0.
   tools posting to the calendar endpoint do create customers.
 - **Outlook mailboxes** are skipped by the relay.
 - **The UI against live data.** It was rendered only with labelled sample data.
+
+## Reply threading
+
+Replies sent through the relay carry `In-Reply-To` and `References`, so they thread for the
+recipient as well as in the sending Gmail (`threadId`). Migration
+`20261026120000_revenue_reply_threading.sql` adds two nullable columns to `revenue_messages`
+(`message_id_header`, `references_header`):
+
+- Sync stores the `Message-ID`, `In-Reply-To` and `References` of every inbound message and every
+  message sent from Gmail directly. A send through the relay records the `Message-ID` it carried
+  (`<onixus-<message id>@onixus.mail>`).
+- When Mail claims a send, the database picks the latest received or sent message in the same
+  mailbox thread that has a `Message-ID`. The reply gets `In-Reply-To: <that id>`, a `References`
+  chain ending with it (the thread root plus the 19 most recent ids), and a `Re:` subject.
+- Only well-formed `<id@domain>` values are stored or sent. Anything else in a header value,
+  including CR/LF, is dropped, both in Mail and by check constraints in the database.
+- Messages synced before the migration have no stored `Message-ID`. A reply in such a thread
+  still goes into the Gmail thread, without threading headers, as before. The next message in the
+  thread is stored with its id. A follow-up draft's legacy `in_reply_to` (Gmail's API id, not a
+  `Message-ID`) is ignored.
+
+Verified by `supabase/tests/revenue-threading.sql`, E2E steps 3–5 and the "reply threading" E2E
+test, the route test for the thread view, `test/revenue-mail.test.ts`, and the Veltra-Mail relay
+tests.
 
 ## Found and fixed while testing Chat
 

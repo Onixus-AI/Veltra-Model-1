@@ -31,6 +31,14 @@ Files, in order:
 4. `supabase/migrations/20261025120000_revenue_live_relay.sql`: the relay RPCs for Onixus Mail and
    calendar ingestion. It adds one new table (`revenue_calendar_sync_state`) and replaces revenue
    functions from files 2–3. It does not alter existing tables or rows.
+5. `supabase/migrations/20261026120000_revenue_reply_threading.sql`: reply threading. Adds two
+   nullable columns (`message_id_header`, `references_header`) with checks that allow `null` to
+   `revenue_messages`, and replaces `revenue_ingest_mail_event`, `revenue_private.lease_send` and
+   `revenue_private.complete_job`. Apply it before deploying the Mail release that sends the new
+   fields; the old Mail release keeps working against it. Read-only check afterwards: both
+   columns exist and `select count(*) from public.revenue_messages where message_id_header is not
+   null` is 0 until new mail is synced. Rollback: re-run file 4 and the `revenue_ingest_mail_event`
+   definition from file 2; the columns can stay.
 
 What they do to existing tables (everything else is new tables, functions and policies):
 
@@ -133,6 +141,7 @@ Onixus Mail settings for the relay (Veltra-Mail#39, all default off): `REVENUE_R
 | Calendar **expired** | Google access revoked | Reconnect Google in Onixus Mail. A full calendar resync runs automatically; duplicates are ignored. |
 | Meeting linked to the wrong record, or not linked | Ambiguous attendee, or several open opportunities | Resolve the identity review; link the opportunity by hand. Unknown attendees are never created from invites. |
 | Relay log: "CRM link … revoked or replaced" | Mail was unlinked or relinked | Relink Mail to the workspace. |
+| Recipient sees a reply as a new conversation | No message in that thread has a stored `Message-ID` (synced before the reply-threading migration, or the sender omitted it). The reply still went into the Gmail thread. | None needed. The next message synced in the thread is stored with its id, and later replies carry `In-Reply-To` and `References`. Check `message_id_header` on the thread's messages. |
 | Webhook 400 "signature" | Wrong `STRIPE_WEBHOOK_SECRET` or clock skew > 5 min | Correct the secret; Stripe retries for 3 days, and duplicates are ignored by event id. |
 | Payment confirmed but onboarding **on hold** | Refund brought the paid amount below the proposal rule | Resolve with the customer; a further qualifying payment resumes onboarding automatically. |
 | Customer flagged **identity review** | Ambiguous match (several emails, phone or name+company) | Identity reviews → merge or mark different. Merges can be undone from the same page. |
@@ -145,13 +154,14 @@ Onixus Mail settings for the relay (Veltra-Mail#39, all default off): `REVENUE_R
 docker run -d --name rev-pg -e POSTGRES_PASSWORD=fixture-only-password -p 5432:5432 postgres:16
 export PGHOST=127.0.0.1 PGUSER=postgres PGPASSWORD=fixture-only-password
 psql -d postgres -c 'create database rev'
-for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025*_revenue_*.sql; do psql -v ON_ERROR_STOP=1 -qd rev -f "$f"; done
+for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025*_revenue_*.sql supabase/migrations/20261026030000_crm_prospect_scores.sql supabase/migrations/20261026120000_revenue_reply_threading.sql; do psql -v ON_ERROR_STOP=1 -qd rev -f "$f"; done
 psql -v ON_ERROR_STOP=1 -qd rev -f supabase/tests/revenue-isolation.sql   # "revenue isolation tests passed"
+psql -v ON_ERROR_STOP=1 -qd rev -f supabase/tests/revenue-threading.sql   # "revenue threading tests passed"
 
 cd apps/web
 npx tsx --test test/*.test.ts                                              # unit tests
 REVENUE_TEST_DATABASE_URL=postgres://postgres:fixture-only-password@127.0.0.1:5432/rev \
-  npx tsx --test --test-concurrency=1 test/revenue-e2e/acceptance.test.ts  # E2E (26 tests)
+  npx tsx --test --test-concurrency=1 test/revenue-e2e/acceptance.test.ts  # E2E (27 tests)
 
 # HTTP route and Chat wiring tests need a PostgREST binary (CI pins v12.2.3 by sha256)
 curl -fsSL -o /tmp/postgrest.tar.xz https://github.com/PostgREST/postgrest/releases/download/v12.2.3/postgrest-v12.2.3-linux-static-x64.tar.xz

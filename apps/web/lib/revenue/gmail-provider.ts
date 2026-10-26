@@ -1,4 +1,4 @@
-import {buildMime, isAutomatedSender, MailProviderError, addressOf, nameOf, parseBounce, type ChangePage, type MailProvider, type OutboundMail, type ProviderMessage} from './mail-provider';
+import {buildMime, isAutomatedSender, MailProviderError, addressOf, messageIds, nameOf, parseBounce, type ChangePage, type MailProvider, type OutboundMail, type ProviderMessage} from './mail-provider';
 import {googleAccessToken, type GoogleCredentials} from './google-auth';
 
 // Gmail REST adapter: users.messages.send for sending, users.history.list for incremental
@@ -33,7 +33,8 @@ export function toProviderMessage(m: GmailMessage, mailbox: string): ProviderMes
   return {
     providerMessageId: m.id, threadId: m.threadId, direction: outbound ? 'outbound' : 'inbound',
     from: fromAddress, fromName: nameOf(from), to: addressOf(headers.to ?? ''), subject: headers.subject ?? '(no subject)', text,
-    occurredAt: new Date(Number(m.internalDate)).toISOString(), messageIdHeader: headers['message-id'] ?? null, inReplyTo: headers['in-reply-to'] ?? null,
+    occurredAt: new Date(Number(m.internalDate)).toISOString(), messageIdHeader: messageIds(headers['message-id'])[0] ?? null,
+    inReplyTo: messageIds(headers['in-reply-to'])[0] ?? null, references: messageIds(headers.references).join(' ') || null,
     automated: isAutomatedSender(fromAddress, headers), attachments: attachmentsOf(m.payload), bounce: parseBounce(fromAddress, text),
   };
 }

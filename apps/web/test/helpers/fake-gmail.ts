@@ -10,7 +10,7 @@ type Stored = {id: string; threadId: string; labelIds: string[]; internalDate: s
 const b64url = (s: string) => Buffer.from(s).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64url = (s: string) => Buffer.from(s.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
 
-export type DeliveredMail = {to: string; from: string; subject: string; body: string; messageId: string; inReplyTo: string | null; replyTo: string | null; threadId: string; gmailId: string};
+export type DeliveredMail = {to: string; from: string; subject: string; body: string; messageId: string; inReplyTo: string | null; references: string | null; replyTo: string | null; threadId: string; gmailId: string; headers: Header[]};
 
 export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; sendAs?: {email: string; verified: boolean}[]}) {
   const messages = new Map<string, Stored>();
@@ -34,7 +34,7 @@ export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; s
 
   function parseMime(raw: string) {
     const [head, ...rest] = raw.split('\r\n\r\n');
-    const headers: Header[] = head.split('\r\n').map(l => ({name: l.slice(0, l.indexOf(':')), value: l.slice(l.indexOf(':') + 1).trim()}));
+    const headers: Header[] = head.replace(/\r\n[ \t]+/g, ' ').split('\r\n').map(l => ({name: l.slice(0, l.indexOf(':')), value: l.slice(l.indexOf(':') + 1).trim()}));
     const encoded = rest.join('\r\n\r\n').replace(/\r\n/g, '');
     return {headers, body: Buffer.from(encoded, 'base64').toString('utf8')};
   }
@@ -59,7 +59,7 @@ export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; s
       if (!o.controlledRecipients.includes(to)) return json(400, {error: {message: 'Invalid To header'}});
       const thread = threadId && [...messages.values()].some(m => m.threadId === threadId) ? threadId : `thread${(++seq).toString().padStart(6, '0')}`;
       const id = add({threadId: thread, labelIds: ['SENT'], headers, body});
-      delivered.push({to, from: h('from') ?? '', subject: h('subject') ?? '', body, messageId: h('message-id') ?? '', inReplyTo: h('in-reply-to'), replyTo: h('reply-to'), threadId: thread, gmailId: id});
+      delivered.push({to, from: h('from') ?? '', subject: h('subject') ?? '', body, messageId: h('message-id') ?? '', inReplyTo: h('in-reply-to'), references: h('references'), replyTo: h('reply-to'), threadId: thread, gmailId: id, headers});
       return json(200, {id, threadId: thread, labelIds: ['SENT']});
     }
     if (path === '/messages') {
@@ -92,12 +92,14 @@ export function fakeGmail(o: {mailbox: string; controlledRecipients: string[]; s
     credentials: {clientId: 'fake-client', clientSecret: 'fake-secret', refreshToken: 'fake-refresh'},
     delivered, calls,
     /** A customer (or anyone) writes to the connected mailbox. */
-    receive(m: {from: string; fromName?: string; subject: string; text: string; threadId?: string; inReplyTo?: string; extraHeaders?: Header[]}) {
+    receive(m: {from: string; fromName?: string; subject: string; text: string; threadId?: string; messageId?: string | null; inReplyTo?: string; references?: string; extraHeaders?: Header[]}) {
       const threadId = m.threadId ?? `thread${(++seq).toString().padStart(6, '0')}`;
+      const messageId = m.messageId === undefined ? `<${id0()}@customer.test>` : m.messageId;
       const id = add({threadId, labelIds: ['INBOX', 'UNREAD'], body: m.text, headers: [
         {name: 'From', value: m.fromName ? `"${m.fromName}" <${m.from}>` : m.from}, {name: 'To', value: o.mailbox}, {name: 'Subject', value: m.subject},
-        {name: 'Message-ID', value: `<${id0()}@customer.test>`}, ...(m.inReplyTo ? [{name: 'In-Reply-To', value: m.inReplyTo}] : []), ...(m.extraHeaders ?? [])]});
-      return {id, threadId};
+        ...(messageId ? [{name: 'Message-ID', value: messageId}] : []), ...(m.inReplyTo ? [{name: 'In-Reply-To', value: m.inReplyTo}] : []),
+        ...(m.references ? [{name: 'References', value: m.references}] : []), ...(m.extraHeaders ?? [])]});
+      return {id, threadId, messageId};
     },
     bounce(recipient: string, threadId?: string) {
       return this.receive({from: 'mailer-daemon@googlemail.com', subject: 'Delivery Status Notification (Failure)', threadId,

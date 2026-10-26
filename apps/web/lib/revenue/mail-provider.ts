@@ -5,13 +5,13 @@ export type OutboundMail = {
   idempotencyKey: string;
   from: string; fromName?: string | null; replyTo?: string | null;
   to: string; cc?: string | null; subject: string; body: string;
-  threadId?: string | null; inReplyTo?: string | null;
+  threadId?: string | null; inReplyTo?: string | null; references?: string | null;
 };
 
 export type ProviderMessage = {
   providerMessageId: string; threadId: string; direction: 'inbound' | 'outbound';
   from: string; fromName: string; to: string; subject: string; text: string; occurredAt: string;
-  messageIdHeader: string | null; inReplyTo: string | null; automated: boolean;
+  messageIdHeader: string | null; inReplyTo: string | null; references: string | null; automated: boolean;
   attachments: {filename: string; mimeType: string; size: number}[];
   bounce?: {recipient: string; status: string; diagnostic: string} | null;
 };
@@ -58,16 +58,38 @@ export const addressOf = (value: string) => (/<([^>]+)>/.exec(value)?.[1] ?? val
 export const nameOf = (value: string) => value.replace(/<[^>]+>/, '').replace(/"/g, '').trim();
 
 const headerSafe = (v: string) => v.replace(/[\r\n]+/g, ' ').trim();
+
+/** Well-formed <id@domain> msg-ids in a header value, in order and without duplicates; anything else is dropped. */
+export function messageIds(value: string | null | undefined): string[] {
+  return [...new Set((value ?? '').slice(0, 20000).match(/<[!-;=?-~]+@[!-;=?-~]+>/g) ?? [])].filter(id => id.length <= 250);
+}
+
+/** The Message-ID a send carries; retries reuse it, so Gmail search can find an earlier send. */
+export const messageIdFor = (idempotencyKey: string) => `<${headerSafe(idempotencyKey)}@onixus.mail>`;
+
+/** In-Reply-To and References for a reply, or nulls (no threading headers) when there is no valid parent id. */
+export function threadingHeaders(inReplyTo: string | null | undefined, references?: string | null): {inReplyTo: string | null; references: string[]} {
+  const parent = messageIds(inReplyTo)[0] ?? null;
+  if (!parent) return {inReplyTo: null, references: []};
+  const chain = [...messageIds(references).filter(id => id !== parent), parent];
+  return {inReplyTo: parent, references: chain.length <= 20 ? chain : [chain[0], ...chain.slice(-19)]};
+}
+
+export const replySubject = (subject: string) => (/^\s*re\s*:/i.test(subject) ? subject : `Re: ${subject}`.trim());
+
 /** RFC 5322 message with threading headers; header injection is prevented by stripping CR/LF. */
 export function buildMime(m: OutboundMail, now = new Date()): string {
   const from = m.fromName ? `"${headerSafe(m.fromName).replace(/"/g, '')}" <${headerSafe(m.from)}>` : headerSafe(m.from);
-  const encodedSubject = /^[\x20-\x7e]*$/.test(m.subject) ? headerSafe(m.subject) : `=?UTF-8?B?${Buffer.from(headerSafe(m.subject)).toString('base64')}?=`;
+  const thread = threadingHeaders(m.inReplyTo, m.references);
+  const subject = thread.inReplyTo ? replySubject(m.subject) : m.subject;
+  const encodedSubject = /^[\x20-\x7e]*$/.test(subject) ? headerSafe(subject) : `=?UTF-8?B?${Buffer.from(headerSafe(subject)).toString('base64')}?=`;
   const lines = [
     `From: ${from}`, `To: ${headerSafe(m.to)}`, ...(m.cc ? [`Cc: ${headerSafe(m.cc)}`] : []),
     ...(m.replyTo ? [`Reply-To: ${headerSafe(m.replyTo)}`] : []),
     `Subject: ${encodedSubject}`, `Date: ${now.toUTCString()}`,
-    `Message-ID: <${headerSafe(m.idempotencyKey)}@onixus.mail>`,
-    ...(m.inReplyTo ? [`In-Reply-To: ${headerSafe(m.inReplyTo)}`, `References: ${headerSafe(m.inReplyTo)}`] : []),
+    `Message-ID: ${messageIdFor(m.idempotencyKey)}`,
+    // References is folded one id per line so long chains stay under the 998-character line limit.
+    ...(thread.inReplyTo ? [`In-Reply-To: ${thread.inReplyTo}`, `References: ${thread.references.join('\r\n ')}`] : []),
     'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '',
     Buffer.from(m.body).toString('base64').replace(/.{76}/g, '$&\r\n'),
   ];
