@@ -122,3 +122,4 @@
  .rev-board{grid-auto-columns:minmax(240px,85%)}
 }
 @media (prefers-reduced-motion:reduce){.rev *{animation:none!important;transition:none!important}}
+.rev-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}.rev-chips button{min-height:32px;padding:6px 12px;border-radius:999px}.rev-chips button span{color:var(--muted);font-variant-numeric:tabular-nums;margin-left:4px}.rev-chips button[aria-pressed=true]{background:var(--tint);border-color:var(--accent)}

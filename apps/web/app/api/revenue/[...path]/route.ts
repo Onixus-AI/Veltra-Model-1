@@ -27,6 +27,7 @@ const actions: Record<string, string[]> = {
   revenue_book_meeting: ['p_customer', 'p_deal', 'p_title', 'p_starts', 'p_ends'],
   revenue_create_proposal: ['p_customer', 'p_deal', 'p_title', 'p_amount_cents', 'p_currency', 'p_rule', 'p_deposit_percent', 'p_line_items'],
   revenue_mark_proposal_sent: ['p_proposal', 'p_checkout_reference', 'p_checkout_url'], revenue_cancel_proposal: ['p_proposal', 'p_reason'],
+  revenue_score_prospects: [],
 };
 
 const ok = (data: unknown) => Response.json(data, {headers: noStore});
@@ -59,6 +60,15 @@ async function handle(request: Request, context: Context) {
         return ok(await store.rpc('revenue_proposal_status', {p_workspace: w, p_proposal: id}));
       }
       if (view === 'pipeline') return ok(await store.rpc('revenue_pipeline', {p_workspace: w}));
+      if (view === 'prospects') {
+        const tier = url.searchParams.get('tier');
+        const offset = Number(url.searchParams.get('offset') ?? 0);
+        const limit = Number(url.searchParams.get('limit') ?? 100);
+        return ok(await store.rpc('revenue_prospects', {
+          p_workspace: w, p_tier: tier && /^[a-z_]{4,20}$/.test(tier) ? tier : null,
+          p_limit: Number.isInteger(limit) ? Math.min(Math.max(limit, 1), 1000) : 100,
+          p_offset: Number.isInteger(offset) && offset >= 0 ? offset : 0, p_q: search(url.searchParams.get('q')) || null}));
+      }
       if (view === 'customers') {
         let query = client.from('crm_customers').select('id,company,name,email,source,owner_id,identity_review_required,suppressed,created_at').eq('workspace_id', w).is('merged_into_id', null);
         const term = search(url.searchParams.get('q'));

@@ -1,20 +1,20 @@
 'use client';
 
 import {useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode} from 'react';
-import {Activity, AlertTriangle, ArrowUpRight, Bot, CheckCircle2, Columns3, Gauge, Inbox, Moon, Monitor, RefreshCw, Sun, Table2, Users, UserCheck} from 'lucide-react';
+import {Activity, AlertTriangle, ArrowUpRight, Bot, CheckCircle2, Columns3, Gauge, Inbox, ListOrdered, Moon, Monitor, RefreshCw, Sun, Table2, Users, UserCheck} from 'lucide-react';
 import {browserSupabase} from '@/lib/supabase';
 import {previewData, previewWorkspace} from '@/lib/revenue/preview-data';
 import {statusCopy, lifecycleSteps, type MessageStatus} from '@/lib/revenue/message-status';
 import type {CustomerContext} from '@/lib/revenue/context';
 import type {DealHealth, Recommendation} from '@/lib/revenue/insights';
 
-type View = 'overview' | 'pipeline' | 'customers' | 'customer' | 'mail' | 'automation' | 'reviews';
+type View = 'overview' | 'pipeline' | 'prospects' | 'customers' | 'customer' | 'mail' | 'automation' | 'reviews';
 type Theme = 'system' | 'light' | 'dark';
 type Workspace = {id: string; name: string; environment: string; role: string};
 type Json = Record<string, any>;
 
 const views: {key: Exclude<View, 'customer'>; label: string; icon: typeof Gauge}[] = [
-  {key: 'overview', label: 'Overview', icon: Gauge}, {key: 'pipeline', label: 'Pipeline', icon: Columns3}, {key: 'customers', label: 'Customers', icon: Users},
+  {key: 'overview', label: 'Overview', icon: Gauge}, {key: 'pipeline', label: 'Pipeline', icon: Columns3}, {key: 'prospects', label: 'Prospects', icon: ListOrdered}, {key: 'customers', label: 'Customers', icon: Users},
   {key: 'mail', label: 'Mail', icon: Inbox}, {key: 'automation', label: 'Automation', icon: Bot}, {key: 'reviews', label: 'Identity reviews', icon: UserCheck},
 ];
 
@@ -178,6 +178,7 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         {signedIn && w && <>
           {view === 'overview' && <Overview {...shared}/>}
           {view === 'pipeline' && <Pipeline {...shared}/>}
+          {view === 'prospects' && <Prospects {...shared}/>}
           {view === 'customers' && <Customers {...shared}/>}
           {view === 'customer' && <Customer {...shared}/>}
           {view === 'mail' && <Mail {...shared}/>}
@@ -381,6 +382,73 @@ function StageEditor({stages, s, onDone}: {stages: Stage[]; s: Shared; onDone: (
 }
 
 // ---------- Customers ----------
+// ---------- Prospects ----------
+// Scores come from the CRM (crm_prospect_scores). Each one lists the evidence behind it and
+// what is missing; a score orders the work, it is not a promise anyone will buy.
+const TIERS: {key: string; label: string; help: string}[] = [
+  {key: 'outreach_ready', label: 'Ready to contact', help: 'Strong score, reviewed identity, no bounce, not suppressed.'},
+  {key: 'ready', label: 'Ready', help: 'Score 75 or more.'},
+  {key: 'good', label: 'Good', help: 'Score 55 to 74.'},
+  {key: 'nurture', label: 'Nurture', help: 'Reachable, but thin evidence.'},
+  {key: 'research', label: 'Needs research', help: 'No email on record yet.'},
+  {key: 'do_not_contact', label: 'Do not contact', help: 'Suppressed.'},
+];
+type ProspectRow = {customer_id: string; company: string; name: string; email: string | null; industry: string; location: string; source: string; score: number; tier: string; outreach_ready: boolean; reasons: string[]; missing: string[]};
+const csvCell = (v: unknown) => { const t = Array.isArray(v) ? v.join('; ') : String(v ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+
+function Prospects(s: Shared) {
+  const [tier, setTier] = useState('');
+  const [q, setQ] = useState('');
+  const [term, setTerm] = useState('');
+  const [exporting, setExporting] = useState(false);
+  useEffect(() => { const t = setTimeout(() => setTerm(q), 250); return () => clearTimeout(t); }, [q]);
+  const params: Record<string, string> = {limit: '200'};
+  if (tier) params.tier = tier;
+  if (term) params.q = term;
+  const {data, loading, reload, at} = useLoad<{counts: Record<string, number>; outreach_ready: number; scored_at: string | null; rows: ProspectRow[]}>(s, 'prospects', params);
+  const counts = data?.counts ?? {};
+  const total = Object.values(counts).reduce((a, b) => a + b, 0);
+  const countFor = (k: string) => k === 'outreach_ready' ? data?.outreach_ready ?? 0 : counts[k] ?? 0;
+  const download = async () => {
+    setExporting(true); s.setError('');
+    try {
+      const rows: ProspectRow[] = [];
+      for (let offset = 0; offset < 100000; offset += 1000) {
+        const page = await s.get<{rows: ProspectRow[]}>('prospects', {...(tier ? {tier} : {}), ...(term ? {q: term} : {}), limit: '1000', offset: String(offset)});
+        rows.push(...page.rows);
+        if (page.rows.length < 1000) break;
+      }
+      const head = ['Rank', 'Company', 'Contact', 'Email', 'Industry', 'Location', 'Score', 'Tier', 'Ready to contact', 'Why', 'Missing'];
+      const body = rows.map((r, i) => [i + 1, r.company, r.name, r.email, r.industry, r.location, r.score, r.tier, r.outreach_ready ? 'yes' : 'no', r.reasons, r.missing].map(csvCell).join(','));
+      const url = URL.createObjectURL(new Blob([[head.join(','), ...body].join('\n')], {type: 'text/csv'}));
+      const a = document.createElement('a'); a.href = url; a.download = `prospects-${tier || 'all'}.csv`; a.click(); URL.revokeObjectURL(url);
+    } catch (e) { s.setError(e instanceof Error ? e.message : 'Export failed.'); }
+    finally { setExporting(false); }
+  };
+  return <>
+    <Heading title="Prospects" sub={<>Every business ranked by the evidence on its record. {data?.scored_at ? <>Scored {since(data.scored_at)}; rescored hourly.</> : 'Not scored yet.'}</>} onRefresh={reload} loading={loading} at={at}>
+      {s.canEdit && !s.preview && <button type="button" disabled={s.busy} onClick={() => void s.act('revenue_score_prospects', {}, 'Prospects rescored.')}>Rescore now</button>}
+      <button type="button" disabled={exporting || !data || s.preview} onClick={() => void download()}>{exporting ? 'Preparing…' : 'Download list (CSV)'}</button>
+    </Heading>
+    <div className="rev-chips" role="group" aria-label="Filter by tier">
+      <button type="button" aria-pressed={!tier} onClick={() => setTier('')}>All <span>{total.toLocaleString()}</span></button>
+      {TIERS.map(t => <button key={t.key} type="button" aria-pressed={tier === t.key} title={t.help} onClick={() => setTier(t.key)}>{t.label} <span>{countFor(t.key).toLocaleString()}</span></button>)}
+    </div>
+    <label className="rev-field rev-search"><span>Search prospects</span><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Company or email"/></label>
+    <div className="rev-table-wrap"><table className="rev-table">
+      <thead><tr><th scope="col">#</th><th scope="col">Business</th><th scope="col">Score</th><th scope="col">Why</th><th scope="col">Missing</th></tr></thead>
+      <tbody>{(data?.rows ?? []).map((r, i) => <tr key={r.customer_id}>
+        <td>{i + 1}</td>
+        <td><a href={`/revenue?view=customer&customer=${r.customer_id}`} onClick={e => { e.preventDefault(); s.go('customer', {customer: r.customer_id}); }}>{r.company}</a><br/><small>{r.email ?? 'No email'}{r.location ? ` · ${r.location}` : ''}</small></td>
+        <td><strong>{r.score}</strong><br/><span className={`rev-status ${r.outreach_ready ? 'tone-good' : r.tier === 'do_not_contact' ? 'tone-bad' : 'tone-progress'}`}>{r.outreach_ready ? 'Ready to contact' : TIERS.find(t => t.key === r.tier)?.label ?? label(r.tier)}</span></td>
+        <td><small>{r.reasons.join(' · ')}</small></td>
+        <td><small>{r.missing.join(' · ') || 'Nothing'}</small></td>
+      </tr>)}</tbody>
+    </table>{data && !data.rows.length && <Empty>{total ? 'No prospects match this filter.' : 'No scores yet. Choose Rescore now.'}</Empty>}</div>
+    {data && data.rows.length === 200 && <p className="rev-muted">Showing the top 200 for this filter. Download the list for all of them.</p>}
+  </>;
+}
+
 function Customers(s: Shared) {
   const [q, setQ] = useState('');
   const [term, setTerm] = useState('');
