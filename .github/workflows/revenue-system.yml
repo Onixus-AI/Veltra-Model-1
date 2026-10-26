@@ -28,18 +28,20 @@ jobs:
       - name: Apply the revenue migrations to a disposable database
         run: |
           psql -d postgres -c "create database rev"
-          for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql supabase/migrations/20261026030000_crm_prospect_scores.sql; do
+          for f in supabase/tests/revenue-bootstrap.sql supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql supabase/migrations/20261026030000_crm_prospect_scores.sql supabase/migrations/20261026120000_revenue_reply_threading.sql; do
             psql -v ON_ERROR_STOP=1 -q -d rev -f "$f"
           done
       - name: Re-apply the migrations to prove they are re-runnable
         run: |
-          for f in supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql supabase/migrations/20261026030000_crm_prospect_scores.sql; do
+          for f in supabase/migrations/20261025090000_revenue_core_records.sql supabase/migrations/20261025090100_revenue_mail_automation.sql supabase/migrations/20261025090200_revenue_journey.sql supabase/migrations/20261025120000_revenue_live_relay.sql supabase/migrations/20261026030000_crm_prospect_scores.sql supabase/migrations/20261026120000_revenue_reply_threading.sql; do
             psql -v ON_ERROR_STOP=1 -q -d rev -f "$f"
           done
       - name: Tenant isolation, grants and direct-write denial
         run: psql -v ON_ERROR_STOP=1 -q -d rev -f supabase/tests/revenue-isolation.sql
       - name: Prospect scores (evidence, tiers, tenant isolation)
         run: psql -v ON_ERROR_STOP=1 -q -d rev -f supabase/tests/prospect-scores.sql
+      - name: Reply threading (Message-ID columns, sanitizing, workspace isolation, send lease)
+        run: psql -v ON_ERROR_STOP=1 -q -d rev -f supabase/tests/revenue-threading.sql
       - run: npm ci
         working-directory: apps/web
       - name: End-to-end acceptance and negative tests (fake Gmail, locally signed Stripe events)
