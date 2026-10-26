@@ -413,6 +413,36 @@
       "theme": "light",
       "url": "/brand-library/light/assets/onixus-metallic-white.png",
       "size": 1494678
+    },
+    {
+      "name": "onixus-workspace-transparent-icon.png",
+      "theme": "all",
+      "url": "/brands/onixus-workspace-icon-v2.png",
+      "size": 1562168
+    },
+    {
+      "name": "onixus-mail-transparent-icon.png",
+      "theme": "all",
+      "url": "/brands/onixus-mail-icon-v2.png",
+      "size": 1559862
+    },
+    {
+      "name": "onixus-crm-transparent-icon.png",
+      "theme": "all",
+      "url": "/brands/onixus-crm-icon-v2.png",
+      "size": 1322954
+    },
+    {
+      "name": "onixus-signal-transparent-icon.png",
+      "theme": "all",
+      "url": "/brands/onixus-signal-icon-v2.png",
+      "size": 852347
+    },
+    {
+      "name": "onixus-chat-transparent-icon.png",
+      "theme": "all",
+      "url": "/brands/onixus-chat-icon-v2.png",
+      "size": 1046489
     }
   ],
   "packs": [

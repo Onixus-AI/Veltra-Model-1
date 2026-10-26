@@ -3,7 +3,7 @@ import {useEffect,useState} from 'react';
 import Link from 'next/link';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 type FileItem={id:string;name:string;size:number;deleted_at:string|null};
-type Library={version:string;files:{name:string;theme:string;url:string;size:number}[];packs:{name:string;url:string}[]};
+type Library={version:string;products:Record<string,{icon:string;dark:string;light:string}>;files:{name:string;theme:string;url:string;size:number}[];packs:{name:string;url:string}[]};
 const size=(n:number)=>n>=1048576?`${(n/1048576).toFixed(1)} MB`:`${Math.ceil(n/1024)} KB`;
 export default function BrandFolder(){
  const [library,setLibrary]=useState<Library|null>(null),[files,setFiles]=useState<FileItem[]>([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[trash,setTrash]=useState(false),[theme,setTheme]=useState('dark');
@@ -25,8 +25,9 @@ export default function BrandFolder(){
   </section>
   <section aria-labelledby="official-brand"><h2 id="official-brand" style={{fontSize:22,fontWeight:600}}>Onixus marketing library</h2><p style={{opacity:.7,margin:'10px 0 20px'}}>Approved Onixus assets for dark and light backgrounds. Download individual files or a complete package. This shared library is read-only.</p>
    <div style={{display:'flex',gap:16,flexWrap:'wrap',marginBottom:24}}>{library?.packs.map(pack=><a key={pack.url} href={pack.url} download style={{padding:'12px 18px',border:'1px solid #7778',borderRadius:8}}>{pack.name} ↓</a>)}</div>
+   <div style={{display:"flex",gap:16,flexWrap:"wrap",marginBottom:24}}>{library&&Object.entries(library.products).map(([name,product])=><a key={name} href={product.icon} download style={{background:"#000",color:"#eef0f4",border:"1px solid #7775",borderRadius:12,padding:16,textAlign:"center",minWidth:120}}><img src={product.icon} alt={`Onixus ${name} logo`} width={72} height={72} style={{objectFit:"contain",margin:"0 auto 10px"}}/><span style={{textTransform:"capitalize"}}>{name} ↓</span></a>)}</div>
    <label>Background <select value={theme} onChange={e=>setTheme(e.target.value)} style={{marginLeft:10,color:'#111',padding:8}}><option value="dark">Dark</option><option value="light">Light</option></select></label>
-   <ul style={{marginTop:20}}>{library?.files.filter(f=>f.theme===theme).map(file=><li key={file.url} style={{display:'flex',gap:16,padding:'12px 0',borderTop:'1px solid #7774',alignItems:'center'}}><span style={{flex:1,overflowWrap:'anywhere'}}>{file.name} <small style={{opacity:.6}}>{size(file.size)}</small></span><a href={file.url} download>Download ↓</a></li>)}</ul>
+   <ul style={{marginTop:20}}>{library?.files.filter(f=>f.theme===theme||f.theme==='all').map(file=><li key={file.url} style={{display:'flex',gap:16,padding:'12px 0',borderTop:'1px solid #7774',alignItems:'center'}}><span style={{flex:1,overflowWrap:'anywhere'}}>{file.name} <small style={{opacity:.6}}>{size(file.size)}</small></span><a href={file.url} download>Download ↓</a></li>)}</ul>
   </section>
  </main>;
 }
