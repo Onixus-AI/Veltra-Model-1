@@ -1,3 +1,4 @@
+import base64
 import hashlib
 import asyncio
 from contextlib import asynccontextmanager, suppress
@@ -17,9 +18,10 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
-from starlette.responses import StreamingResponse
+from starlette.responses import Response, StreamingResponse
 from agent_runs import create_router as agent_router, run_worker
 from model_routing import routing_options, image_provider, POLICY
+import voice
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -520,7 +522,7 @@ async def create_chat_completion(
         params["temperature"] = request.temperature
     params["extra_body"] = routing_options(
         model_config["model"], MODEL_CONFIG.get("chat_fallbacks", {}).get(request.model, []),
-        tools=bool(request.tools), chat=request.model in POLICY["chat_routes"],
+        tools=bool(request.tools), route=request.model,
     )
     if request.tools:
         # Tool definitions are supplied by the web app's allowlisted connector tools.
@@ -635,6 +637,74 @@ async def generate_image(
         except Exception:
             logger.exception("Image refund pending for request %s", generation_id)
         raise HTTPException(status_code=503, detail="Image creation couldn’t finish. Please try again shortly.") from error
+
+
+class SpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=voice.MAX_SPEECH_CHARS)
+
+
+class TranscriptionRequest(BaseModel):
+    audio_base64: str = Field(min_length=1, max_length=voice.MAX_AUDIO_BYTES * 4 // 3 + 4)
+    mime_type: Literal["audio/webm", "audio/ogg", "audio/mpeg", "audio/mp4", "audio/wav"] = "audio/webm"
+
+
+async def voice_wallet(credentials: HTTPAuthorizationCredentials | None, credits: int) -> str:
+    principal = await get_authenticated_principal(credentials)
+    if not voice.status()["speech"]:
+        raise HTTPException(status_code=503, detail="Voice is not set up. Browser voice input still works.")
+    wallet = await get_wallet(principal["organization_id"])
+    if wallet is None or wallet["credits_remaining"] < credits:
+        raise HTTPException(status_code=402, detail="Insufficient credits")
+    return principal["organization_id"]
+
+
+@app.get("/v1/audio/status")
+async def audio_status(credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)) -> dict[str, Any]:
+    await get_authenticated_principal(credentials)
+    return voice.status()
+
+
+@app.post("/v1/audio/speech", response_model=None)
+async def create_speech(
+    request: SpeechRequest,
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> Response:
+    text = request.text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="Add text to read aloud.")
+    credits = voice.speech_credits(text)
+    organization_id = await voice_wallet(credentials, credits)
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            audio = await voice.synthesize(client, text)
+    except (httpx.HTTPError, voice.VoiceUnavailable) as error:
+        logger.error("ElevenLabs speech failed (%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="Voice playback couldn’t finish. Please try again shortly.") from error
+    await settle_credits(organization_id, credits, "elevenlabs-tts")
+    return Response(content=audio, media_type="audio/mpeg", headers={"X-Credits": str(credits)})
+
+
+@app.post("/v1/audio/transcriptions")
+async def create_transcription(
+    request: TranscriptionRequest,
+    credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> dict[str, Any]:
+    try:
+        audio = base64.b64decode(request.audio_base64, validate=True)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail="Audio must be base64 encoded.") from error
+    if not audio or len(audio) > voice.MAX_AUDIO_BYTES:
+        raise HTTPException(status_code=413, detail="Audio is too large. Keep recordings under 10 MB.")
+    organization_id = await voice_wallet(credentials, voice.MIN_TRANSCRIPTION_CREDITS)
+    try:
+        async with httpx.AsyncClient(timeout=120) as client:
+            result = await voice.transcribe(client, audio, request.mime_type)
+    except (httpx.HTTPError, voice.VoiceUnavailable) as error:
+        logger.error("ElevenLabs transcription failed (%s)", type(error).__name__)
+        raise HTTPException(status_code=503, detail="Voice input couldn’t finish. Please try again shortly.") from error
+    credits = voice.transcription_credits(result, len(audio))
+    await settle_credits(organization_id, credits, "elevenlabs-stt")
+    return {"text": result.get("text", ""), "credits": credits}
 
 
 # Existing authentication and database helpers remain authoritative for task access.

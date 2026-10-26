@@ -8,7 +8,8 @@ ALLOWED = set(POLICY['free_models'] + POLICY['paid_models'])
 CHAT_ALLOWED = ALLOWED | set(POLICY['chat_models'])
 
 
-def routing_options(primary, fallbacks=(), *, tools=False, chat=False):
+def routing_options(primary, fallbacks=(), *, tools=False, route=None):
+    chat = route in POLICY['chat_routes']
     models = list(dict.fromkeys(model.removeprefix('openrouter/') for model in [primary, *fallbacks]))
     if not models or any(model not in (CHAT_ALLOWED if chat else ALLOWED) for model in models):
         raise ValueError('Model is outside Veltra free/low-cost policy')
@@ -16,8 +17,9 @@ def routing_options(primary, fallbacks=(), *, tools=False, chat=False):
         # Chat keeps its quality order; free models may only be a last resort.
         if models[0] in POLICY['free_models']:
             raise ValueError('Chat primary must not be a free model')
+        max_price = POLICY['chat_route_max_price'].get(route, POLICY['chat_max_price'])
         provider = {'allow_fallbacks': True, 'data_collection': 'deny', 'sort': 'latency',
-                    'ignore': POLICY['blocked_providers'], 'max_price': POLICY['chat_max_price']}
+                    'ignore': POLICY['blocked_providers'], 'max_price': max_price}
         if tools:
             provider['require_parameters'] = True
         return {'models': models[:3], 'provider': provider}
