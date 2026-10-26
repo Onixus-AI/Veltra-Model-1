@@ -43,17 +43,18 @@ with sync_playwright() as p:
     expect(page.locator('[aria-label="Saved goal"]')).to_have_text('Organize follow-ups')
     expect(page.get_by_role('heading', name='What brings you to Onixus Workspace?')).to_be_visible()
     page.screenshot(path=str(out / 'setup-save-failure.png'))
-    for choice in ['Make everyday life easier', 'Build software', 'Create something']:
+    for choice in ['Run my business', 'Build software', 'Create something']:
         context = browser.new_context(viewport={'width': 390, 'height': 844})
         mobile = context.new_page()
         mobile.goto('http://127.0.0.1:3189/')
+        expect(mobile.get_by_role('button', name='Make everyday life easier', exact=False)).to_have_count(0)
         mobile.get_by_role('button', name=choice, exact=False).click()
         mobile.get_by_role('textbox', name='Your first goal', exact=True).fill('Help with my first project')
         mobile.get_by_role('button', name='Continue', exact=True).click()
         mobile.get_by_role('button', name='Change', exact=True).click()
         mobile.get_by_role('combobox', name='Timezone', exact=True).fill('Asia/Tokyo')
         mobile.get_by_role('button', name='Use this timezone', exact=True).click()
-        if choice == 'Build software':
+        if choice in ['Run my business', 'Build software']:
             mobile.get_by_role('button', name='Continue', exact=True).click()
         expect(mobile.get_by_role('heading', name='Let’s do something useful.')).to_be_visible()
         assert mobile.evaluate('document.documentElement.scrollWidth<=innerWidth')
