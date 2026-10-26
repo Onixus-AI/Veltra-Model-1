@@ -103,7 +103,7 @@ function ChatContent({ content }: { content: string }) {
 
 export default function VeltraWorkspace() {
   const [savedSetup,setSavedSetup]=useState<SetupProfile|null>(null);
-  const [workspaceMode,setWorkspaceMode]=useState<WorkspaceMode>("personal");
+  const [workspaceMode,setWorkspaceMode]=useState<WorkspaceMode>("business");
   const modeDrafts=useRef<Partial<Record<WorkspaceMode,{input:string;imageMode:boolean;artifact:Artifact;documents:KnowledgeDocument[]}>>>({});
   const [codeTool,setCodeTool]=useState<Provider>("github");
   const [repository,setRepository]=useState("");

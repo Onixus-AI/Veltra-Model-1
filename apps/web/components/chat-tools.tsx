@@ -8,7 +8,7 @@ import ToolLogo from "./tool-logo";
 import {connectionRequest,type Provider,type WorkspaceConnection} from "@/lib/connections-client";
 import {gatewayAuthorizationHeaders} from "@/lib/client-session";
 const names:Record<Provider,string>={github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"};
-export default function ChatTools({workspaceMode="personal",onKnowledge,onApp,imageMode,onImageMode,disabled}:{workspaceMode?:WorkspaceMode;onKnowledge:()=>void;onApp:(provider:Provider|"mail"|"crm"|"build"|"tms"|"business"|"shopify")=>void;imageMode:boolean;onImageMode:(value:boolean)=>void;disabled:boolean}){
+export default function ChatTools({workspaceMode="business",onKnowledge,onApp,imageMode,onImageMode,disabled}:{workspaceMode?:WorkspaceMode;onKnowledge:()=>void;onApp:(provider:Provider|"mail"|"crm"|"build"|"tms"|"business"|"shopify")=>void;imageMode:boolean;onImageMode:(value:boolean)=>void;disabled:boolean}){
  const [open,setOpen]=useState(false),[apps,setApps]=useState<WorkspaceConnection[]>([]),[mail,setMail]=useState(false),[crm,setCrm]=useState(false),[loading,setLoading]=useState(false),[failed,setFailed]=useState(false);
  const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null);
  useEffect(()=>{if(!open)return;let active=true;setLoading(true);setFailed(false);
