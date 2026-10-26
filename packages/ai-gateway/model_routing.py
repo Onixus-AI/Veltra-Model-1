@@ -32,6 +32,40 @@ def routing_options(primary, fallbacks=(), *, tools=False, route=None):
     return {'models': models[:3], 'provider': provider}
 
 
+def _tool_choice_kind(tool_choice):
+    if isinstance(tool_choice, dict):
+        return 'function'
+    return tool_choice if tool_choice in ('none', 'required') else 'auto'
+
+
+def request_groups(primary, fallbacks=(), *, tools=False, tool_choice=None, route=None):
+    """Return ordered (free, extra_body) request groups.
+
+    Chat is one deny group. Other routes try free-only groups first, without
+    data_collection deny (the account allows training on free endpoints), then
+    paid-only groups that always deny.
+    """
+    if route in POLICY['chat_routes']:
+        return [(False, routing_options(primary, fallbacks, tools=tools, route=route))]
+    models = list(dict.fromkeys(model.removeprefix('openrouter/') for model in [primary, *fallbacks]))
+    if not models or any(model not in ALLOWED for model in models):
+        raise ValueError('Model is outside Veltra free/low-cost policy')
+    kind = _tool_choice_kind(tool_choice)
+    free = [m for m in models if m in POLICY['free_models']
+            and (not tools or kind in POLICY['free_tool_choice'].get(m, []))]
+    paid = [m for m in models if m not in POLICY['free_models']]
+    provider = {'allow_fallbacks': True, 'sort': 'price', 'ignore': POLICY['blocked_providers'],
+                'max_price': POLICY['max_price']}
+    if tools:
+        provider['require_parameters'] = True
+    groups = [(True, {'models': free[i:i + 3], 'provider': dict(provider)}) for i in range(0, len(free), 3)]
+    groups += [(False, {'models': paid[i:i + 3], 'provider': {**provider, 'data_collection': 'deny'}})
+               for i in range(0, len(paid), 3)]
+    if not groups:
+        raise ValueError('No eligible model for this request')
+    return groups
+
+
 async def image_provider(client, model):
     if model not in POLICY['image_models']:
         raise ValueError('Image model is outside Veltra low-cost policy')

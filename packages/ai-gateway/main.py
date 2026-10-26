@@ -20,7 +20,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import Response, StreamingResponse
 from agent_runs import create_router as agent_router, run_worker
-from model_routing import routing_options, image_provider, POLICY
+from model_routing import request_groups, image_provider, POLICY
+from background import FreeQuota, ResponseCache, run_groups
 import voice
 
 
@@ -42,6 +43,8 @@ MODELS = {
 
 # Models that accept image_url content parts. All other models are text-only.
 VISION_MODELS = {"veltra-vision"}
+FREE_QUOTA = FreeQuota()
+BACKGROUND_CACHE = ResponseCache()
 
 VELTRA_SYSTEM_PROMPT = (
     "Onixus Workspace by Onixus. You are Onixus Workspace, a business intelligence "
@@ -520,9 +523,9 @@ async def create_chat_completion(
         params["max_tokens"] = request.max_tokens
     if request.temperature is not None:
         params["temperature"] = request.temperature
-    params["extra_body"] = routing_options(
+    groups = request_groups(
         model_config["model"], MODEL_CONFIG.get("chat_fallbacks", {}).get(request.model, []),
-        tools=bool(request.tools), route=request.model,
+        tools=bool(request.tools), tool_choice=request.tool_choice, route=request.model,
     )
     if request.tools:
         # Tool definitions are supplied by the web app's allowlisted connector tools.
@@ -535,7 +538,7 @@ async def create_chat_completion(
     if request.stream:
         params["stream"] = True
         params["stream_options"] = {"include_usage": True}
-        response = await call_model(params)
+        response = await run_groups(groups, params, call_model, FREE_QUOTA)
 
         async def stream_response():
             total_tokens: int | None = None
@@ -565,17 +568,28 @@ async def create_chat_completion(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    response = await call_model(params)
-    result = response.model_dump()
-    usage = result.get("usage")
-    total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
-    if not isinstance(total_tokens, int) or total_tokens < 0:
-        raise HTTPException(
-            status_code=502,
-            detail="Model provider returned invalid token usage",
-        )
+    async def complete() -> dict[str, Any]:
+        result = (await run_groups(groups, params, call_model, FREE_QUOTA)).model_dump()
+        usage = result.get("usage")
+        total_tokens = usage.get("total_tokens") if isinstance(usage, dict) else None
+        if not isinstance(total_tokens, int) or total_tokens < 0:
+            raise HTTPException(
+                status_code=502,
+                detail="Model provider returned invalid token usage",
+            )
+        return result
 
-    await settle_credits(organization_id, total_tokens, request.model)
+    if request.model in POLICY["chat_routes"]:
+        result, fresh = await complete(), True
+    else:
+        # Background jobs often resend identical requests; reuse the answer instead of spending quota again.
+        key = BACKGROUND_CACHE.key(organization=organization_id, model=request.model, messages=params["messages"],
+                                   tools=request.tools, tool_choice=request.tool_choice,
+                                   temperature=request.temperature, max_tokens=request.max_tokens)
+        result, fresh = await BACKGROUND_CACHE.fetch(key, complete)
+        logger.info("background completion alias=%s served=%s cached=%s", request.model, result.get("model"), not fresh)
+    if fresh:
+        await settle_credits(organization_id, result["usage"]["total_tokens"], request.model)
     return result
 
 
