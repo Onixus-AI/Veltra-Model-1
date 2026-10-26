@@ -82,6 +82,14 @@ Requested: `openid`, `email`, `https://www.googleapis.com/auth/calendar.events`,
 - New events are entered as wall-clock time in a chosen zone and sent with an explicit offset and
   `timeZone`. A time skipped by DST is refused; a repeated time uses the first occurrence and the
   review says so.
+- The zone for a new event defaults to the person's own zone setting, then the zone of the calendar
+  it is saved to, then the browser's. Every spelling of UTC (`Etc/UTC`, `GMT`, ...) is shown as
+  `UTC`.
+- The form uses separate date and time fields. The end follows the start (30 minutes for a new
+  event, otherwise the current length) until the person sets an end. Changing the zone or toggling
+  all day keeps what was typed.
+- "Let Google email guests" starts off and is unavailable when no guests are listed. Cancelling an
+  event with guests proposes a cancellation email, which the review still requires ticking.
 - CRM timeline text is written in the event's zone, e.g. `2027-03-14 10:30 America/New_York`.
 
 ## Sync
