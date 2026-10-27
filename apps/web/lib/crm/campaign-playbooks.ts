@@ -16,7 +16,9 @@ export function playbookSteps(id:PlaybookId,business:string,offer:string,booking
  proposal:['Next steps for {{company}}',`I’m checking in on the proposal we shared.\n\n${detail}\n\nWhat questions can I answer to help you decide on the next step?`,'Questions about the proposal?',`Is there anything you would like to clarify about the proposal?\n\n${detail}\n\n${cta}`,3],
  welcome:['Welcome to '+signature,`Thanks for choosing ${signature}.\n\n${detail}\n\nReply here if you have any questions about getting started.`,'How is getting started going?',`Is there anything you need help with as you get started?\n\n${detail}\n\nYou can reply directly to this email.`,7],
  };
- const [subject,body,followSubject,followBody,delay]=content[id];
+ const [subject,firstBody,followSubject,secondBody,delay]=content[id];
+ const withBooking=(text:string)=>booking.trim()&&!text.includes(booking.trim())?`${text}\n\n${cta}`:text;
+ const body=withBooking(firstBody),followBody=withBooking(secondBody);
  return [{subject,body:`Hi {{name}},\n\n${body}\n\n${signature}`,delay_days:1},{subject:followSubject,body:`Hi {{name}},\n\n${followBody}\n\n${signature}`,delay_days:delay}];
 }
 export function personalizedPreview(step:CampaignStep,person:{company:string;name:string},address:string){
