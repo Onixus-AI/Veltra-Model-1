@@ -169,6 +169,10 @@ export async function runAgentTurn(
   const maxRounds=12,maxCalls=24;
   let toolCalls=0;
   const receipts:string[]=[];
+  const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
+  const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
+  let retriedMissingAction=false;
+  const confirmedGoogleReceipts:string[]=[];
   for (let step = 0; step < maxRounds && toolCalls < maxCalls; step += 1) {
     if(observer?.cancelled())throw Error('Pending task work was stopped.');
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
@@ -180,7 +184,17 @@ export async function runAgentTurn(
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
     const message = data.choices?.[0]?.message ?? {};
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
-    if (!calls.length) return typeof message.content === "string" ? message.content : "";
+    if (!calls.length) {
+      const answer=typeof message.content==='string'?message.content:'';
+      if(googleWriteRequested&&toolCalls===0&&!retriedMissingAction){
+        retriedMissingAction=true;
+        convo.push({role:'assistant',content:answer},{role:'system',content:'No host tool has executed for this request. A Google/Calendar review exists only when an actual tool returns it. If the request supplies enough information, call the appropriate available tool now. Otherwise ask only for the missing information. Do not describe a review as created, pending or ready without a tool receipt.'});
+        continue;
+      }
+      if(googleWriteRequested&&toolCalls===0&&/(?:review|proposal)[\s\S]{0,100}(?:created|pending|ready)|(?:created|saved|updated|scheduled)\s+(?:the|your|a|one)\b/i.test(answer))return 'No Google action or review was executed. Nothing was created or changed. Retry the request or open Workspace → Docs & Sheets.';
+      if(confirmedGoogleReceipts.length&&/pending (?:your )?approval|please (?:review and )?approve|waiting for (?:your )?(?:confirmation|approval)/i.test(answer))return 'The reviewed Google action already completed; no further approval is pending. Provider receipts:\n\n'+confirmedGoogleReceipts.join('\n\n')+'\n\nAny additional content verification must have its own read-tool receipt.';
+      return answer;
+    }
     convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
       if(toolCalls>=maxCalls){convo.push({role:'tool',tool_call_id:call.id,content:'Not executed: this request reached its tool-call allowance. Summarize the evidence already collected.'});continue;}
@@ -199,7 +213,12 @@ export async function runAgentTurn(
         if(observer?.cancelled())throw Error('Pending task work was stopped.');
         if(approved)observer?.event({type:'step',id:progressId,...presentation});
         if(!approved)content='The user declined this action. Do not run it.';
-        else if(outcome.proposal.agent_review)content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+        else if(outcome.proposal.agent_review){
+          content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+          if(['google','calendar'].includes(outcome.proposal.agent_review.target)){
+            try{const receipt=JSON.parse(content);if(receipt.status==='completed'&&receipt.approval==='confirmed')confirmedGoogleReceipts.push(JSON.stringify({action:receipt.action,account:receipt.account,receipt:receipt.receipt}));}catch{/* A malformed response is not proof of completion. */}
+          }
+        }
         else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change,access);
         else throw Error('This proposal has no executable review. Request a new proposal.');
       }

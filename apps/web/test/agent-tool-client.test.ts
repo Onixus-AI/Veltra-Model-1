@@ -31,3 +31,15 @@ test('Google creation uses the actual review target and never commits a declined
  await runAgentTurn([{role:'user',content:'Create my plan in Google Docs'}],'fixture',{crm_scope:{workspace_id:W}},async()=>approved,()=>{},()=>{});assert.equal(commits,approved?1:0);mock.mock.restore();}
  }finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('a prose-only Google review is retried through a real tool and a completed write is never reported as pending',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ let turns=0,commits=0;
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{const body=JSON.parse(String(init?.body));if(input==='/api/chat'){turns++;if(turns===1)return Response.json({choices:[{message:{content:'Review proposal created. Please approve.'}}]});if(turns===2){assert.match(body.messages.at(-1).content,/No host tool has executed/);return Response.json({choices:[{message:{tool_calls:[{id:'g1',type:'function',function:{name:'google_create_file',arguments:JSON.stringify({kind:'sheet',title:'Checks',content:'a,b'})}}]}}]});}return Response.json({choices:[{message:{content:'Your file is pending your approval.'}}]});}if(body.confirm){commits++;return Response.json({content:JSON.stringify({status:'completed',approval:'confirmed',action:'create',account:{email:'owner@example.com'},receipt:{file:{id:'file-1'}}})});}return Response.json({content:'Waiting for review',proposal:{id:R,summary:'Create Checks',agent_review:{target:'google',id:R}}});});
+ try{const answer=await runAgentTurn([{role:'user',content:'Prepare a review to create one Google Sheet titled Checks with CSV a,b'}],'fixture',{},async()=>true,()=>{},()=>{});assert.match(answer,/already completed; no further approval is pending/);assert.equal(commits,1);assert.equal(turns,3);}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
+test('a model that repeats an invented Google review cannot report success without execution',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{assert.equal(input,'/api/chat');return Response.json({choices:[{message:{content:'Review proposal created. Please approve.'}}]});});
+ try{const answer=await runAgentTurn([{role:'user',content:'Create a Google Doc titled Checks containing Hello'}],'fixture',{},async()=>{throw Error('No real proposal should be displayed');},()=>{},()=>{});assert.match(answer,/No Google action or review was executed/);}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
