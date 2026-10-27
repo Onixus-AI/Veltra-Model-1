@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {taskProgress,type TaskRun,type TaskEvent} from '../lib/task-progress';
+import {toolPresentation,taskProgress,type TaskRun,type TaskEvent} from '../lib/task-progress';
 import {followupEvidence,runFollowupTask} from '../lib/followup-task';
 import {runAgentTurn} from '../lib/chat-tools';
 import {TaskAccessClient} from '../lib/task-access-client';
@@ -45,3 +45,5 @@ test('a failed tool receipt cannot become a green completed task even if a model
  try{await runAgentTurn([{role:'user',content:'Find quote mail'}],'fixture',{},async()=>false,()=>{},()=>{},undefined,{event:e=>{run=taskProgress(run,e);},cancelled:()=>false});run=taskProgress(run,{type:'finish'});assert.equal(run.state,'failed');assert.equal(run.steps[0].state,'failed');}
  finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('Google tool progress identifies the actual app and action',()=>{assert.deepEqual(toolPresentation('google_create_file'),{title:'Create reviewed Google file',app:'Google Workspace'});assert.deepEqual(toolPresentation('calendar_events'),{title:'Read Calendar events',app:'Google Calendar'});});

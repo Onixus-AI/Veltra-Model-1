@@ -169,18 +169,37 @@ export async function runAgentTurn(
   const maxRounds=12,maxCalls=24;
   let toolCalls=0;
   const receipts:string[]=[];
+  const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
+  const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
+  const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
+  const requestedTools=namedToolRequest?CHAT_TOOLS.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(userText)).sort((a,b)=>userText.indexOf(a)-userText.indexOf(b)):[];
+  const attemptedTools=new Set<string>();
+  let retriedMissingAction=false;
+  const confirmedGoogleReceipts:string[]=[];
   for (let step = 0; step < maxRounds && toolCalls < maxCalls; step += 1) {
     if(observer?.cancelled())throw Error('Pending task work was stopped.');
+    const nextRequested=requestedTools.find(name=>!attemptedTools.has(name));
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, messages: convo, tools: CHAT_TOOLS, stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, messages: convo, tools: CHAT_TOOLS,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
     const message = data.choices?.[0]?.message ?? {};
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
-    if (!calls.length) return typeof message.content === "string" ? message.content : "";
+    if (!calls.length) {
+      const answer=typeof message.content==='string'?message.content:'';
+      if((googleWriteRequested&&toolCalls===0||nextRequested)&&!retriedMissingAction){
+        retriedMissingAction=true;
+        convo.push({role:'assistant',content:answer},{role:'system',content:'No host tool has executed all the requested steps. A result or review exists only when an actual tool returns it. '+(nextRequested?'The next explicitly requested tool is '+nextRequested+'. ':'')+'Follow the user’s restrictions. If the request supplies enough information, call the appropriate available tool now. Otherwise ask only for the missing information. Do not invent connection status, file counts or pending reviews.'});
+        continue;
+      }
+      if(nextRequested)return 'The requested tool did not return an execution receipt: '+nextRequested+'. Its results were not verified. No further actions ran.';
+      if(googleWriteRequested&&toolCalls===0&&/(?:review|proposal)[\s\S]{0,100}(?:created|pending|ready)|(?:created|saved|updated|scheduled)\s+(?:the|your|a|one)\b/i.test(answer))return 'No Google action or review was executed. Nothing was created or changed. Retry the request or open Workspace → Docs & Sheets.';
+      if(confirmedGoogleReceipts.length&&/pending (?:your )?approval|please (?:review and )?approve|waiting for (?:your )?(?:confirmation|approval)/i.test(answer))return 'The reviewed Google action already completed; no further approval is pending. Provider receipts:\n\n'+confirmedGoogleReceipts.join('\n\n')+'\n\nAny additional content verification must have its own read-tool receipt.';
+      return answer;
+    }
     convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
       if(toolCalls>=maxCalls){convo.push({role:'tool',tool_call_id:call.id,content:'Not executed: this request reached its tool-call allowance. Summarize the evidence already collected.'});continue;}
@@ -189,6 +208,7 @@ export async function runAgentTurn(
       const progressId=`tool-${step}-${call.id}`;const presentation=toolPresentation(call.function.name);observer?.event({type:'step',id:progressId,...presentation});
       onStatus(presentation.title+"…");
       const outcome = await runToolCall(call,extraBody,access);
+      attemptedTools.add(call.function.name);
       if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
       if(observer?.cancelled()){observer.event({type:'result',id:progressId,state:outcome.failed?'failed':'completed',detail:content});throw Error('Pending task work was stopped.');}
@@ -199,7 +219,12 @@ export async function runAgentTurn(
         if(observer?.cancelled())throw Error('Pending task work was stopped.');
         if(approved)observer?.event({type:'step',id:progressId,...presentation});
         if(!approved)content='The user declined this action. Do not run it.';
-        else if(outcome.proposal.agent_review)content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+        else if(outcome.proposal.agent_review){
+          content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+          if(['google','calendar'].includes(outcome.proposal.agent_review.target)){
+            try{const receipt=JSON.parse(content);if(receipt.status==='completed'&&receipt.approval==='confirmed')confirmedGoogleReceipts.push(JSON.stringify({action:receipt.action,account:receipt.account,receipt:receipt.receipt}));}catch{/* A malformed response is not proof of completion. */}
+          }
+        }
         else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change,access);
         else throw Error('This proposal has no executable review. Request a new proposal.');
       }
