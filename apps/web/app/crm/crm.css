@@ -100,3 +100,6 @@
 .crm-shell.crm-client-onboarding select{margin:8px 0 20px}
 .crm-shell .crm-row>div{min-width:0;overflow-wrap:anywhere}
 @media(max-width:640px){.crm-shell .crm-client-invite-form fieldset{grid-template-columns:minmax(0,1fr)}.crm-shell.crm-client-onboarding .crm-content{padding:24px 16px!important}.crm-shell.crm-client-onboarding h1{font-size:27px}}
+
+/* Suite destinations wrap instead of widening mobile customer and pipeline views. */
+@media(max-width:760px){.crm-shell .crm-suite{display:flex;flex-wrap:wrap;gap:12px 18px;max-width:100%;min-width:0}.crm-shell .crm-suite a{font-size:12px;gap:6px;white-space:nowrap}.crm-shell .crm-suite a svg{flex-shrink:0}}
