@@ -18,7 +18,7 @@ Stores a verified business identity and a navigation link. It does **not** impor
 
 Signal uses a cryptographically random code stored as a SHA-256 digest in a private RLS table. A new code invalidates the client's previous code. Consumption is atomic and bound to the destination Workspace and the issuing client's verified authentication email. Only the client's own `client_profiles.id = auth.uid()` profile can issue a code; an administrator cannot issue a code for another client. Workspace's server validates the provider receipt and commits via a server-only RPC that locks the Workspace row and rechecks ownership and verified email. Unique constraints prevent linking the same Signal client to two Workspaces. Neither UI nor public clients can write connection receipts directly.
 
-## Production activation — not completed by preparing this change
+## Production activation requirements
 
 - Correct projects: Workspace `cohmkgctiqcedkuisbqh`; Signal `rjwbfkuzgusaoizcmmgf`. Do not use a client's independent application database.
 - Confirm the existing Workspace `crm_workspaces` and `crm_memberships` contract matches the migration dependencies. The local test fixture uses the previously inspected CRM contract; it is not a fresh production inspection.
@@ -28,7 +28,7 @@ Signal uses a cryptographically random code stored as a SHA-256 digest in a priv
 - Deploy Signal's connection page and code RPC before enabling the Workspace connection action. Verify both CI pipelines and previews; do not bypass blocked required checks.
 - Run a controlled end-to-end acceptance using separate test identities in the actual projects: agency prepares, client verifies/accepts, ownership and membership visible, client Mail links correctly, Signal code links correct client ID, other tenant denied, agency removal enforced. Do not connect a live client's mailbox as a smoke test.
 
-Database access, secret provisioning and production migrations were unavailable during implementation. No live client invitations, accounts, mail authorizations or links were created.
+Production activation completed on 2026-10-27 after approval: both migrations were applied transactionally to the correct projects and recorded in migration history; RLS and negative grant checks returned the expected results. Workspace's two server-only configuration variables were saved as Vercel production secrets. PRs Workspace #112 and Signal #316 were merged after all checks passed; Vercel production deployments for both merge commits reached READY. The Workspace invitation return URL is covered by the existing production allowlist. Two client invitations have been prepared and remain pending; no invitation emails were sent, client access granted, client mailbox authorized, or existing Signal business linked. Each client must sign in and consent independently. The local tests do not replace that remaining client acceptance step.
 
 ## Validation
 
