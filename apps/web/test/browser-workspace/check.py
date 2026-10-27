@@ -17,7 +17,7 @@ with sync_playwright() as p:
  page.goto('http://127.0.0.1:3187/?mode=business');page.wait_for_load_state('networkidle')
  page.screenshot(path=str(out/'workspace-initial.png'))
  assert not errors,errors
- expect(page.get_by_role('button',name='Expand sidebar',exact=True)).to_be_visible()
+ expect(page.get_by_role('button',name='Collapse sidebar',exact=True)).to_be_visible()
  assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
  assert page.locator('.workspace-sidebar nav svg').first.evaluate('(el)=>getComputedStyle(el).color')=='rgb(0, 229, 239)','Sidebar line icons must use Veltra cyan'
  assert page.locator('#workspace-sidebar nav img').count()==0,'Navigation uses line icons, not product logos'
@@ -27,6 +27,7 @@ with sync_playwright() as p:
  # Veltra shell surfaces remain opaque black; external provider marks retain identity.
  for selector in ['.workspace-sidebar','.composer','.workspace-modes']:
   assert page.locator(selector).first.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)',selector
+ page.locator('.workspace-more-tools > summary').click()
  page.get_by_role('button',name='Dev',exact=True).click()
  for provider,asset in [('github','github.svg'),('vercel','vercel.svg'),('supabase','supabase.svg'),('railway','railway.svg'),('n8n','n8n.svg')]:
   mark=page.locator(f'#workspace-sidebar button[title="{provider}"] img')
@@ -52,7 +53,6 @@ with sync_playwright() as p:
  expect(page.get_by_role('textbox',name='Message Onixus Workspace')).to_have_value('Business draft to keep')
  page.get_by_role('button',name='Creator',exact=True).click()
  expect(page.get_by_role('textbox',name='Message Onixus Workspace')).to_have_value('Creator draft to keep')
- page.get_by_role('button',name='Expand sidebar',exact=True).click()
  expect(page.get_by_role('button',name='Project files',exact=True)).to_be_visible()
  assert page.get_by_role('button',name='Onixus CRM',exact=True).count()==0
  page.screenshot(path=str(out/'workspace-creator.png'))
@@ -62,7 +62,7 @@ with sync_playwright() as p:
  expect(page.locator('.workspace')).to_have_class(__import__('re').compile('canvas-full'))
  expect(page.locator('.chat-panel')).not_to_be_visible()
  page.screenshot(path=str(out/'workspace-crm.png'))
- page.get_by_role('button',name='Ask Onixus Workspace',exact=True).click()
+ page.get_by_role('button',name='Ask Onyx',exact=True).click()
  expect(page.locator('.chat-panel')).to_be_visible()
  page.get_by_role('button',name='Hide Chat',exact=True).click()
  expect(page.locator('.chat-panel')).not_to_be_visible()

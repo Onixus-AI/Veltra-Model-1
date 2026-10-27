@@ -35,8 +35,8 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   }:undefined});
  };
  const mail=async(name:string,a:Record<string,unknown>)=>{if(!o.mailOrigin)throw Error('503:Mail connection is unavailable.');return executeMailTool({tool:name,arguments:a},o.authorization,o.mailOrigin);};
- if(o.name==='veltra_capabilities'&&!o.confirm&&taskAccessEnabled())return {content:JSON.stringify({platform:{current_time:true},note:'These are supported tools, not observed connections. Every app needs Allow for this task before access. Use the relevant tool to request access; never infer a connection is active.',apps:['CRM','Mail','Shared brain','GitHub','Vercel','Supabase','Railway','n8n','Google Drive / Docs / Sheets','Google Calendar','Private brand files'],browser:{available:browserEnabled(),reads:['public HTTPS inspection'],writes:false},writes:'Task access does not replace the existing exact-action reviews.'})};
- if(o.name==='veltra_capabilities'&&!o.confirm){
+ if((o.name==='onyx_capabilities'||o.name==='veltra_capabilities')&&!o.confirm&&taskAccessEnabled())return {content:JSON.stringify({platform:{current_time:true},note:'These are supported tools, not observed connections. Every app needs Allow for this task before access. Use the relevant tool to request access; never infer a connection is active.',apps:['CRM','Mail','Shared brain','GitHub','Vercel','Supabase','Railway','n8n','Google Drive / Docs / Sheets','Google Calendar','Private brand files'],browser:{available:browserEnabled(),reads:['public HTTPS inspection'],writes:false},writes:'Task access does not replace the existing exact-action reviews.'})};
+ if((o.name==='onyx_capabilities'||o.name==='veltra_capabilities')&&!o.confirm){
   const observations=await Promise.allSettled([
    scope.workspace_id?client.from('crm_memberships').select('role').eq('workspace_id',scope.workspace_id).eq('user_id',user).maybeSingle().then(r=>r.error?null:r.data):Promise.resolve(null),
    mail('mail_identity',{}),
