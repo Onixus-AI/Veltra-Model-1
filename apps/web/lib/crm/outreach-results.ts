@@ -1,6 +1,7 @@
+export type CampaignDefaults={business_name:string;offer:string;postal_address:string;booking_url:string;timezone:string;daily_limit:number};
 export type CampaignReceipt={id:string;name:string;status:string;review_token?:string;config:{operation?:string;postal_address?:string;follow_up_mode?:'review_each'|'automatic';steps?:import('./campaign-playbooks').CampaignStep[];daily_limit:number;timezone:string;branding?:{template:import('./campaign-templates').CampaignPillar;visual:string;industry:string}}};
 export type MessageReceipt={id:string;campaign_id:string;customer_id?:string;email:string;company:string;name?:string;subject:string;body:string;step:number;status:string;due_at:string;provider_id:string|null;last_error:string|null};
-export type OutreachReceipts={campaigns:CampaignReceipt[];messages:MessageReceipt[];daily?:{day:string;time_zone:string;sent_today:number;approved_due:number;awaiting_review:number;awaiting_receipt:number;needs_attention:number}};
+export type OutreachReceipts={defaults?:CampaignDefaults|null;worker?:{last_checked_at:string|null;last_success_at:string|null;last_error:string|null;interval_seconds:number};campaigns:CampaignReceipt[];messages:MessageReceipt[];daily?:{day:string;time_zone:string;sent_today:number;approved_due:number;awaiting_review:number;awaiting_receipt:number;needs_attention:number}};
 export function outreachResults(state:OutreachReceipts){
  const count=(status:string)=>state.messages.filter(m=>m.status===status).length;
  const draft=count('draft'),approved=count('approved'),sending=count('sending'),sent=count('sent'),stopped=count('stopped'),attention=count('blocked')+count('uncertain');

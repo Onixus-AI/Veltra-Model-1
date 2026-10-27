@@ -23,18 +23,20 @@ with sync_playwright() as p:
  browser=p.chromium.launch(headless=True)
  context=browser.new_context(viewport={'width':1280,'height':1000},reduced_motion='reduce')
  context.add_init_script('localStorage.setItem("sb-fixture-auth-token",'+json.dumps(json.dumps(session))+')')
- state={'status':'draft','campaign':'paused','failed':False,'actions':[],'config':None,'has_campaign':False}
+ state={'status':'draft','campaign':'paused','failed':False,'actions':[],'config':None,'has_campaign':False,'defaults':None}
  W='11111111-1111-4111-8111-111111111111'
  def outreach(route):
   req=route.request
   if req.method=='POST':
    data=req.post_data_json;assert data['workspace_id']==W
-   assert data['action'] in ['create','launch'],data
-   state['actions'].append(data['action'])
+   assert data['action'] in ['create','launch','save_defaults'],data
+   if data['action']=='save_defaults':state['defaults']=data['profile']
+   else:state['actions'].append(data['action'])
    if data['action']=='create':
     assert data['follow_up_mode']=='automatic'
     assert data['customers']==['a']
     assert 'branding' not in data,'Customers must not inherit Onixus branding'
+    assert 'http://127.0.0.1:3188/book?calendar=fixture' in data['steps'][0]['body']
     state['config']=data;state['has_campaign']=True
    if data['action']=='launch':
     assert data['review_token']=='a'*64
@@ -44,18 +46,26 @@ with sync_playwright() as p:
   config=state['config'];status=state['status']
   campaigns=[{'id':'campaign','name':config['name'],'status':state['campaign'],'review_token':'a'*64,'config':config}] if config else []
   messages=[{'id':'message','campaign_id':'campaign','customer_id':'a','name':'Alex Morgan','company':'Northstar Studio','email':'alex@example.com','subject':config['steps'][0]['subject'].replace('{{company}}','Northstar Studio'),'body':config['steps'][0]['body'].replace('{{name}}','Alex Morgan').replace('{{company}}','Northstar Studio')+'\n\n'+config['postal_address']+'\nTo stop these messages, reply STOP or unsubscribe.','step':0,'status':status,'due_at':'2026-10-21T09:00:00Z','provider_id':'receipt-1' if status=='sent' else None,'last_error':None}] if config else []
-  route.fulfill(json={'campaigns':campaigns,'messages':messages,'daily':{'day':'2026-10-21','time_zone':'UTC','sent_today':1 if status=='sent' else 0,'awaiting_review':1 if config and status=='draft' else 0,'needs_attention':0,'approved_due':0,'awaiting_receipt':0}})
+  route.fulfill(json={'defaults':state['defaults'],'worker':{'last_checked_at':None,'last_success_at':None,'last_error':None,'interval_seconds':30},'campaigns':campaigns,'messages':messages,'daily':{'day':'2026-10-21','time_zone':'UTC','sent_today':1 if status=='sent' else 0,'awaiting_review':1 if config and status=='draft' else 0,'needs_attention':0,'approved_due':0,'awaiting_receipt':0}})
  context.route('**/api/crm/outreach**',outreach)
  page=context.new_page();page.clock.install();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto('http://127.0.0.1:3188/?outreach');page.wait_for_load_state('networkidle')
  expect(page.get_by_role('heading',name='Start with one useful conversation.')).to_be_visible()
+ page.get_by_label('Business name',exact=True).fill('Example Studio')
+ page.get_by_label('Default offer or next step',exact=True).fill('A website consultation for your next launch.')
+ page.get_by_label('Business postal address',exact=True).fill('100 Example Road, Test City')
+ page.get_by_label('Booking page link',exact=True).fill('https://calendar.google.com/calendar/appointments/schedules/fixture')
+ page.get_by_role('button',name='Save business details',exact=True).click()
+ expect(page.get_by_role('status')).to_contain_text('Business details saved')
+ assert state['defaults']['business_name']=='Example Studio'
  page.get_by_role('button',name='New campaign',exact=True).click()
  expect(page.get_by_role('heading',name='What would you like to do?')).to_be_visible()
  page.screenshot(path=str(out/'campaign-goals.png'),full_page=True)
  page.get_by_role('button',name='Introduce your business',exact=False).click()
- page.get_by_label('Business name',exact=True).fill('Example Studio')
- page.get_by_label('What are you offering',exact=False).fill('A website consultation for your next launch.')
- page.get_by_label('Business postal address').fill('100 Example Road, Test City')
+ expect(page.get_by_label('Business name',exact=True)).to_have_value('Example Studio')
+ expect(page.get_by_label('What are you offering',exact=False)).to_have_value('A website consultation for your next launch.')
+ expect(page.get_by_label('Business postal address')).to_have_value('100 Example Road, Test City')
+ expect(page.get_by_label('Booking link (optional)',exact=True)).to_have_value(state['defaults']['booking_url'])
  expect(page.get_by_text('1 selected',exact=True)).to_be_visible()
  page.get_by_role('button',name='Prepare messages',exact=False).click()
  expect(page.get_by_label('Run this exact follow-up',exact=False)).to_be_checked()

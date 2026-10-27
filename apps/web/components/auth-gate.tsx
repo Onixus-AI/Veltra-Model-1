@@ -7,7 +7,7 @@ import { browserSupabase } from "@/lib/supabase";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const publicPage = ["/eula", "/privacy", "/docs", "/support", "/revenue/paid", "/revenue/preview"].includes(pathname);
+  const publicPage = ["/book", "/eula", "/privacy", "/docs", "/support", "/revenue/paid", "/revenue/preview"].includes(pathname);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState(false);

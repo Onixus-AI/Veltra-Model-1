@@ -17,3 +17,11 @@ The frontend does not send directly. No production campaign was created or sent 
 ## Boundaries
 
 Audience selection is explicit and limited to 50 per campaign. First-party Onixus promotional branding is not applied to customer playbooks. Campaign cards and review reflect the most recent 500 message records; incomplete campaign snapshots fail launch. Provider receipts mean acceptance, not inbox delivery or earned revenue. General Mail partial-failure recovery remains a separate priority with Cursor.
+
+## Business defaults and appointment booking
+
+Campaigns now saves a business name, default offer, mailing address, HTTPS scheduling link, time zone and daily limit for each authorized Mail-account/CRM-workspace pair. The Mail backend checks the existing outreach workspace authorization before every read or update. New campaigns copy the saved profile; changes do not rewrite existing approved messages. The mailing address is explicitly disclosed as part of the email footer.
+
+For Google Calendar appointment schedule links, every newly prepared message includes a public Workspace `/book?calendar=...` link. That page embeds only Google's official public appointment-schedule URL; it exposes no CRM records or Google grant and requires no Workspace account. Other HTTPS providers keep their direct scheduling link. Availability, lead time, busy-time checks, confirmation, Meet links, cancellation and rescheduling remain owned by the scheduling provider. Google Calendar's existing Workspace sync brings confirmed appointments into its calendar view.
+
+The campaign hub shows aggregate daily queue totals and the Mail process's last successful database pass. A worker check is not proof that a particular message sent: receipts and individual message state remain authoritative. A missing or stale worker check and no running campaigns are shown explicitly. Business contact hours and appointment availability do not alter the existing weekday 9am–5pm outbound sending window.
