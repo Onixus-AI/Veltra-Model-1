@@ -2,6 +2,7 @@
 import {useState,type FormEvent} from 'react';
 import {ArrowRight,ArrowLeft,Check,Users,Mail,CalendarDays} from 'lucide-react';
 import {campaignPlaybooks,playbookSteps,personalizedPreview,type PlaybookId,type CampaignStep} from '@/lib/crm/campaign-playbooks';
+import {campaignBookingLink} from '@/lib/crm/booking-link';
 import type {CampaignDefaults} from '@/lib/crm/outreach-results';
 import type {Customer} from '@/lib/crm/domain';
 export type CampaignDraft={name:string;postal_address:string;daily_limit:number;timezone:string;customers:string[];steps:CampaignStep[];follow_up_mode:'automatic'|'review_each'};
@@ -11,7 +12,7 @@ export default function CampaignBuilder({workspace,customers,initialCustomer,dis
  const matches=eligible.filter(c=>`${c.company} ${c.name} ${c.industry} ${c.location??''}`.toLowerCase().includes(query.toLowerCase()));
  const people=eligible.filter(c=>selected.includes(c.id)),playbook=campaignPlaybooks.find(p=>p.id===goal);
  function choose(id:PlaybookId){setGoal(id);setStep(1);setName(campaignPlaybooks.find(p=>p.id===id)!.name);}
- function prepare(event:FormEvent){event.preventDefault();if(!people.length){setValidation('Choose at least one customer.');return;}try{new Intl.DateTimeFormat('en',{timeZone:timezone});}catch{setValidation('Choose a valid sending time zone.');return;}setValidation('');setSteps(playbookSteps(goal!,business,offer,booking));setStep(2);}
+ function prepare(event:FormEvent){event.preventDefault();if(!people.length){setValidation('Choose at least one customer.');return;}try{new Intl.DateTimeFormat('en',{timeZone:timezone});}catch{setValidation('Choose a valid sending time zone.');return;}setValidation('');setSteps(playbookSteps(goal!,business,offer,campaignBookingLink(booking,window.location.origin)));setStep(2);}
  async function save(){if(!people.length||people.length!==selected.length){setValidation('Your audience changed. Go back and review the selected customers.');return;}await onSave({name,postal_address:address,daily_limit:limit,timezone,customers:people.map(p=>p.id),steps,follow_up_mode:automatic?'automatic':'review_each'});}
  return <section className="campaign-builder" aria-label="Create campaign"><header className="campaign-section-heading"><div><h2>{step===0?'What would you like to do?':playbook?.name}</h2><p>{step===0?'Pick a goal. We’ll prepare the sequence; you choose who receives it.':'A clear audience, a useful message, and a next step.'}</p></div><button type="button" onClick={onCancel}>Close setup</button></header>
  {step>0&&<ol className="campaign-steps" aria-label="Campaign setup progress">{['Choose a goal','Choose your audience','Write your message','Review setup'].map((label,i)=><li key={label} aria-current={i===step?'step':undefined}><span>{i<step?<Check size={14}/>:i+1}</span>{label}</li>)}</ol>}

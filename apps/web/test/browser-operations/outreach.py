@@ -36,6 +36,7 @@ with sync_playwright() as p:
     assert data['follow_up_mode']=='automatic'
     assert data['customers']==['a']
     assert 'branding' not in data,'Customers must not inherit Onixus branding'
+    assert 'http://127.0.0.1:3188/book?calendar=fixture' in data['steps'][0]['body']
     state['config']=data;state['has_campaign']=True
    if data['action']=='launch':
     assert data['review_token']=='a'*64
