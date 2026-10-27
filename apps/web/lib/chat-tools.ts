@@ -41,7 +41,7 @@ export type WriteProposal = {
   summary: string;
   repository_review?:RepositoryFileReview[];
   change?: RepositoryChangeSet | { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
-  agent_review?: {target:'crm'|'brain'|'mail';id:string};
+  agent_review?: {target:'crm'|'brain'|'mail'|'google'|'calendar';id:string};
 };
 
 export type CanvasItem = { title: string; content: string;kind?:'markdown'|'image' };
