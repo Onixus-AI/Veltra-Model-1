@@ -35,3 +35,7 @@ Database access, secret provisioning and production migrations were unavailable 
 - `apps/web/test/client-onboarding.test.ts`: disposable PostgreSQL (PGlite), actual migration, anon/authenticated/service roles, pending request reuse, ownership, wrong-email rejection, expiry/revocation, idempotent acceptance, existing Workspace reuse, tenant isolation, agency removal, forged receipt denial, atomic receipt commit, one-Signal-client constraint and provider receipt validation.
 - Signal `tests/workspace-connection.test.mjs`: real SQL code issuance/consumption, verification requirement, profile ownership, private storage, single use, expiry, wrong destination/email and rotation.
 - `apps/web/test/browser-onboarding`: isolated UI fixture with fictional identities; no real data or outbound email. It is not a production identity/provider test.
+
+## Production email readiness
+
+The production dashboard currently reports Supabase's built-in email service, not a custom SMTP sender. Google sign-in remains the supported client invitation path. The email-link shortcut is hidden unless `NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED=true`; enable it only after custom SMTP and actual external-recipient delivery are verified. Mailbox authorization is separate from Workspace sign-in.
