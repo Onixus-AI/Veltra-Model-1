@@ -172,13 +172,17 @@ export async function runAgentTurn(
   const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
   const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
   const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
-  const requestedTools=namedToolRequest?CHAT_TOOLS.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(userText)).sort((a,b)=>userText.indexOf(a)-userText.indexOf(b)):[];
+  // Conditional/optional follow-on tools remain the model's decision; never force
+  // "if missing, create" or "after approval, read" before that condition holds.
+  const requiredClause=userText.split(/\b(?:if|unless|after|before|when|once|provided|until|then)\b/i)[0];
+  const requestedTools=namedToolRequest&&!/\b(?:either|or|optionally|maybe)\b/i.test(requiredClause)?CHAT_TOOLS.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(requiredClause)).sort((a,b)=>requiredClause.indexOf(a)-requiredClause.indexOf(b)):[];
   const attemptedTools=new Set<string>();
+  let explicitSequenceStopped=false;
   let retriedMissingAction=false;
   const confirmedGoogleReceipts:string[]=[];
   for (let step = 0; step < maxRounds && toolCalls < maxCalls; step += 1) {
     if(observer?.cancelled())throw Error('Pending task work was stopped.');
-    const nextRequested=requestedTools.find(name=>!attemptedTools.has(name));
+    const nextRequested=explicitSequenceStopped?undefined:requestedTools.find(name=>!attemptedTools.has(name));
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
@@ -209,6 +213,7 @@ export async function runAgentTurn(
       onStatus(presentation.title+"…");
       const outcome = await runToolCall(call,extraBody,access);
       attemptedTools.add(call.function.name);
+      if(outcome.failed)explicitSequenceStopped=true;
       if (outcome.canvas) onCanvas(outcome.canvas);
       let content = outcome.content;
       if(observer?.cancelled()){observer.event({type:'result',id:progressId,state:outcome.failed?'failed':'completed',detail:content});throw Error('Pending task work was stopped.');}
@@ -218,7 +223,7 @@ export async function runAgentTurn(
         const approved = await confirmWrite(outcome.proposal);
         if(observer?.cancelled())throw Error('Pending task work was stopped.');
         if(approved)observer?.event({type:'step',id:progressId,...presentation});
-        if(!approved)content='The user declined this action. Do not run it.';
+        if(!approved){explicitSequenceStopped=true;content='The user declined this action. Do not run it or any dependent action.';}
         else if(outcome.proposal.agent_review){
           content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
           if(['google','calendar'].includes(outcome.proposal.agent_review.target)){
