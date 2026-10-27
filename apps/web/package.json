@@ -22,6 +22,7 @@
     "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@types/jsdom": "21.1.7",
     "@types/node": "^22.10.5",
     "@types/pg": "8.15.5",

@@ -1,0 +1,17 @@
+
+'use client';
+import '../../crm/crm.css';
+import {useEffect,useRef,useState} from 'react';
+import {browserSupabase} from '@/lib/supabase';
+import {onboardingRpc,invitationStatus,type ClientInvitation} from '@/lib/crm/onboarding';
+export default function JoinWorkspace(){
+ const [rows,setRows]=useState<ClientInvitation[]>([]),[spaces,setSpaces]=useState<{id:string;name:string}[]>([]),[choices,setChoices]=useState<Record<string,string>>({}),[email,setEmail]=useState(''),[error,setError]=useState(''),[ready,setReady]=useState(false),[busy,setBusy]=useState(false);const lock=useRef(false);
+ useEffect(()=>{let live=true;const client=browserSupabase();if(!client)return;void (async()=>{try{
+  const {data,error}=await client.auth.getUser();if(error||!data.user)throw Error('Sign in with the email that received your invitation.');
+  const [invites,owned]=await Promise.all([onboardingRpc<ClientInvitation[]>(client,'crm_client_invitations'),client.from('crm_workspaces').select('id,name').eq('owner_id',data.user.id)]);
+  if(owned.error)throw owned.error;if(live){setEmail(data.user.email??'');setRows(invites.filter(i=>i.incoming));setSpaces(owned.data??[]);}
+ }catch(e){if(live)setError(e instanceof Error?e.message:'Could not load invitations.');}finally{if(live)setReady(true);}})();return()=>{live=false;};},[]);
+ async function accept(id:string){if(lock.current)return;const selected=choices[id];if(!selected){setError('Choose an existing workspace or explicitly choose to create a new one.');return;}lock.current=true;setBusy(true);setError('');try{const workspace=await onboardingRpc<string>(browserSupabase()!,'crm_client_invitation_accept',{p_invitation:id,p_workspace:selected==='new'?null:selected});location.assign('/crm?view=Connections&workspace='+encodeURIComponent(workspace));}catch(e){setError(e instanceof Error?e.message:'Could not accept invitation.');}finally{lock.current=false;setBusy(false);}}
+ return <div className="crm-shell crm-client-onboarding"><main className="crm-content" style={{maxWidth:840,margin:'0 auto',padding:32}}><h1>Your client Workspace</h1><p>Signed in as {email||'your Workspace account'}. Your existing Signal account stays intact.</p>{error&&<p role="alert">{error}</p>}{!ready&&<p role="status">Checking invitations…</p>}{ready&&!error&&!rows.length&&<p>No invitations are available for this verified email. Check that you signed in with the email your agency invited.</p>}
+ {rows.map(i=><section className="crm-panel" key={i.id}><h2>{i.business_name}</h2><p>Invited by {i.inviter_email} · {invitationStatus(i)}</p>{invitationStatus(i)==='Pending acceptance'&&<><p>You will own the workspace. By accepting, you give {i.inviter_email} permission to view and edit its CRM records, including messages synced into CRM. They will not own the workspace or connect your mailbox. You can remove agency access in Connections.</p><label>Where should this business live?<select disabled={busy} value={choices[i.id]??''} onChange={e=>setChoices({...choices,[i.id]:e.target.value})}><option value="">Choose a workspace</option>{spaces.map(w=><option key={w.id} value={w.id}>Use existing: {w.name}</option>)}<option value="new">Create a new workspace for {i.business_name}</option></select></label><button className="primary" disabled={busy||!choices[i.id]} onClick={()=>void accept(i.id)}>{busy?'Accepting…':'Accept invitation and grant CRM access'}</button></>}{i.workspace_id&&<a href={'/crm?view=Connections&workspace='+i.workspace_id}>Open workspace</a>}</section>)}<a href="/crm">Back to CRM</a></main></div>;
+}
