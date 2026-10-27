@@ -57,8 +57,18 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   async function signInWithGoogle() {
     const supabase = browserSupabase(); if (!supabase) return;
     setBusy(true); setError("");
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + "/", queryParams: { prompt: "select_account" } } });
+    const { error } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo: window.location.origin + (pathname === "/workspace/join" ? window.location.pathname + window.location.search : "/"), queryParams: { prompt: "select_account" } } });
     if (error) { setError(error.message); setBusy(false); }
+  }
+
+  async function invitationSignIn() {
+    const supabase = browserSupabase(); if (!supabase || !email.trim()) { setError("Enter the email that received the invitation."); return; }
+    setBusy(true); setError("");
+    try {
+      const {error} = await supabase.auth.signInWithOtp({email: email.trim(), options: {emailRedirectTo: window.location.origin + window.location.pathname + window.location.search}});
+      if (error) throw error;
+      setNotice("Check your email for a sign-in link, then return to accept the invitation. No password is needed.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not request sign-in link."); } finally { setBusy(false); }
   }
 
   async function signIn(event: FormEvent) {
@@ -119,6 +129,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         {notice && <p role="status">{notice}</p>}
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={busy || !browserSupabase()}>{busy ? "Please wait…" : recovering ? "Save new password" : resetMode ? "Send reset link" : "Sign in"}</button>
+        {pathname === "/workspace/join" && !recovering && !resetMode && <button type="button" disabled={busy} onClick={() => void invitationSignIn()}>Email me a sign-in link</button>}
         {!recovering && !resetMode && googleEnabled && <button type="button" disabled={busy} onClick={() => void signInWithGoogle()}>Continue with Google</button>}
         {!recovering && <button type="button" disabled={busy} onClick={() => { setResetMode(!resetMode); setError(""); setNotice(""); setPassword(""); }}>{resetMode ? "Back to sign in" : "Forgot password?"}</button>}
         <nav className="auth-legal" aria-label="Legal and help"><Link href="/eula">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/docs">Docs</Link><Link href="/support">Support</Link></nav>

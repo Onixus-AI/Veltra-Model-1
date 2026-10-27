@@ -1,0 +1,11 @@
+import React from 'react';
+import {createRoot} from 'react-dom/client';
+import ClientAccess from '../../components/crm/client-access';
+import WorkspaceAccess from '../../components/crm/workspace-access';
+import SignalConnection from '../../components/crm/signal-connection';
+import JoinWorkspace from '../../app/workspace/join/page';
+import '../../app/globals.css';
+import '../../styles/veltra-theme.css';
+import '../../app/crm/crm.css';
+const client=new URLSearchParams(location.search).get('client')==='1';
+createRoot(document.getElementById('root')!).render(<><div style={{background:'#2e2144',padding:12,color:'#fff'}}>Local test fixture — no real client accounts, access grants or emails</div>{client?<JoinWorkspace/>:<div className="crm-shell crm-client-onboarding"><main className="crm-content"><h1>Business connections</h1><ClientAccess/><WorkspaceAccess workspace="11111111-1111-4111-8111-111111111111"/><SignalConnection workspace="11111111-1111-4111-8111-111111111111"/></main></div>}</>);
