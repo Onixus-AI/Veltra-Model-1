@@ -62,7 +62,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   }
 
   async function invitationSignIn() {
-    const supabase = browserSupabase(); if (!supabase || !email.trim()) { setError("Enter the email that received the invitation."); return; }
+    const supabase = browserSupabase(); if (process.env.NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED !== "true") { setError("Use Continue with Google with your invited email. Email-link sign-in is not configured yet."); return; }
+    if (!supabase || !email.trim()) { setError("Enter the email that received the invitation."); return; }
     setBusy(true); setError("");
     try {
       const {error} = await supabase.auth.signInWithOtp({email: email.trim(), options: {emailRedirectTo: window.location.origin + window.location.pathname + window.location.search}});
@@ -129,7 +130,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         {notice && <p role="status">{notice}</p>}
         {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={busy || !browserSupabase()}>{busy ? "Please wait…" : recovering ? "Save new password" : resetMode ? "Send reset link" : "Sign in"}</button>
-        {pathname === "/workspace/join" && !recovering && !resetMode && <button type="button" disabled={busy} onClick={() => void invitationSignIn()}>Email me a sign-in link</button>}
+        {pathname === "/workspace/join" && process.env.NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED === "true" && !recovering && !resetMode && <button type="button" disabled={busy} onClick={() => void invitationSignIn()}>Email me a sign-in link</button>}
+        {pathname === "/workspace/join" && !recovering && !resetMode && process.env.NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED !== "true" && <p>{googleEnabled ? "Use Continue with Google with the email your agency invited. You do not need an existing Workspace password." : "Client sign-in is not configured yet. Ask your agency to enable a verified sign-in provider."}</p>}
         {!recovering && !resetMode && googleEnabled && <button type="button" disabled={busy} onClick={() => void signInWithGoogle()}>Continue with Google</button>}
         {!recovering && <button type="button" disabled={busy} onClick={() => { setResetMode(!resetMode); setError(""); setNotice(""); setPassword(""); }}>{resetMode ? "Back to sign in" : "Forgot password?"}</button>}
         <nav className="auth-legal" aria-label="Legal and help"><Link href="/eula">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/docs">Docs</Link><Link href="/support">Support</Link></nav>
