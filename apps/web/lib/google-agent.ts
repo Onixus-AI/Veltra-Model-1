@@ -37,12 +37,19 @@ export async function googleAgentAction(o:Options,net:typeof fetch=fetch):Promis
  const a=o.args;
  async function review(endpoint:string,body:unknown,preview:unknown){
   const id=crypto.randomUUID();const result=await o.client.from('crm_conversations').insert({id,user_id:o.user,workspace_id:o.scope.workspace_id??null,customer_id:o.scope.customer_id??null,title:'Google action review',messages:[{role:'assistant',content:JSON.stringify({provider,endpoint,body,email:s.account?.email,expires_at:Date.now()+600000})}]}).select('id').single();if(result.error)throw Error('503:Could not store action review. No change was made.');
-  return {content:'No change made. Waiting for review.',proposal:{id,summary:JSON.stringify({account:s.account,scope:'Signed-in user’s connected account',preview,notice:'Approve only the change shown. After a timeout, inspect Google before retrying.'},null,2),agent_review:{target:provider,id}}};
+  return {content:'No change made. Waiting for review.',proposal:{id,summary:JSON.stringify({account:{email:s.account?.email},scope:'Signed-in user’s connected account',preview,notice:'Approve only the change shown. After a timeout, inspect Google before retrying.'},null,2),agent_review:{target:provider,id}}};
  }
  const id=()=>{const v=text(a.id,200,'a returned file ID');if(!fileId.test(v))throw Error('400:Invalid file ID.');return v;};
  if(o.name==='google_find_files'){only(a,['query','page']);const params=new URLSearchParams({q:typeof a.query==='string'?a.query.slice(0,200):''});if(a.page)params.set('page',text(a.page,8000,'a returned page token'));return {content:JSON.stringify(await call('files?'+params))};}
  if(o.name==='google_read_file'){only(a,['id']);return {content:JSON.stringify(await call('file?id='+encodeURIComponent(id())))};}
- if(o.name==='google_read_editor'){only(a,['id','tab']);const params=new URLSearchParams({id:id()});if(a.tab!==undefined){if(!Number.isInteger(a.tab)||Number(a.tab)<0)throw Error('400:Invalid sheet tab.');params.set('tab',String(a.tab));}return {content:JSON.stringify(await call('editor?'+params))};}
+ if(o.name==='google_read_editor'){
+  only(a,['id','tab']);const file=id(),params=new URLSearchParams({id:file});if(a.tab!==undefined){if(!Number.isInteger(a.tab)||Number(a.tab)<0)throw Error('400:Invalid sheet tab.');params.set('tab',String(a.tab));}
+  try{return {content:JSON.stringify(await call('editor?'+params))};}catch(error){
+   if(a.tab===undefined||!(error instanceof Error)||!error.message.includes('This spreadsheet tab is unavailable.'))throw error;
+   // A read-only discovery fallback is explicitly labelled; edits never fall back.
+   const first=await call('editor?id='+encodeURIComponent(file));return {content:JSON.stringify({...first,requested_tab_unavailable:a.tab,tab_warning:'The requested sheetId does not exist. This is the FIRST tab for discovery, not the requested tab. Use an actual returned tab ID for further reads/edits; never use a tab position as its ID.'})};
+  }
+ }
  if(o.name==='google_create_file'){
   only(a,['kind','title','content']);if(!['doc','sheet'].includes(String(a.kind))||typeof a.content!=='string'||a.content.length>200000)throw Error('400:Choose doc or sheet and bounded text/CSV content.');
   const p=await call('propose','POST',{kind:a.kind,title:text(a.title,200,'a title'),content:a.content});
@@ -50,10 +57,11 @@ export async function googleAgentAction(o:Options,net:typeof fetch=fetch):Promis
  }
  if(o.name==='google_edit_file'){
   only(a,['id','tab','content','cells']);const file=id(),params=new URLSearchParams({id:file});if(a.tab!==undefined){if(!Number.isInteger(a.tab)||Number(a.tab)<0)throw Error('400:Invalid tab.');params.set('tab',String(a.tab));}
-  const before=await call('editor?'+params);const body:Record<string,unknown>={id:file,snapshot:before.snapshot};
+  let before;try{before=await call('editor?'+params);}catch(error){if(error instanceof Error&&error.message.includes('This spreadsheet tab is unavailable.'))throw Error('409:That Google sheetId is unavailable. Read without tab to discover actual tab IDs; do not use tab positions. No edits were proposed.');throw error;}const body:Record<string,unknown>={id:file,snapshot:before.snapshot};
   if(before.kind==='doc'){if(typeof a.content!=='string'||a.content.length>200000||a.cells!==undefined)throw Error('400:Provide the full replacement document text.');body.content=a.content;}
   else {if(a.content!==undefined||!Array.isArray(a.cells)||!a.cells.length||a.cells.length>2000)throw Error('400:Provide cell changes.');const seen=new Set();for(const c of a.cells){if(!c||Object.keys(c).some(k=>!['row','col','value'].includes(k))||!Number.isInteger(c.row)||!Number.isInteger(c.col)||c.row<0||c.col<0||c.row>=before.rows||c.col>=before.cols||typeof c.value!=='string'||c.value.length>10000||seen.has(c.row+':'+c.col))throw Error('400:Invalid or duplicate cell change.');seen.add(c.row+':'+c.col);}body.cells=a.cells;}
-  const {snapshot,...display}=before;void snapshot;return review('save',body,{before:display,change:body.content??body.cells});
+  const preview=before.kind==='doc'?{file:before.title,operation:'Replace the complete document text',before:before.content,after:body.content}:{file:before.title,tab:before.tabs.find((t:{id:number})=>t.id===before.tab)?.title,changes:(a.cells as {row:number;col:number;value:string}[]).map(c=>({cell:String.fromCharCode(65+c.col)+(c.row+1),before:before.grid[c.row][c.col],after:c.value}))};
+  return review('save',body,preview);
  }
  if(o.name==='calendar_list'){only(a,[]);return {content:JSON.stringify(await call('calendars'))};}
  if(o.name==='calendar_events'){only(a,['calendar','from','to']);const params=new URLSearchParams();for(const k of ['calendar','from','to'])if(a[k]!==undefined)params.set(k,text(a[k],1000,k));return {content:JSON.stringify(await call('events?'+params))};}

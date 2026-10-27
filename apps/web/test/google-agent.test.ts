@@ -4,13 +4,13 @@ import {googleAgentAction} from '../lib/google-agent';
 import {appsForTool} from '../lib/task-access-policy';
 const W='00000000-0000-4000-8000-000000000001';
 function fixture(provider='google'){
- let row:any=null;const writes:string[]=[];let email='owner@example.com',workspace=W,fail=false;
+ let row:any=null;const writes:string[]=[];let email='owner@example.com',workspace=W,fail=false;let editor:any={kind:'doc',id:'file-1',content:'original',snapshot:'private-snapshot'};let invalidTab:number|undefined;
  const client:any={from:()=>{const filters:Record<string,unknown>={};let update:any;const q:any={then:(resolve:any)=>{if(update)Object.assign(row,update);return Promise.resolve({error:null}).then(resolve);},select:()=>q,eq:(k:string,v:unknown)=>{filters[k]=v;return q;},insert:(v:any)=>{row={...v,revision:0};return q;},update:(v:any)=>{update=v;return q;},single:async()=>({data:{id:row.id},error:null}),maybeSingle:async()=>{if(!row||row.user_id!==filters.user_id||row.id!==filters.id||filters.revision!==undefined&&row.revision!==filters.revision)return {data:null};if(update)Object.assign(row,update);return {data:row,error:null};}};return q;}};
  const net:typeof fetch=async(input,init)=>{const u=new URL(String(input));assert.equal(u.origin,'https://mail.example.com');assert.equal((init?.headers as any).Authorization,'Bearer owner');const path=u.pathname.split('/').at(-1);if(path==='')return Response.json({connected:true,account:{email},workspace_id:workspace});
  if(init?.method==='POST'){writes.push(path!);if(fail)throw Error('timeout');if(path==='propose')return Response.json(provider==='google'?{ticket:'private-ticket',kind:'doc',title:'Plan',content:'Hello',account:{email}}:{ticket:'private-ticket',plan:{notified:['guest@example.com']},title:'Meeting',when:{start:'tomorrow'},warnings:[]});return Response.json({saved:true});}
- if(path==='editor')return Response.json({kind:'doc',id:'file-1',content:'original',snapshot:'private-snapshot'});return Response.json({files:[{id:'file-1'}]});};
+ if(path==='editor'){if(invalidTab!==undefined&&u.searchParams.get('tab')===String(invalidTab))return Response.json({error:'This spreadsheet tab is unavailable.'},{status:409});return Response.json(editor);}return Response.json({files:[{id:'file-1'}]});};
  const run=(name:string,args:Record<string,unknown>={},confirm?:any,scope:any={workspace_id:W})=>googleAgentAction({client,user:'owner',scope,name,args,confirm,authorization:'Bearer owner',mailOrigin:'https://mail.example.com'},net);
- return {run,writes,get row(){return row;},setEmail:(e:string)=>email=e,setWorkspace:(w:string)=>workspace=w,setFail:()=>fail=true};
+ return {run,writes,setEditor:(e:any)=>editor=e,setInvalidTab:(tab:number)=>invalidTab=tab,get row(){return row;},setEmail:(e:string)=>email=e,setWorkspace:(w:string)=>workspace=w,setFail:()=>fail=true};
 }
 test('Google and Calendar have distinct task grants, including confirmations',()=>{
  assert.deepEqual(appsForTool('google_edit_file'),['google']);assert.deepEqual(appsForTool('calendar_events'),['calendar']);assert.deepEqual(appsForTool('confirm',{}, {target:'google'}),['google']);assert.deepEqual(appsForTool('confirm',{}, {target:'calendar'}),['calendar']);
@@ -31,4 +31,11 @@ test('Calendar enforces selected Workspace and reviews notification recipients',
 });
 test('uncertain writes stay consumed; confirmation cannot send them twice',async()=>{
  const f=fixture();const p=await f.run('google_create_file',{kind:'doc',title:'Plan',content:'Hello'});f.setFail();await assert.rejects(()=>f.run('confirm',{},p.proposal!.agent_review),/Check the file/);assert.equal(f.row.revision,3);await assert.rejects(()=>f.run('confirm',{},p.proposal!.agent_review),/used/);assert.deepEqual(f.writes,['propose','create']);
+});
+
+test('unknown tab IDs return labelled read-only discovery; edits never silently switch tabs',async()=>{
+ const f=fixture();f.setEditor({kind:'sheet',id:'file-1',title:'Checks',tab:598560979,tabs:[{id:598560979,title:'Checks'}],rows:2,cols:3,grid:[['check','status',''],['read','pending','']],snapshot:'private-snapshot'});f.setInvalidTab(1);
+ const read=JSON.parse((await f.run('google_read_editor',{id:'file-1',tab:1})).content);assert.equal(read.tab,598560979);assert.equal(read.requested_tab_unavailable,1);assert.match(read.tab_warning,/not the requested tab/);assert.deepEqual(f.writes,[]);
+ await assert.rejects(()=>f.run('google_edit_file',{id:'file-1',tab:1,cells:[{row:1,col:1,value:'verified'}]}),/No edits were proposed/);assert.equal(f.row,null);assert.deepEqual(f.writes,[]);
+ const review=await f.run('google_edit_file',{id:'file-1',tab:598560979,cells:[{row:1,col:1,value:'verified'},{row:1,col:2,value:'=1+1'}]});const preview=JSON.parse(review.proposal!.summary).preview;assert.deepEqual(preview.changes,[{cell:'B2',before:'pending',after:'verified'},{cell:'C2',before:'',after:'=1+1'}]);assert.equal(preview.grid,undefined);assert.equal(preview.tab,'Checks');assert.doesNotMatch(review.proposal!.summary,/private-snapshot/);assert.deepEqual(f.writes,[]);
 });
