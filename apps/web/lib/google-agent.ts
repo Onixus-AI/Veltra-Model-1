@@ -30,9 +30,9 @@ export async function googleAgentAction(o:Options,net:typeof fetch=fetch):Promis
   let receipt:unknown;
   try{receipt=await call(p.endpoint,'POST',p.body);}catch(e){await o.client.from('crm_conversations').update({revision:3,messages:[...row.messages,{role:'assistant',content:JSON.stringify({status:'unconfirmed',note:'Check Google before creating a new action review.'})}]}).eq('id',o.confirm.id).eq('user_id',o.user);throw e;}
   const recorded=await o.client.from('crm_conversations').update({revision:2,messages:[...row.messages,{role:'assistant',content:JSON.stringify({status:'completed',receipt})}]}).eq('id',o.confirm.id).eq('user_id',o.user);
-  if(recorded.error)return {content:JSON.stringify({provider,account:s.account,receipt,warning:'Provider returned a receipt but local history could not be updated. Do not repeat the write.'})};
+  if(recorded.error)return {content:JSON.stringify({status:'completed',approval:'confirmed',action:p.endpoint,provider,account:s.account,receipt,warning:'Provider returned a receipt but local history could not be updated. Do not repeat the write.'})};
   // Claimed before the external write: uncertain results are never automatically replayed.
-  return {content:JSON.stringify({provider,account:s.account,receipt,note:'Provider returned this receipt. Do not claim delivery or results beyond it.'})};
+  return {content:JSON.stringify({status:'completed',approval:'confirmed',action:p.endpoint,provider,account:s.account,receipt,note:'The reviewed action has already executed and returned this provider receipt. This is not a pending proposal. Do not request approval again or repeat the write. Use a read tool if content verification was requested; do not claim results beyond the receipt.'})};
  }
  const a=o.args;
  async function review(endpoint:string,body:unknown,preview:unknown){
