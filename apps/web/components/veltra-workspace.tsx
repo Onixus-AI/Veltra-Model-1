@@ -21,6 +21,7 @@ import dynamic from "next/dynamic";
 import VoiceInput from "@/components/voice-input";
 import WorkspaceAppearance from "@/components/workspace-appearance";
 import {crmConnection} from "@/lib/crm-connection";
+const CalendarCanvas=dynamic(()=>import("@/components/google-calendar"));
 const BusinessOsCanvas=dynamic(()=>import("@/components/business-os-canvas"));
 const ShopifyCanvas=dynamic(()=>import("@/components/shopify-canvas"));
 const BuildTeam=dynamic(()=>import("@/components/build-team"));
@@ -30,7 +31,7 @@ const BrainManager=dynamic(()=>import("@/components/brain-manager"));
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  Brain, ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, ImagePlus, Layers3, LayoutDashboard, BriefcaseBusiness, PenTool, SlidersHorizontal,
+  CalendarDays, FolderOpen, MoreHorizontal, Brain, ArrowDown, ArrowUp, Check, ChevronDown, Copy, FileText, ImagePlus, Layers3, LayoutDashboard, BriefcaseBusiness, PenTool, SlidersHorizontal,
   Plus, Palette, Settings2, ShieldCheck, SquarePen, Zap, PanelLeftClose, PanelLeftOpen, PanelRightOpen, Maximize2, Minimize2, X, MessageSquare, Code2, Plug, Mail, Users,
 } from "lucide-react";
 import ChatTools from "@/components/chat-tools";
@@ -66,9 +67,9 @@ type ModelMode = "velocity" | "deep" | "agent";
 
 const HISTORY_KEY = "veltra-chat-history";
 const MODEL_OPTIONS: Record<ModelMode, { model: string; name: string; subtitle: string }> = {
-  velocity: { model: "veltra-fast", name: "Velocity 1", subtitle: "Everyday conversation and coding" },
-  deep: { model: "veltra-logic", name: "Velocity 1.1", subtitle: "Deeper thinking and problem solving" },
-  agent: { model: "veltra-agent", name: "Velocity 1.2", subtitle: "Complex work and planning" },
+  velocity: { model: "veltra-fast", name: "Onyx", subtitle: "Everyday conversation and coding" },
+  deep: { model: "veltra-logic", name: "Onyx Think", subtitle: "Deeper thinking and problem solving" },
+  agent: { model: "veltra-agent", name: "Onyx Agent", subtitle: "Complex work and planning" },
 };
 
 const initialArtifact: Artifact = {
@@ -101,14 +102,14 @@ function ChatContent({ content }: { content: string }) {
   return <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>;
 }
 
-export default function VeltraWorkspace() {
+export default function OnyxWorkspace() {
   const [savedSetup,setSavedSetup]=useState<SetupProfile|null>(null);
   const [workspaceMode,setWorkspaceMode]=useState<WorkspaceMode>("business");
   const modeDrafts=useRef<Partial<Record<WorkspaceMode,{input:string;imageMode:boolean;artifact:Artifact;documents:KnowledgeDocument[]}>>>({});
   const [codeTool,setCodeTool]=useState<Provider>("github");
   const [repository,setRepository]=useState("");
   const [codeContext,setCodeContext]=useState<{path:string;content:string;repository:string}|null>(null);
-  function changeWorkspaceMode(value:WorkspaceMode){if(value===workspaceMode||sending)return;modeDrafts.current[workspaceMode]={input,imageMode,artifact,documents};const saved=modeDrafts.current[value];setInput(saved?.input??"");setImageMode(saved?.imageMode??false);setArtifact(saved?.artifact??initialArtifact);setDocuments(saved?.documents??[]);setWorkspaceMode(value);unavailableCloud();setCrmScope(null);setRetainedApps({crm:false,mail:false});setCanvasVisible(false);setPanelFull(false);setMobileView("chat");setShopifyOpen(false);setTmsOpen(false);setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setBusinessOsOpen(false);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
+  function changeWorkspaceMode(value:WorkspaceMode){if(value===workspaceMode||sending)return;modeDrafts.current[workspaceMode]={input,imageMode,artifact,documents};const saved=modeDrafts.current[value];setInput(saved?.input??"");setImageMode(saved?.imageMode??false);setArtifact(saved?.artifact??initialArtifact);setDocuments(saved?.documents??[]);setWorkspaceMode(value);unavailableCloud();setCrmScope(null);setRetainedApps({crm:false,mail:false});setCanvasVisible(false);setPanelFull(false);setMobileView("chat");setCalendarOpen(false);setShopifyOpen(false);setTmsOpen(false);setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setBusinessOsOpen(false);try{localStorage.setItem("veltra-workspace-mode",value);}catch{}}
   const [retainedApps,setRetainedApps]=useState({crm:false,mail:false});
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [brainOpen,setBrainOpen]=useState(false);
@@ -118,17 +119,18 @@ export default function VeltraWorkspace() {
   const [panelFull,setPanelFull]=useState(false),[panelWidth,setPanelWidth]=useState(60),[businessOsOpen,setBusinessOsOpen]=useState(false);
   const [beeConnected,setBeeConnected]=useState(false);
   useEffect(()=>{let live=true;const refresh=()=>{void gatewayAuthorizationHeaders().then(headers=>fetch("/api/bee/status",{headers,cache:"no-store"})).then(r=>r.ok?r.json():null).then(s=>{if(live)setBeeConnected(s?.connected===true);}).catch(()=>{if(live)setBeeConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
+  const [calendarOpen,setCalendarOpen]=useState(false);
   const [shopifyOpen,setShopifyOpen]=useState(false);
   const [tmsOpen,setTmsOpen]=useState(false);
   const [buildOpen,setBuildOpen]=useState(false),[crmOpen,setCrmOpen]=useState(false),[crmConnected,setCrmConnected]=useState(false);
-  function openTool(tool:"mail"|"code"|"build"|"crm"|"tms"|"shopify"|"business",full=true){setCanvasVisible(true);setPanelFull(full);if(tool==="crm"||tool==="mail")setRetainedApps(previous=>({...previous,[tool]:true}));setBusinessOsOpen(tool==="business");if(window.innerWidth<761)setSidebarOpen(false);setShopifyOpen(tool==="shopify");setTmsOpen(tool==="tms");setMailOpen(tool==="mail");setCodeOpen(tool==="code");setBuildOpen(tool==="build");setCrmOpen(tool==="crm");setMobileView("canvas");const nextMode=modeForTool(tool);if(nextMode){setWorkspaceMode(nextMode);try{localStorage.setItem("veltra-workspace-mode",nextMode);}catch{}}}
+  function openTool(tool:"mail"|"code"|"build"|"crm"|"tms"|"shopify"|"business"|"calendar",full=true){setCalendarOpen(tool==="calendar");setCanvasVisible(true);setPanelFull(full);if(tool==="crm"||tool==="mail")setRetainedApps(previous=>({...previous,[tool]:true}));setBusinessOsOpen(tool==="business");if(window.innerWidth<761)setSidebarOpen(false);setShopifyOpen(tool==="shopify");setTmsOpen(tool==="tms");setMailOpen(tool==="mail");setCodeOpen(tool==="code");setBuildOpen(tool==="build");setCrmOpen(tool==="crm");setMobileView("canvas");const nextMode=modeForTool(tool);if(nextMode){setWorkspaceMode(nextMode);try{localStorage.setItem("veltra-workspace-mode",nextMode);}catch{}}}
   function selectArea(area:string){
     if(area==='chat'){setCanvasVisible(false);setPanelFull(false);setMobileView('chat');return;}
     if(area==='split'){setCanvasVisible(true);setPanelFull(false);setMobileView('canvas');return;}
-    if(area==='crm'||area==='mail')openTool(area,true);
+    if(area==='crm'||area==='mail'||area==='calendar')openTool(area,true);
   }
   function toggleSidebar(){setSidebarOpen(value=>{try{localStorage.setItem("veltra-sidebar-v1",String(!value));}catch{}return !value;});}
-  useEffect(()=>{let live=true;const refresh=()=>{void crmConnection().then(s=>{if(live)setCrmConnected(s.connected);}).catch(()=>{if(live)setCrmConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);try{const saved=localStorage.getItem("veltra-sidebar-v1");if(saved!==null)setSidebarOpen(saved==="true");else if(window.innerWidth<1100)setSidebarOpen(false);}catch{}return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
+  useEffect(()=>{let live=true;const refresh=()=>{void crmConnection().then(s=>{if(live)setCrmConnected(s.connected);}).catch(()=>{if(live)setCrmConnected(false);});};refresh();window.addEventListener("veltra-connections-changed",refresh);try{const saved=localStorage.getItem("veltra-sidebar-v1");if(saved!==null)setSidebarOpen(saved==="true");else setSidebarOpen(window.innerWidth>=1100);}catch{}return()=>{live=false;window.removeEventListener("veltra-connections-changed",refresh);};},[]);
   const [mailOpen, setMailOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function VeltraWorkspace() {
     try{const saved=parseWorkspaceMode(localStorage.getItem("veltra-workspace-mode"));if(saved)setWorkspaceMode(saved);}catch{}
     const requestedMode=parseWorkspaceMode(query.get("mode"));if(requestedMode)setWorkspaceMode(requestedMode);else if(query.get("crm_workspace"))setWorkspaceMode("business");
     const draft=query.get("prompt");if(draft)setInput(draft.slice(0,2000));
-    if(["mail","crm","build","tms","shopify","business"].includes(query.get("canvas")??""))openTool(query.get("canvas") as "mail"|"crm"|"build"|"tms"|"shopify"|"business");
+    if(["mail","crm","build","tms","shopify","business","calendar"].includes(query.get("canvas")??""))openTool(query.get("canvas") as "mail"|"crm"|"build"|"tms"|"shopify"|"business"|"calendar");
     if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("dev");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
   const [cloud,setCloud]=useState<CloudConversation|null>(null);
@@ -402,7 +404,7 @@ export default function VeltraWorkspace() {
         <button className="header-icon sidebar-toggle" aria-label={sidebarOpen?"Collapse sidebar":"Expand sidebar"} aria-expanded={sidebarOpen} aria-controls="workspace-sidebar" onClick={toggleSidebar}>{sidebarOpen?<PanelLeftClose size={19}/>:<PanelLeftOpen size={19}/>}</button>
         <Link href="/" className="workspace-brand"><img src="/veltra-logo.png" alt=""/><span><strong>Onixus Workspace</strong><small>Build · Grow · Automate</small></span></Link>
         <nav className="workspace-modes" aria-label="Workspace mode">{workspaceModes.map(item=><button key={item.id} disabled={sending} aria-pressed={workspaceMode===item.id} onClick={()=>changeWorkspaceMode(item.id)}>{item.label}</button>)}</nav>
-        <WorkspaceCommandMenu commands={[{id:"chat",label:"Open Chat",run:()=>selectArea("chat")},{id:"brain",label:"Open shared brain",run:openBrain},...(workspaceMode==="creator"?[{id:"image",label:"Create an image",run:()=>{setImageMode(true);selectArea("chat");}},{id:"files",label:"Open project files",run:()=>setKnowledgeOpen(true)}]:[]),...(workspaceMode!=="dev"?[{id:"mail",label:"Open Mail",run:()=>openTool("mail")}]:[]),...(workspaceMode==="business"?[{id:"crm",label:"Open CRM",run:()=>openTool("crm")},{id:"business",label:"Open Business OS",run:()=>openTool("business")}]:[]),...(workspaceMode==="dev"?[{id:"build",label:"Open Super Coder",run:()=>openTool("build")}]:[]),{id:"split",label:"Show Chat alongside app",run:()=>selectArea("split")},{id:"navigation",label:sidebarOpen?"Collapse navigation":"Expand navigation",run:toggleSidebar},{id:"connections",label:"Open connections",run:()=>{location.href="/settings/connections?mode="+workspaceMode;}},{id:"settings",label:"Open settings",run:()=>{location.href="/settings";}}]}/><label className="workspace-area-picker"><span>View</span><select aria-label="Workspace area" value={!canvasVisible?'chat':!panelFull?'split':crmOpen?'crm':mailOpen?'mail':'tool'} onChange={event=>selectArea(event.target.value)}><option value="chat">Chat only</option><option value="split">Split view</option>{workspaceMode==='business'&&<option value="crm">CRM only</option>}{workspaceMode!=='dev'&&<option value="mail">Mail only</option>}{panelFull&&!crmOpen&&!mailOpen&&<option value="tool">App only</option>}</select></label>
+        <WorkspaceCommandMenu commands={[{id:"chat",label:"Open Chat",run:()=>selectArea("chat")},{id:"calendar",label:"Open Calendar",keywords:"meetings events schedule booking",run:()=>openTool("calendar")},{id:"documents",label:"Open Docs & Sheets",keywords:"drive files documents spreadsheets",run:()=>{location.href="/workspace/files";}},{id:"brain",label:"Open shared brain",run:openBrain},...(workspaceMode==="creator"?[{id:"image",label:"Create an image",run:()=>{setImageMode(true);selectArea("chat");}},{id:"files",label:"Open project files",run:()=>setKnowledgeOpen(true)}]:[]),...(workspaceMode!=="dev"?[{id:"mail",label:"Open Mail",run:()=>openTool("mail")}]:[]),...(workspaceMode==="business"?[{id:"crm",label:"Open CRM",run:()=>openTool("crm")},{id:"business",label:"Open Business OS",run:()=>openTool("business")}]:[]),...(workspaceMode==="dev"?[{id:"build",label:"Open Super Coder",run:()=>openTool("build")}]:[]),{id:"split",label:"Show Chat alongside app",run:()=>selectArea("split")},{id:"navigation",label:sidebarOpen?"Collapse navigation":"Expand navigation",run:toggleSidebar},{id:"connections",label:"Open connections",run:()=>{location.href="/settings/connections?mode="+workspaceMode;}},{id:"settings",label:"Open settings",run:()=>{location.href="/settings";}}]}/><label className="workspace-area-picker"><span>View</span><select aria-label="Workspace area" value={!canvasVisible?'chat':!panelFull?'split':crmOpen?'crm':mailOpen?'mail':calendarOpen?'calendar':'tool'} onChange={event=>selectArea(event.target.value)}><option value="chat">Chat only</option><option value="split">Split view</option><option value="calendar">Calendar only</option>{workspaceMode==='business'&&<option value="crm">CRM only</option>}{workspaceMode!=='dev'&&<option value="mail">Mail only</option>}{panelFull&&!crmOpen&&!mailOpen&&!calendarOpen&&<option value="tool">App only</option>}</select></label>
         <Link className="mode-connectors" href={'/settings/connections?mode='+workspaceMode}><Plug size={15}/><span>{workspaceModes.find(item=>item.id===workspaceMode)?.label} connectors</span></Link>
 
 
@@ -411,35 +413,38 @@ export default function VeltraWorkspace() {
       </header>
       <nav className="mobile-workspace-tabs" aria-label="Workspace view">
         <button aria-pressed={mobileView === "chat"} onClick={() => setMobileView("chat")}>Chat</button>
-        <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>{businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"CRM":codeOpen?"Code":mailOpen?"Mail":"Canvas"}</button>
+        <button aria-pressed={mobileView === "canvas"} onClick={() => setMobileView("canvas")}>{calendarOpen?"Calendar":businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"CRM":codeOpen?"Code":mailOpen?"Mail":"Canvas"}</button>
       </nav>
       {accessRequest&&<TaskAccessDialog request={accessRequest} onDecision={answerAppAccess}/>}
       <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
         <nav aria-label="Workspace tools">
-          <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Onixus Chat</span></button>
-          <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
-          <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
+          <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Onyx</span></button>
           {workspaceMode==="dev"&&<button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>}
           {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><LayoutDashboard size={17}/><span>Business overview</span></Link>}
           {workspaceMode!=="dev"&&<button title="Onixus Mail" aria-label="Onixus Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Onixus Mail</span></button>}
           {workspaceMode==="business"&&<button title="Onixus CRM" aria-label="Onixus CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Onixus CRM</span></button>}
+          <button title="Calendar — meetings and reviewed event changes" aria-label="Calendar" aria-pressed={calendarOpen} onClick={()=>openTool("calendar")}><CalendarDays size={17}/><span>Calendar</span></button>
+          <Link href="/workspace/files" title="Docs & Sheets — write documents and edit spreadsheets" aria-label="Documents and spreadsheets"><FolderOpen size={17}/><span>Docs &amp; Sheets</span></Link>
+          <details className="workspace-more-tools"><summary title="More tools"><MoreHorizontal size={17}/><span>More tools</span></summary><div>
+          <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
+          <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           {workspaceMode==="business"&&<button title="Onixus Business OS" aria-pressed={businessOsOpen} onClick={()=>openTool("business")}><BriefcaseBusiness size={17}/><span>Onixus Business OS</span></button>}
-          <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setPanelFull(false);setBusinessOsOpen(false);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
+          <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setPanelFull(false);setCalendarOpen(false);setBusinessOsOpen(false);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
           {workspaceMode==="dev"&&(["github","vercel","supabase","railway","n8n"] as Provider[]).map(provider=><button key={provider} title={provider} onClick={()=>{openTool("code");setCodeTool(provider);}}><ToolLogo name={({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}/><span>{({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}</span></button>)}
           {workspaceMode==="creator"&&<><button title="Create an image" aria-label="Create an image" disabled={sending} onClick={()=>{setImageMode(true);setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><ImagePlus size={17}/><span>Create an image</span></button><button title="Project files" aria-label="Project files" onClick={()=>setKnowledgeOpen(true)}><FileText size={17}/><span>Project files</span></button><Link href="/settings/connections?mode=creator" title="Creator tools" aria-label="Creator tools"><SlidersHorizontal size={17}/><span>Creator tools</span></Link></>}
           <WorkspaceAppearance navigation/>
           <Link href="/design" title="Design"><PenTool size={17}/><span>Design</span></Link>
           {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}
-          <Link href="/workspace/files" title="Documents and spreadsheets" aria-label="Documents and spreadsheets"><span>Docs &amp; Sheets</span></Link>
           <Link href="/workspace/brand" title="Brand folder"><span>Brand folder</span></Link>
           <Link href={"/settings/connections?mode="+workspaceMode} title="Connections" aria-label="Connections"><Plug size={17}/><span>Connections</span></Link>
+          </div></details>
         </nav>
         <div className="sidebar-history"><h2>Conversations & context</h2><CrmChatBar key={workspaceMode} business={workspaceMode==="business"} scope={crmOpen?crmScope:null} disabled={sending} onLoad={loadCloud} onUnavailable={unavailableCloud} resetKey={cloudReset}/></div>
         <nav className="sidebar-settings" aria-label="Workspace settings"><Link href="/settings" title="Settings"><Settings2 size={17}/><span>Settings</span></Link></nav>
         <div className="sidebar-footer"><span className="sidebar-status-dot"/><span>Your Onixus Workspace</span></div>
       </aside>
       <section className="chat-panel">
-        <div className="chat-toolbar"><strong className="chat-product-name">Onixus Chat</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={stopTask}>End app access</button>}
+        <div className="chat-toolbar"><strong className="chat-product-name">Onyx</strong>{sending&&activeTaskAccess.current?.active&&<button type="button" onClick={stopTask}>End app access</button>}
           <button className="new-chat-button" disabled={sending} onClick={startNewChat} aria-label="New chat"><SquarePen size={16}/></button>
         <ChatSetup busy={sending||!historyLoaded} autoOpen={historyLoaded&&messages.length===0} businessReady={Boolean(cloud?.workspace_id&&!cloud.customer_id&&(!crmOpen||!crmScope||cloud.workspace_id===crmScope.workspace_id&&!crmScope.customer_id))} onContext={setSavedSetup} onMode={changeWorkspaceMode} onTool={tool=>openTool(tool,false)} onStart={prompt=>{setImageMode(false);setInput(prompt);}}/>
           <div className="model-selector-wrap">
@@ -472,7 +477,7 @@ export default function VeltraWorkspace() {
         <div className="conversation" ref={scrollRef} onScroll={event=>{const area=event.currentTarget;stickToBottom.current=area.scrollHeight-area.scrollTop-area.clientHeight<100;}}>
           {messages.length === 0 ? (
             <div className="welcome">
-              <span className="welcome-orb"><img src="/brands/onixus-chat-icon-v2.png" alt="Onixus Chat logo" width={34} height={34}/></span>
+              <span className="welcome-orb"><img src="/brands/onixus-chat-icon-v2.png" alt="Onyx logo" width={34} height={34}/></span>
               <h1>{codeOpen?"What are we building?":workspaceMode==="business"?"What’s next for your business?":workspaceMode==="dev"?"What are we building?":workspaceMode==="creator"?"What will you create?":"What’s on your mind?"}</h1>
               <div className="suggestion-grid">
                 {workspaceStarters[workspaceMode].map((starter,index)=><button key={starter.title} onClick={()=>{setInput(starter.prompt);if(workspaceMode==='creator'&&starter.title==='Create an image')setImageMode(true);}}><span className="suggestion-icon">{index===0?<Layers3 size={15}/>:index===1?<Zap size={15}/>:<FileText size={15}/>}</span><span><b>{starter.title}</b><small>{starter.description}</small></span><ArrowDown size={14}/></button>)}
@@ -482,14 +487,14 @@ export default function VeltraWorkspace() {
             <div className="message-list">
               {messages.map((message, index) => (
                 <article className={`message ${message.role}`} key={`${index}-${message.role}`}>
-                  {message.role === "assistant" ? <span className="assistant-avatar"><img src="/brands/onixus-chat-icon-v2.png" alt="Onixus Chat logo" width={22} height={22}/></span> : <span className="user-avatar">Y</span>}
+                  {message.role === "assistant" ? <span className="assistant-avatar"><img src="/brands/onixus-chat-icon-v2.png" alt="Onyx logo" width={22} height={22}/></span> : <span className="user-avatar">Y</span>}
                   <div className="message-body">
-                    <div className="message-meta">{message.role === "assistant" ? "Onixus Workspace" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{imageMode ? "Creating…" : message.content ? "Replying…" : "Thinking…"}</span>}</div>
+                    <div className="message-meta">{message.role === "assistant" ? "Onyx" : "You"}{message.role === "assistant" && index === messages.length - 1 && sending && <span className="reply-status">{imageMode ? "Creating…" : message.content ? "Replying…" : "Thinking…"}</span>}</div>
                     {message.image && <figure className="generated-image"><img src={message.image} alt="Image generated from your prompt" /><figcaption><button type="button" onClick={() => openImageInCanvas(message.image!)}>Open in canvas</button><a href={message.image} download={`veltra-${message.imageId || "image"}.png`}>Download image</a></figcaption></figure>}
                     {message.attachments?.length ? <div className="message-images">{message.attachments.map((url, imageIndex) => <img key={imageIndex} src={url} alt={`Attached image ${imageIndex + 1}`} />)}</div> : null}
                     {message.content
                       ? <div className="message-content">{message.role==="assistant"?<ChatResponse content={message.content}/>:<ChatContent content={message.content}/>}</div>
-                      : <div className="thinking-indicator" role="status"><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span><span>{sending ? (imageMode ? "Onixus Workspace is creating your image…" : "Onixus Workspace is thinking…") : "No reply received. Try sending your message again."}</span></div>}
+                      : <div className="thinking-indicator" role="status"><span className="thinking-dots" aria-hidden="true"><i /><i /><i /></span><span>{sending ? (imageMode ? "Onyx is creating your image…" : "Onyx is thinking…") : "No reply received. Try sending your message again."}</span></div>}
                     {message.content&&cloud&&<button type="button" className="message-remember" disabled={sending} onClick={()=>{setBrainSeed({content:message.content,index,revision:cloud.revision});setKnowledgeOpen(false);setBrainOpen(true);}}><Brain size={14}/>Remember</button>}
                   </div>
                 </article>
@@ -531,15 +536,15 @@ export default function VeltraWorkspace() {
 
       <section className="canvas-column" aria-label="Workspace app area">
         <div className="canvas-shell-head">
-          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"Onixus CRM":codeOpen?"Code":mailOpen?"Onixus Mail":"Canvas"}</strong></div></div>
-          <div className="canvas-head-actions"><button className="workspace-ask-button" aria-pressed={!panelFull} onClick={()=>{setPanelFull(value=>!value);setMobileView(panelFull?"chat":"canvas");}}><MessageSquare size={16}/><span>{panelFull?"Ask Onixus Workspace":"Hide Chat"}</span></button><details className="workspace-layout-options"><summary>Layout</summary><label className="panel-width-control">Width<input type="range" min="40" max="75" step="5" aria-label="Tool panel width" value={panelWidth} disabled={panelFull} onChange={event=>setPanelWidth(Number(event.target.value))}/></label></details><button aria-label={panelFull?"Retract tool panel":"Expand tool panel"} aria-pressed={panelFull} onClick={()=>setPanelFull(value=>!value)}>{panelFull?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label="Close tool panel" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><X size={16}/></button>
-            {!crmOpen&&!mailOpen&&<button onClick={() => void copyLastAnswer()} title="Copy latest answer"><Copy size={14} />{copied ? <Check size={13} /> : null}</button>}
-            {!crmOpen&&!mailOpen&&<button className="canvas-add-button" onClick={() => { setBusinessOsOpen(false);setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>}
+          <div className="canvas-heading"><span className="canvas-heading-mark"><span /></span><div><strong>{calendarOpen?"Calendar":businessOsOpen?"Onixus Business OS":shopifyOpen?"Shopify":tmsOpen?"Onixus TMS":buildOpen?"Super Coder":crmOpen?"Onixus CRM":codeOpen?"Code":mailOpen?"Onixus Mail":"Canvas"}</strong></div></div>
+          <div className="canvas-head-actions"><button className="workspace-ask-button" aria-pressed={!panelFull} onClick={()=>{setPanelFull(value=>!value);setMobileView(panelFull?"chat":"canvas");}}><MessageSquare size={16}/><span>{panelFull?"Ask Onyx":"Hide Chat"}</span></button><details className="workspace-layout-options"><summary>Layout</summary><label className="panel-width-control">Width<input type="range" min="40" max="75" step="5" aria-label="Tool panel width" value={panelWidth} disabled={panelFull} onChange={event=>setPanelWidth(Number(event.target.value))}/></label></details><button aria-label={panelFull?"Retract tool panel":"Expand tool panel"} aria-pressed={panelFull} onClick={()=>setPanelFull(value=>!value)}>{panelFull?<Minimize2 size={16}/>:<Maximize2 size={16}/>}</button><button aria-label="Close tool panel" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><X size={16}/></button>
+            {!crmOpen&&!mailOpen&&!calendarOpen&&<button onClick={() => void copyLastAnswer()} title="Copy latest answer"><Copy size={14} />{copied ? <Check size={13} /> : null}</button>}
+            {!crmOpen&&!mailOpen&&!calendarOpen&&<button className="canvas-add-button" onClick={() => { setCalendarOpen(false);setBusinessOsOpen(false);setMailOpen(false); setCodeOpen(false); setBuildOpen(false); setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false); setArtifact({ kind: "markdown", title: "New document", content: "# New document\n\nStart writing here." }); }}><Plus size={15} /><span>New</span></button>}
           </div>
         </div>
         {(retainedApps.crm||crmOpen)&&<div className="retained-workspace-app" hidden={!crmOpen}><CrmCanvas navigation={crmNavigation} disabled={sending} onContextChange={setCrmScope}/></div>}
         {(retainedApps.mail||mailOpen)&&<div className="retained-workspace-app" hidden={!mailOpen}><MailCanvas onClose={()=>setMailOpen(false)}/></div>}
-        {crmOpen||mailOpen?null:businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : buildOpen ? <BuildTeam embedded onReviewFile={file=>{setProposedFile(file);openTool("code");}}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
+        {crmOpen||mailOpen?null:calendarOpen ? <CalendarCanvas embedded/> : businessOsOpen ? <BusinessOsCanvas workspace={cloud?.workspace_id||crmScope?.workspace_id||""} onOpen={openTool} onNavigate={view=>{setCrmNavigation({workspace:cloud?.workspace_id||crmScope?.workspace_id||"",view,revision:Date.now()});openTool("crm");}}/> : shopifyOpen ? <ShopifyCanvas/> : tmsOpen ? <TmsCanvas/> : buildOpen ? <BuildTeam embedded onReviewFile={file=>{setProposedFile(file);openTool("code");}}/> : codeOpen ? <CodeCanvas proposedFile={proposedFile} provider={codeTool} onProviderChange={setCodeTool} onRepositoryChange={setRepository} onContextChange={setCodeContext} suggestedCode={suggestedCode} onClose={() => setCodeOpen(false)} onAsk={(path, content) => { setCodeContext({path,content,repository});setInput(`Help me understand or edit ${path}.`); setMobileView("chat"); }} /> : <ArtifactCanvas artifact={artifact} onChange={setArtifact} />}
 
       </section>
 

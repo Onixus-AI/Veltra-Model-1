@@ -68,7 +68,7 @@ export function EventWhenFields({form,zones,onChange}:{form:EventForm;zones:stri
  </>;
 }
 
-export default function GoogleCalendarPanel(){
+export default function GoogleCalendarPanel({embedded=false}:{embedded?:boolean}={}){
  const [status,setStatus]=useState<CalendarStatus|null>(null),[workspaces,setWorkspaces]=useState<Workspace[]>([]),[w,setW]=useState(''),[link,setLink]=useState<CrmConnection|null>(null);
  const [error,setError]=useState(''),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false);
  const [calendar,setCalendar]=useState('primary'),[events,setEvents]=useState<CalendarEvent[]>([]),[editing,setEditing]=useState<string|null>(null),[draft,setDraft]=useState<EventForm>(()=>emptyForm('UTC')),[notify,setNotify]=useState(false),[review,setReview]=useState<CalendarReview|null>(null);
@@ -95,8 +95,9 @@ export default function GoogleCalendarPanel(){
   setEditing(e.id);setReview(null);setNotify(false);setDraft({title:e.title,description:e.description,location:e.location,all_day:e.all_day,start_date:s.date,start_time:s.time,end_date:t.date,end_time:t.time,time_zone:tz,zone_chosen:true,end_chosen:true,attendees:e.attendees.filter(a=>!a.self).map(a=>a.email).join(', ')});};
  const body=(d:EventForm)=>{const when=formWhen(d);if(when.error!==undefined)throw Error(when.error);return {title:d.title,description:d.description,location:d.location,all_day:d.all_day,start:when.start,end:when.end,time_zone:d.time_zone,attendees:d.attendees.split(/[\s,;]+/).filter(Boolean)};};
  const guests=draft.attendees.split(/[\s,;]+/).some(Boolean);
- return <main className="google-files-panel mx-auto max-w-5xl space-y-6 p-6">
- <Link href="/settings/connections">← Connections</Link><header><h1 className="text-3xl font-semibold">Google Calendar</h1><p className="mt-2 opacity-70">See your meetings, create and change events after reviewing who Google will email, and add meetings with customers to Onixus CRM.</p></header>
+ const Surface=embedded?'section':'main';
+ return <Surface className="google-files-panel mx-auto max-w-5xl space-y-6 p-6">
+ {!embedded&&<Link href="/workspace">← Workspace</Link>}<header><h1 className="text-3xl font-semibold">Google Calendar</h1><p className="mt-2 opacity-70">See your meetings, create and change events after reviewing who Google will email, and add meetings with customers to Onixus CRM.</p></header>
  {error&&<p role="alert" className="rounded border border-red-500 p-3">{error}</p>}{notice&&<p role="status" className="rounded border p-3">{notice}</p>}
  <section className="rounded-xl border p-5 space-y-3" aria-label="Google Calendar connection">
   <h2 className="text-xl font-semibold">{status?.connected?`Calendar account: ${status.account.email}`:'Connect Google Calendar'}</h2>
@@ -141,7 +142,7 @@ export default function GoogleCalendarPanel(){
   </form>
  </section>}
  {review&&<CalendarReviewDialog key={review.ticket} review={review} busy={busy} onBack={()=>setReview(null)} onConfirm={confirmed=>void act(async()=>{const ticket=review.ticket;setReview(null);try{const r=await mail<{action:string;notified:string[];crm:{recorded:boolean;reason?:string}}>('commit','POST',{ticket,confirmed:true,notify_confirmed:confirmed});setEditing(null);setNotify(false);setDraft(blank());setNotice(`${{create:'Event created',update:'Event updated',cancel:'Event cancelled'}[r.action]??'Saved'}.${r.notified.length?` Google is emailing ${r.notified.join(', ')}.`:' Nobody was emailed.'}${r.crm.recorded?' Added to Onixus CRM.':''}`);}finally{await loadEvents(calendar).catch(()=>undefined);}})}/>}
- </main>;
+ </Surface>;
 }
 function problemOf(status:CalendarStatus|null,link:CrmConnection|null){
  if(!status?.connected)return null;

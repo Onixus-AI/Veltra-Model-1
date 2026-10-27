@@ -113,3 +113,15 @@
 
 
 .suite-scope-note{font-size:10px;color:#7b959d;margin:12px 0 0;line-height:1.5}
+
+/* A readable directory of real tools, with restrained Onixus accents. */
+.suite-home{background:#080b0d}
+.suite-intro h1{font-size:clamp(34px,4vw,48px);line-height:1.12;letter-spacing:-1.5px}
+.suite-product{background:#101619;min-height:140px;align-items:flex-start;padding:24px;gap:16px}
+.suite-product p{font-size:13px;line-height:1.6;max-width:30ch}
+.suite-status{font-size:11px;line-height:1.5}
+.suite-start{background:#10191c;box-shadow:none}
+.suite-scope-note{font-size:12px;line-height:1.7;color:#a7bac0;max-width:90ch;margin-top:18px}
+@media(max-width:900px){.suite-products{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.suite-products{grid-template-columns:minmax(0,1fr)}.suite-product{min-height:122px;padding:20px}.suite-product p{max-width:none}}
+@media(prefers-reduced-motion:reduce){.suite-product{transition:none}}
