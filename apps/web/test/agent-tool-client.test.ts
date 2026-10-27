@@ -43,3 +43,14 @@ test('a model that repeats an invented Google review cannot report success witho
  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{assert.equal(input,'/api/chat');return Response.json({choices:[{message:{content:'Review proposal created. Please approve.'}}]});});
  try{const answer=await runAgentTurn([{role:'user',content:'Create a Google Doc titled Checks containing Hello'}],'fixture',{},async()=>{throw Error('No real proposal should be displayed');},()=>{},()=>{});assert.match(answer,/No Google action or review was executed/);}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('explicitly named read tools must execute in order before results are summarized',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};let turns=0;const ran:string[]=[];
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{const b=JSON.parse(String(init?.body));if(input==='/api/chat'){const expected=['mail_health','brand_list_files'][turns++];if(expected){assert.equal(b.tool_choice.function.name,expected);return Response.json({choices:[{message:{tool_calls:[{id:'r'+turns,type:'function',function:{name:expected,arguments:'{}'}}]}}]});}assert.equal(b.tool_choice,undefined);return Response.json({choices:[{message:{content:'Verified both receipts.'}}]});}ran.push(b.name);return Response.json({content:JSON.stringify({verified:true})});});
+ try{assert.equal(await runAgentTurn([{role:'user',content:'Use mail_health and brand_list_files to verify my tools'}],'fixture',{},async()=>false,()=>{},()=>{}),'Verified both receipts.');assert.deepEqual(ran,['mail_health','brand_list_files']);}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
+test('unexecuted named reads cannot become invented healthy results',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{assert.equal(input,'/api/chat');return Response.json({choices:[{message:{content:'Both tools returned healthy results.'}}]});});
+ try{const answer=await runAgentTurn([{role:'user',content:'Use mail_health to check processing'}],'fixture',{},async()=>false,()=>{},()=>{});assert.match(answer,/did not return an execution receipt/);assert.doesNotMatch(answer,/healthy/);}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
