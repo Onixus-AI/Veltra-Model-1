@@ -6,7 +6,7 @@ create table if not exists public.veltra_ai_tasks (
  completed_at timestamptz, unique(id,user_id),check(expires_at<=created_at+interval '1 hour')
 );
 create table if not exists public.veltra_ai_task_access (
- task_id uuid not null, user_id uuid not null, app text not null check(app in ('mail','crm','brain','github','vercel','supabase','railway','n8n','bee','browser','connections','shopify','tms')),
+ task_id uuid not null, user_id uuid not null, app text not null check(app in ('mail','crm','brain','github','vercel','supabase','railway','n8n','bee','browser','connections','shopify','tms','google','calendar','brand')),
  allowed boolean not null, decided_at timestamptz not null default now(), primary key(task_id,app),
  foreign key(task_id,user_id) references public.veltra_ai_tasks(id,user_id) on delete cascade
 );
@@ -37,7 +37,7 @@ begin
  end if;
  if t.completed_at is not null or t.expires_at<=now() then raise exception 'Task access has ended'; end if;
  if p_action='start' then return jsonb_build_object('task_id',t.id,'expires_at',t.expires_at); end if;
- if p_action!='decide' or p_allowed is null or p_app is null or p_app not in ('mail','crm','brain','github','vercel','supabase','railway','n8n','bee','browser','connections','shopify','tms') then raise exception 'Invalid access decision'; end if;
+ if p_action!='decide' or p_allowed is null or p_app is null or p_app not in ('mail','crm','brain','github','vercel','supabase','railway','n8n','bee','browser','connections','shopify','tms','google','calendar','brand') then raise exception 'Invalid access decision'; end if;
  insert into public.veltra_ai_task_access(task_id,user_id,app,allowed) values(p_task,owner_id,p_app,p_allowed) on conflict(task_id,app) do nothing;
  select allowed into decision from public.veltra_ai_task_access where task_id=p_task and user_id=owner_id and app=p_app;
  return jsonb_build_object('app',p_app,'allowed',decision,'task_id',p_task,'expires_at',t.expires_at);
