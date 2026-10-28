@@ -14,6 +14,9 @@ with sync_playwright() as p:
   url=urlparse(route.request.url);table=url.path.split('/')[-1];query=parse_qs(url.query)
   if url.path=='/auth/v1/user':return route.fulfill(json=session['user'])
   if table=='crm_workspaces':return route.fulfill(json=[{'id':W,'name':'Test business','industry':'Logistics'}])
+  if table=='crm_customers' and route.request.method=='HEAD':
+   assert query.get('workspace_id')==['eq.'+W]
+   return route.fulfill(status=200,headers={'content-range':'0-0/92258'})
   if table=='crm_customers':
    customer_queries.append(query)
    assert query.get('workspace_id')==['eq.'+W]
