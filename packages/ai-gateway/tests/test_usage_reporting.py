@@ -22,7 +22,7 @@ class UsageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(apps['crm']['credits'],3)
         self.assertEqual(apps['mail']['coverage'],'no_attributed_records')
         self.assertEqual(len(result['ledger']),1)
-        self.assertEqual(len(result['consumption']),30)
+        self.assertEqual(len(result['consumption']),31)
         self.assertEqual(sum(d['credits'] for d in result['consumption']),result['used'])
         day=next(d for d in result['consumption'] if d['date']=='2026-10-27')
         self.assertEqual(day['apps']['chat'],7)
@@ -58,3 +58,21 @@ class UsageTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(apps['chat']['legacy_credits'],0)
         self.assertEqual(apps['unassigned']['credits'],5)
         self.assertEqual(result['used'],35)
+
+    async def test_selected_month_is_bounded_and_day_filters_receipts_only(self):
+        calls=[]
+        async def db(table,params):
+            calls.append(params)
+            if table!='usage_logs':return []
+            return [{'id':'first','category':'workspace.chat','credits_deducted':5,'created_at':'2024-02-01T00:00:00Z'}, {'id':'last','category':'workspace.crm','credits_deducted':7,'created_at':'2024-02-29T23:59:59Z'}]
+        result=await usage_report(db,'org',month='2024-02',day='2024-02-29')
+        self.assertEqual(len(result['consumption']),29)
+        self.assertEqual(result['used'],12)
+        self.assertEqual(result['event_count'],2)
+        self.assertEqual(result['filtered_event_count'],1)
+        self.assertEqual(result['events'][0]['id'],'last')
+        for params in calls:
+            self.assertEqual(params['created_at'],'gte.2024-02-01T00:00:00+00:00')
+            self.assertEqual(params['and'],'(created_at.lt.2024-03-01T00:00:00+00:00)')
+        for month,day in [('2024-13',None),('2024-2',None),('2024-02','2024-02-30'),('2024-02','2024-03-01')]:
+            with self.assertRaises(ValueError):await usage_report(db,'org',month=month,day=day)
