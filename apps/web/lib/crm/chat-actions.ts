@@ -60,16 +60,21 @@ export async function runCrmChat(o:{client:SupabaseClient;user:string;scope:CrmS
  }
  if(readActions.has(plan.action)){
   if(review)throw new Error('400:Read actions cannot be confirmed.');
-  let details:unknown,pagination:CrmReply['pagination'];
+  let details:unknown,pagination:CrmReply['pagination'],counts:Record<string,number|null>|undefined;
   const page=async(q:PromiseLike<{data:unknown;error:unknown;count?:number|null}>,limit:number)=>{const r=await q;if(r.error)throw r.error;const records=Array.isArray(r.data)?r.data:[];pagination={total:r.count??null,returned:records.length,limit,has_more:r.count!=null?r.count>records.length:records.length===limit};return records;};
   if(plan.action==='help')return {kind:'result',reply:help};
   if(plan.action==='customers'){let q=inScope('crm_customers','id,company,name,email,suppressed',true);if(plan.args.query)q=q.ilike('company','%'+String(plan.args.query).replace(/[%_\\]/g,'\\$&')+'%');details=await page(q.order('company').order('id').limit(100),100);}
   if(['tasks','overdue'].includes(plan.action)){let q=inScope('crm_tasks','id,customer_id,title,due_at,status',true).eq('status','open');if(plan.action==='overdue')q=q.lt('due_at',new Date(now).toISOString());details=await page(q.order('due_at').order('id').limit(100),100);}
   if(plan.action==='pipeline')details=await rows(inScope('crm_deals','id,customer_id,title,stage,value_cents,currency').order('created_at',{ascending:false}).limit(100));
   if(plan.action==='history')details=await rows(inScope('crm_activity','id,customer_id,kind,title,created_at').order('created_at',{ascending:false}).limit(50));
-  if(plan.action==='summary')details={customers:await rows(inScope('crm_customers','id,company,name,email,suppressed').limit(100)),tasks:await rows(inScope('crm_tasks','id,customer_id,title,due_at,status').eq('status','open').limit(100)),deals:await rows(inScope('crm_deals','id,customer_id,title,stage,value_cents,currency').limit(100)),memories:await rows(inScope('crm_memories','customer_id,content,source,expires_at').eq('status','approved').or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`).limit(30))};
+  if(plan.action==='summary'){
+   const queries=[inScope('crm_customers','id,company,name,email,suppressed',true).limit(100),inScope('crm_tasks','id,customer_id,title,due_at,status',true).eq('status','open').order('due_at').limit(100),inScope('crm_deals','id,title,stage,value_cents,currency',true).limit(100),inScope('crm_memories','id,customer_id,content,source,expires_at',true).eq('status','approved').or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`).limit(30)];
+   const results=await Promise.all(queries);for(const result of results)if(result.error)throw result.error;
+   const names=['customers','open_tasks','deals','approved_memories'];counts=Object.fromEntries(results.map((r,i)=>[names[i],r.count??null]));
+   details={customers:results[0].data??[],tasks:results[1].data??[],deals:results[2].data??[],memories:results[3].data??[],counts};
+  }
   if(plan.action==='outreach'){if(!o.outreach)throw new Error('503:Outreach is not configured.');details=await o.outreach();}
-  return {kind:'result',reply:`CRM ${plan.action} · current workspace${scope.customer_id?' / selected customer':''}. ${pagination?`${pagination.total??'Unknown'} total matching records; ${pagination.returned} returned (limit ${pagination.limit}). ${pagination.has_more?'More records exist; do not treat this page as the full backlog.':''}`:'Results are bounded; this is not an exhaustive export.'}`,details,...(pagination?{pagination}:{}),observed_at:new Date(now).toISOString()};
+  return {kind:'result',reply:`CRM ${plan.action} · current workspace${scope.customer_id?' / selected customer':''}. ${pagination?`${pagination.total??'Unknown'} total matching records; ${pagination.returned} returned (limit ${pagination.limit}). ${pagination.has_more?'More records exist; do not treat this page as the full backlog.':''}`:counts?`Exact totals: ${Object.entries(counts).map(([key,value])=>`${key}: ${value??'unknown'}`).join('; ')}. Returned record lists are bounded samples.`:'Results are bounded; this is not an exhaustive export.'}`,details,...(pagination?{pagination}:{}),observed_at:new Date(now).toISOString()};
  }
  if(!['owner','member'].includes(membership.role))throw new Error('403:Your CRM role is read-only.');
  if(plan.action!=='create_customer'&&!['pause_campaign','activate_campaign'].includes(plan.action)&&!scope.customer_id)throw new Error('400:Select the customer before changing their records.');
