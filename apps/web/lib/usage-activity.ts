@@ -18,10 +18,15 @@ export async function usageActivity(request:Request,period:{month:string;since:s
    if(owned.error||!owned.data)throw Error('Linked workspace is not owned by this account');
    const scope=(table:string,fields:string,head=false)=>client.from(table).select(fields,{count:'exact',head}).eq('workspace_id',mail.workspace_id).gte('created_at',period.since).lt('created_at',period.period_end);
    const count=await scope('crm_customers','id',true);if(count.error)throw count.error;
-   let events=0,total:number|null=null;
-   for(let offset=0;offset<10000;offset+=500){const result=await scope('crm_activity','id,created_at').order('created_at').order('id').range(offset,offset+499);if(result.error)throw result.error;total=result.count;const rows=(result.data??[]) as unknown as {id:string;created_at:string}[];events+=rows.length;for(const row of rows){const date=new Date(row.created_at).toISOString().slice(0,10);daily[date]??={};daily[date].crm=(daily[date].crm??0)+1;}if(rows.length<500)break;}
-   if(total!=null&&events<total)warnings.push('CRM daily activity is capped at 10,000 events; the total remains exact.');
-   activity.crm={status:'verified',operations:total??events,records_created:count.count??0,note:'CRM activity events and records created in the linked, owned workspace. These operations are distinct from wallet-billed model requests.'};
+   let events=0;
+   const dates:string[]=[];for(let at=Date.parse(period.since);at<Date.parse(period.period_end);at+=86400000)dates.push(new Date(at).toISOString().slice(0,10));
+   // Count each UTC day on the server: large imports must not truncate the chart or download customer events.
+   for(let offset=0;offset<dates.length;offset+=5){const counts=await Promise.all(dates.slice(offset,offset+5).map(async date=>{
+    const next=new Date(Date.parse(date+'T00:00:00Z')+86400000).toISOString();
+    const result=await client.from('crm_activity').select('id',{count:'exact',head:true}).eq('workspace_id',mail.workspace_id).gte('created_at',date+'T00:00:00Z').lt('created_at',next);
+    if(result.error||result.count==null)throw result.error??Error('CRM count unavailable');return {date,count:result.count};
+   }));for(const row of counts){events+=row.count;daily[row.date]??={};daily[row.date].crm=row.count;}}
+   activity.crm={status:'verified',operations:events,records_created:count.count??0,note:'CRM activity events and records created in the linked, owned workspace. These operations are distinct from wallet-billed model requests.'};
   }
  }catch{if(activity.crm.status!=='verified')for(const row of Object.values(daily))delete row.crm;warnings.push('Some app activity could not be verified. Unavailable activity is not reported as zero.');}
  return {activity,activity_daily:daily,activity_warnings:warnings};

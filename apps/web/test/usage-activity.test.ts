@@ -8,12 +8,12 @@ test('activity counts use the signed-in Mail account and an owned CRM workspace,
   if(url.hostname==='mail.example.test')return Response.json({month:'2026-10',operations:20,model_requests:2,known_tokens:100,workspace_id:workspace,daily:[{date:'2026-10-27',operations:20}]});
   if(url.pathname==='/auth/v1/user')return Response.json({id:user,is_anonymous:false});
   if(url.pathname.endsWith('crm_workspaces')){assert.equal(url.searchParams.get('owner_id'),'eq.'+user);return Response.json(owned?{id:workspace}:null);}
-  assert.equal(url.searchParams.get('workspace_id'),'eq.'+workspace);assert.equal(url.searchParams.get('created_at'),'gte.2026-10-01T00:00:00Z');assert.match(url.search,/lt\./);
+  assert.equal(url.searchParams.get('workspace_id'),'eq.'+workspace);assert.match(url.searchParams.get('created_at')??'',/^gte\.2026-10-/);assert.match(url.search,/lt\./);
   if(url.pathname.endsWith('crm_customers'))return new Response(null,{headers:{'Content-Range':'0-8/9'}});
-  return Response.json([{id:'event',created_at:'2026-10-27T12:00:00Z'}],{headers:{'Content-Range':'0-0/1'}});
+  assert.equal(init?.method,'HEAD');return new Response(null,{headers:{'Content-Range':url.searchParams.get('created_at')==='gte.2026-10-27T00:00:00Z'?'0-95001/95002':'*/0'}});
  });
  try{const request=new Request('https://workspace.example/api/usage?workspace_id=hostile',{headers:{Authorization:'Bearer fixture-user'}}),period={month:'2026-10',since:'2026-10-01T00:00:00Z',period_end:'2026-11-01T00:00:00Z'};
-  const result=await usageActivity(request,period);assert.equal(result.activity.mail.operations,20);assert.equal(result.activity.crm.operations,1);assert.equal(result.activity.crm.records_created,9);assert.equal(result.activity_daily['2026-10-27'].mail,20);assert.equal(result.activity_daily['2026-10-27'].crm,1);
+  const result=await usageActivity(request,period);assert.equal(result.activity.mail.operations,20);assert.equal(result.activity.crm.operations,95002);assert.equal(result.activity.crm.records_created,9);assert.equal(result.activity_daily['2026-10-27'].mail,20);assert.equal(result.activity_daily['2026-10-27'].crm,95002);
   owned=false;const denied=await usageActivity(request,period);assert.equal(denied.activity.mail.status,'verified');assert.equal(denied.activity.crm.status,'unavailable');assert.equal(denied.activity_daily['2026-10-27'].crm,undefined);
  }finally{mock.mock.restore();keys.forEach((k,i)=>{if(old[i]===undefined)delete process.env[k];else process.env[k]=old[i];});}
 });
