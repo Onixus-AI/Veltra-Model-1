@@ -4,7 +4,7 @@ function record(value:unknown):string{
  if(!value||typeof value!=='object')return clean(value);
  const row=value as Record<string,unknown>;
  const parts=['company','name','email','title','content','subject','body','stage','status','due_at','source','kind','source_app','source_ref','revision','expires_at','created_at'].filter(key=>row[key]!==undefined&&row[key]!==null&&row[key]!=='').map(key=>`${key==='due_at'?'Due':key==='created_at'?'Recorded':key.replaceAll('_',' ')}: ${clean(row[key])}`);
- if(row.source_app&&row.id)parts.unshift('Memory ID: '+clean(row.id));
+ if(row.id)parts.unshift((row.source_app?'Memory ID: ':'Record ID: ')+clean(row.id));
  if(typeof row.value_cents==='number')parts.push(`Value: ${(row.value_cents/100).toFixed(2)} ${clean(row.currency??'USD')}`);
  if(row.suppressed===true)parts.push('Outreach stopped');
  return parts.join(' · ')||'Saved record';
