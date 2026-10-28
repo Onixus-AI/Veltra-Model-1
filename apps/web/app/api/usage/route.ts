@@ -1,3 +1,4 @@
+import {usageActivity} from '@/lib/usage-activity';
 import { NextRequest } from "next/server";
 import { gatewayAuthorization, gatewayUrl } from "@/lib/gateway";
 
@@ -16,8 +17,8 @@ export async function GET(request: NextRequest) {
     cache: "no-store",
   });
 
-  return new Response(upstream.body, {
-    status: upstream.status,
-    headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" },
-  });
+  if(!upstream.ok||!process.env.VELTRA_MAIL_URL)return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':upstream.headers.get('content-type')??'application/json','Cache-Control':'no-store'}});
+  const body=await upstream.json();
+  const observed=await usageActivity(request,body);
+  return Response.json({...body,...observed},{headers:{'Cache-Control':'no-store'}});
 }

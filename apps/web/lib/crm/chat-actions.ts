@@ -1,7 +1,7 @@
 import type {SupabaseClient} from '@supabase/supabase-js';
 export type CrmScope={workspace_id:string;customer_id?:string|null};
 export type CrmPlan={action:string;args:Record<string,unknown>};
-export type CrmReply={kind:'result'|'preview';reply:string;review_id?:string;details?:unknown;changed?:boolean};
+export type CrmReply={kind:'result'|'preview';reply:string;review_id?:string;details?:unknown;changed?:boolean;pagination?:{total:number|null;returned:number;limit:number;has_more:boolean};observed_at?:string};
 export const validId=(value:unknown):value is string=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
 const stages=['new','qualified','meeting','proposal','won','lost'];
 const help='I can show customers, open or overdue tasks, pipeline and customer history; add customers, tasks, opportunities and proposed memories; complete tasks, update deal stages and suppress outreach. I can also show outreach campaigns and review campaign pause or activation. Select a workspace and, for customer work, a customer. Changes are previewed before confirmation.';
@@ -46,7 +46,7 @@ export async function runCrmChat(o:{client:SupabaseClient;user:string;scope:CrmS
  const membership=await rows(client.from('crm_memberships').select('role').eq('workspace_id',scope.workspace_id).eq('user_id',user).maybeSingle()) as {role:string}|null;
  if(!membership)throw new Error('403:You do not have access to this workspace.');
  if(scope.customer_id){const c=await rows(client.from('crm_customers').select('id').eq('workspace_id',scope.workspace_id).eq('id',scope.customer_id).maybeSingle());if(!c)throw new Error('404:Customer not found in this workspace.');}
- const inScope=(table:string,fields='*')=>{let q=client.from(table).select(fields).eq('workspace_id',scope.workspace_id);if(scope.customer_id)q=q.eq(table==='crm_customers'?'id':'customer_id',scope.customer_id);return q;};
+ const inScope=(table:string,fields='*',count=false)=>{let q=client.from(table).select(fields,count?{count:'exact'}:{}).eq('workspace_id',scope.workspace_id);if(scope.customer_id)q=q.eq(table==='crm_customers'?'id':'customer_id',scope.customer_id);return q;};
  let plan:CrmPlan,review:{id:string;record_id:string;before?:unknown}|undefined;
  if(o.review_id){
   if(!validId(o.review_id))throw new Error('400:Invalid action review.');
@@ -60,15 +60,21 @@ export async function runCrmChat(o:{client:SupabaseClient;user:string;scope:CrmS
  }
  if(readActions.has(plan.action)){
   if(review)throw new Error('400:Read actions cannot be confirmed.');
-  let details:unknown;
+  let details:unknown,pagination:CrmReply['pagination'],counts:Record<string,number|null>|undefined;
+  const page=async(q:PromiseLike<{data:unknown;error:unknown;count?:number|null}>,limit:number)=>{const r=await q;if(r.error)throw r.error;const records=Array.isArray(r.data)?r.data:[];pagination={total:r.count??null,returned:records.length,limit,has_more:r.count!=null?r.count>records.length:records.length===limit};return records;};
   if(plan.action==='help')return {kind:'result',reply:help};
-  if(plan.action==='customers'){let q=inScope('crm_customers','id,company,name,email,suppressed');if(plan.args.query)q=q.ilike('company','%'+String(plan.args.query).replace(/[%_\\]/g,'\\$&')+'%');details=await rows(q.order('company').limit(100));}
-  if(['tasks','overdue'].includes(plan.action)){let q=inScope('crm_tasks','id,customer_id,title,due_at,status').eq('status','open');if(plan.action==='overdue')q=q.lt('due_at',new Date(now).toISOString());details=await rows(q.order('due_at').limit(100));}
+  if(plan.action==='customers'){let q=inScope('crm_customers','id,company,name,email,suppressed',true);if(plan.args.query)q=q.ilike('company','%'+String(plan.args.query).replace(/[%_\\]/g,'\\$&')+'%');details=await page(q.order('company').order('id').limit(100),100);}
+  if(['tasks','overdue'].includes(plan.action)){let q=inScope('crm_tasks','id,customer_id,title,due_at,status',true).eq('status','open');if(plan.action==='overdue')q=q.lt('due_at',new Date(now).toISOString());details=await page(q.order('due_at').order('id').limit(100),100);}
   if(plan.action==='pipeline')details=await rows(inScope('crm_deals','id,customer_id,title,stage,value_cents,currency').order('created_at',{ascending:false}).limit(100));
   if(plan.action==='history')details=await rows(inScope('crm_activity','id,customer_id,kind,title,created_at').order('created_at',{ascending:false}).limit(50));
-  if(plan.action==='summary')details={customers:await rows(inScope('crm_customers','id,company,name,email,suppressed').limit(100)),tasks:await rows(inScope('crm_tasks','id,customer_id,title,due_at,status').eq('status','open').limit(100)),deals:await rows(inScope('crm_deals','id,customer_id,title,stage,value_cents,currency').limit(100)),memories:await rows(inScope('crm_memories','customer_id,content,source,expires_at').eq('status','approved').or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`).limit(30))};
+  if(plan.action==='summary'){
+   const queries=[inScope('crm_customers','id,company,name,email,suppressed',true).limit(100),inScope('crm_tasks','id,customer_id,title,due_at,status',true).eq('status','open').order('due_at').limit(100),inScope('crm_deals','id,title,stage,value_cents,currency',true).limit(100),inScope('crm_memories','id,customer_id,content,source,expires_at',true).eq('status','approved').or(`expires_at.is.null,expires_at.gt.${new Date(now).toISOString()}`).limit(30)];
+   const results=await Promise.all(queries);for(const result of results)if(result.error)throw result.error;
+   const names=['customers','open_tasks','deals','approved_memories'];counts=Object.fromEntries(results.map((r,i)=>[names[i],r.count??null]));
+   details={customers:results[0].data??[],tasks:results[1].data??[],deals:results[2].data??[],memories:results[3].data??[],counts};
+  }
   if(plan.action==='outreach'){if(!o.outreach)throw new Error('503:Outreach is not configured.');details=await o.outreach();}
-  return {kind:'result',reply:`CRM ${plan.action} · current workspace${scope.customer_id?' / selected customer':''}. Results are bounded; this is not an exhaustive export.`,details};
+  return {kind:'result',reply:`CRM ${plan.action} · current workspace${scope.customer_id?' / selected customer':''}. ${pagination?`${pagination.total??'Unknown'} total matching records; ${pagination.returned} returned (limit ${pagination.limit}). ${pagination.has_more?'More records exist; do not treat this page as the full backlog.':''}`:counts?`Exact totals: ${Object.entries(counts).map(([key,value])=>`${key}: ${value??'unknown'}`).join('; ')}. Returned record lists are bounded samples.`:'Results are bounded; this is not an exhaustive export.'}`,details,...(pagination?{pagination}:{}),observed_at:new Date(now).toISOString()};
  }
  if(!['owner','member'].includes(membership.role))throw new Error('403:Your CRM role is read-only.');
  if(plan.action!=='create_customer'&&!['pause_campaign','activate_campaign'].includes(plan.action)&&!scope.customer_id)throw new Error('400:Select the customer before changing their records.');

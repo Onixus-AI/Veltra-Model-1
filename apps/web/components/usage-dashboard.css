@@ -11,3 +11,5 @@
 @media(max-width:760px){.usage-bars small{display:block;font-size:8px}.usage-bars>div:not(:nth-child(5n)):not(:first-child):not(:last-child) small{display:none}}
 @media(max-width:430px){.usage-apps>div{grid-template-columns:minmax(0,1fr)}}
 .usage-period-content>*{min-width:0;max-width:100%}
+
+.usage-activity-total{display:block;font-size:11px;margin-top:12px;color:#dbe5e8}.usage-activity-total>strong{font-size:19px;font-weight:500}.usage-mode{display:flex;gap:8px;margin-top:14px}.usage-mode button{font-size:12px}.usage-mode button[aria-pressed=true]{border-color:#00e5ef;color:#00e5ef}
