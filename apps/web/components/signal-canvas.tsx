@@ -5,7 +5,7 @@ import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 const SIGNAL='https://www.onixus.xyz';
 export default function SignalCanvas({workspace:initial='',onClose}:{workspace?:string;onClose?:()=>void}){
  const frame=useRef<HTMLIFrameElement>(null),[spaces,setSpaces]=useState<{id:string;name:string}[]>([]),[workspace,setWorkspace]=useState(initial),[error,setError]=useState(''),[attempt,setAttempt]=useState(0),[opening,setOpening]=useState(true);
- useEffect(()=>{if(initial)setWorkspace(initial);},[initial]);
+ useEffect(()=>{const selected=initial||new URLSearchParams(window.location.search).get('crm_workspace')||'';if(selected)setWorkspace(selected);},[initial]);
  useEffect(()=>{let live=true;void(async()=>{try{const r=await fetch('/api/crm/workspaces',{headers:await gatewayAuthorizationHeaders(),cache:'no-store'});const d=await r.json();if(!r.ok)throw Error('Businesses could not load.');if(live){setSpaces(d.workspaces??[]);setWorkspace(current=>d.workspaces?.some((s:{id:string})=>s.id===current)?current:d.workspaces?.length===1?d.workspaces[0].id:'');}}catch{if(live){setError('Businesses could not load. Check your Workspace sign-in.');setOpening(false);}}})();return()=>{live=false;};},[]);
  useEffect(()=>{if(!workspace)return;let active=true,requested=false;const controller=new AbortController();setError('');setOpening(true);
   const receive=async(event:MessageEvent)=>{
