@@ -203,7 +203,8 @@ begin
     perform revenue_private.transition_message(prior.id,'cancelled',jsonb_build_object('failure',jsonb_build_object('reason','customer_replied')),'email.cancelled','Follow-up cancelled because the customer replied','automation','system','email.cancelled:'||prior.id);
     update public.revenue_jobs set status='cancelled',cancel_reason='Customer replied',finished_at=now(),updated_at=now() where message_id=prior.id and status='queued';
    end loop;
-   if c is not null then
+   if c is not null and not exists(select 1 from public.crm_mail_threads
+     where workspace_id=w and account_id=p_account and thread_id=th and last_outbound_at>at) then
     insert into public.crm_tasks(workspace_id,customer_id,title,due_at,kind,action_key,source_event_id)
     values(w,c,left('Reply: '||coalesce(nullif(p_event->>'subject',''),'customer email'),300),at+interval '1 day','follow_up',md5('reply:'||p_account||':'||th)::uuid,null)
     on conflict(workspace_id,action_key) do update set status='open',due_at=least(public.crm_tasks.due_at,excluded.due_at),completed_at=null;
@@ -222,7 +223,20 @@ begin
          in_reply_to,message_id_header,references_header)
   values(w,c,p_account,th,'outbound','reply','provider_accepted',lower(p_event->>'to'),lower(p_event->>'from_email'),left(coalesce(p_event->>'subject',''),500),left(coalesce(p_event->>'text',''),100000),'external',pid,at,'observed:'||p_account||':'||pid,at,
          irt,mid,refs) returning id into m;
-  update public.crm_mail_threads set last_outbound_at=greatest(coalesce(last_outbound_at,at),at),state='waiting_on_customer',last_event_at=greatest(last_event_at,at) where workspace_id=w and account_id=p_account and thread_id=th;
+  update public.crm_mail_threads set last_outbound_at=greatest(coalesce(last_outbound_at,at),at),
+   state=case when last_inbound_at>at then state else 'waiting_on_customer' end,last_event_at=greatest(last_event_at,at) where workspace_id=w and account_id=p_account and thread_id=th;
+  -- Only a provider-observed reply after the latest incoming message completes this thread's task.
+  for j in update public.crm_tasks task set status='done',completed_at=now()
+   where task.workspace_id=w and task.action_key=md5('reply:'||p_account||':'||th)::uuid
+    and task.status='open' and task.created_at<=at
+    and exists(select 1 from public.crm_mail_threads h where h.workspace_id=w
+     and h.account_id=p_account and h.thread_id=th and h.last_inbound_at<=at)
+   returning task.id,task.customer_id loop
+   perform revenue_private.record_event(w,j.customer_id,null,'task.completed','gmail','provider',pid,at,
+    'completed','task',j.id,'Reply task completed: Gmail provider receipt recorded',
+    jsonb_build_object('message_id',m,'provider_message_id',pid),jsonb_build_object('thread_id',th,'account_id',p_account),
+    'task.completed:observed:'||j.id||':'||pid);
+  end loop;
   perform revenue_private.record_event(w,c,null,'email.sent_outside','gmail','user','Sent from the mailbox directly',at,'provider_accepted','message',m,'Reply sent from Gmail directly (not through Onixus Mail)','{}',jsonb_build_object('thread_id',th),'email.observed:'||p_account||':'||pid);
   return jsonb_build_object('duplicate',false,'message_id',m);
  elsif ty='message.bounced' then

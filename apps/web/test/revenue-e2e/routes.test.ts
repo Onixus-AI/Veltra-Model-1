@@ -205,3 +205,38 @@ test('provider callbacks and cron: forms, Stripe and the worker refuse missing c
   setEnv({REVENUE_WORKER_TOKEN: randomBytes(32).toString('hex')});
   failsWith(await cron(secret), 401, /Worker is not authorized/);
 });
+
+
+test('Gmail-observed replies complete only current thread tasks; late history cannot reopen them', {skip}, async () => {
+  const thread = `reconcile-${randomUUID()}`;
+  const base = Date.now();
+  const ingest = (id: string, seconds: number, type = 'message.inbound') =>
+    pgStore(pool, null).rpc('revenue_ingest_mail_event', {p_account: A, p_token: MAIL_TOKEN, p_event: {
+      type, thread_id: thread, provider_message_id: id, to: 'sales@routes.test',
+      from_email: 'lee@routes.test', from_name: 'Lee Park', subject: 'Reconciliation', text: 'Hello',
+      occurred_at: new Date(base + seconds * 1000).toISOString()}});
+  const task = async () => (await pool.query(`select status,completed_at from public.crm_tasks
+    where workspace_id=$1 and action_key=md5('reply:'||$2::text||':'||$3)::uuid`, [W, A, thread])).rows[0];
+  const state = async () => (await pool.query(`select state from public.crm_mail_threads
+    where workspace_id=$1 and account_id=$2 and thread_id=$3`, [W, A, thread])).rows[0].state;
+  const prefix = randomUUID();
+  await ingest(`${prefix}-in`, -60);
+  assert.equal((await task()).status, 'open');
+  await ingest(`${prefix}-out`, 1, 'message.outbound_observed');
+  assert.equal((await task()).status, 'done');
+  assert.ok((await task()).completed_at);
+  assert.equal(await state(), 'waiting_on_customer');
+  const receipt = await pool.query(`select detail from public.revenue_events
+    where workspace_id=$1 and kind='task.completed' and detail->>'provider_message_id'=$2`, [W, `${prefix}-out`]);
+  assert.equal(receipt.rows.length, 1, 'completion has an actual provider receipt');
+  await ingest(`${prefix}-out`, 1, 'message.outbound_observed');
+  await ingest(`${prefix}-old-in`, -30);
+  assert.equal((await task()).status, 'done', 'late inbound predating reply does not reopen');
+  await ingest(`${prefix}-new-in`, 3);
+  assert.equal((await task()).status, 'open', 'new customer reply reopens task');
+  await ingest(`${prefix}-old-out`, 2, 'message.outbound_observed');
+  assert.equal((await task()).status, 'open', 'outbound predating latest inbound cannot complete task');
+  assert.equal(await state(), 'waiting_on_us');
+  await ingest(`${prefix}-new-out`, 4, 'message.outbound_observed');
+  assert.equal((await task()).status, 'done');
+});
