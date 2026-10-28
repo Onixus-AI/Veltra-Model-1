@@ -3,6 +3,8 @@ import {trashCriteria} from './trash-criteria';
 export type MailIntent={tool:string;arguments:Record<string,unknown>};
 export function mailIntent(text:string):MailIntent|null{
  if(text.length>2000)return null;
+ const approval=/^(?:please )?(check|inspect|show|clear|reconcile) (?:my |our )?(?:(?:already[- ]sent|sent) )?(?:mail )?approval queue[.!]?$/i.exec(text.trim());
+ if(approval)return {tool:'reconcile_mail_approvals',arguments:{apply:/clear|reconcile/i.test(approval[1])}};
  if(trashCriteria(text))return {tool:'trash_old_mail',arguments:{instruction:text}};
  const cleanup=/^(?:please )?(show|check|retry) (?:mail )?cleanup ([a-f0-9-]{36})[.!]?$/i.exec(text.trim());if(cleanup)return {tool:cleanup[1].toLowerCase()==='retry'?'retry_mail_cleanup':'mail_cleanup_status',arguments:{operation_id:cleanup[2]}};
  if(/\b(quote|quotation|rate)s?\b/i.test(text)&&/no (?:response|reply)|unanswered|without (?:a )?(?:reply|response)/i.test(text))return {tool:'find_unanswered_quotes',arguments:{days:0}};
@@ -15,8 +17,13 @@ export function mailIntent(text:string):MailIntent|null{
 }
 const plain=(value:unknown,max=350)=>String(value??'').slice(0,max).replace(/[\r\n]+/g,' ').replace(/[\\`*_{}\[\]()#+.!<>|]/g,'\\$&');
 export function mailReceipt(tool:string,value:any):string{
+ if(tool==='reconcile_mail_approvals'){
+  if(value?.status!=='completed'||typeof value.operation_id!=='string'||!Array.isArray(value.items)||!Number.isInteger(value.cleared)||!Number.isInteger(value.remaining))throw Error('502:Mail returned no valid reconciliation receipt. Queue completion is unverified.');
+  return `Approval queue checked: ${value.checked}. Confirmed sent and cleared: ${value.cleared}. Still queued: ${value.remaining}.\n\nOperation: ${plain(value.operation_id)}\n${value.items.map((i:any)=>`- ${plain(i.subject??i.id)} — ${plain(i.status)}. ${plain(i.reason)}${i.evidence?.provider_message_id?' Provider message: '+plain(i.evidence.provider_message_id):''}`).join('\n')}\n\nNo email was sent or retried. Unverified entries stay queued; archived records retain their evidence.`;
+ }
  if(['trash_old_mail','mail_cleanup_status','retry_mail_cleanup'].includes(tool))return `Mail cleanup: ${plain(value?.status)}\n\nMailbox: ${plain(value?.mailbox)}\nCutoff: strictly before ${plain(value?.cutoff)} (UTC)\nOperation: ${plain(value?.operation_id)}\n\nMatched so far: ${Number(value?.matched??0)}; confirmed moved: ${Number(value?.moved??0)}; already in Trash: ${Number(value?.already_trashed??0)}; no longer matching: ${Number(value?.not_matching??0)}; missing: ${Number(value?.missing??0)}; failed: ${Number(value?.failed??0)}; uncertain: ${Number(value?.uncertain??0)}; remaining: ${Number(value?.pending??0)}.\n\n${value?.discovery_complete?'Discovery is complete.':'Discovery is still running; these are not final totals.'} ${value?.status==='completed'?'The operation is complete.':value?.status==='partial'||value?.status==='blocked'?'Some work could not be confirmed. Request “retry mail cleanup '+plain(value?.operation_id)+'” to retry the same cutoff.':'Work continues in Mail. Ask “show mail cleanup '+plain(value?.operation_id)+'” for progress.'} Recoverable Trash only; permanent deletion was not requested or performed.`;
  const scope=plain(value?.scope??'Your connected Onixus Mail account.');
+ if(tool==='prepare_quote_followups'&&!Array.isArray(value?.drafted))throw Error('502:No valid draft-preparation receipt was returned. Nothing is confirmed prepared.');
  if(tool==='prepare_quote_followups')return `Prepared ${Array.isArray(value?.drafted)?value.drafted.length:0} quote follow-up draft(s). Open Onixus Mail → Approval queue to review them. No email was sent.\n\n${scope}`;
  const items=Array.isArray(value)?value:Array.isArray(value?.items)?value.items:[];
  const heading=tool==='quote_feedback'?'Tracked quote feedback':tool==='find_unanswered_quotes'?'Unanswered quote candidates':tool==='list_sender_folders'?'Sender folders':'Mail search results';
