@@ -70,6 +70,7 @@ before(async () => {
     assert.equal(url.pathname, '/v1/chat/completions');
     const body = JSON.parse(String(init?.body));
     const planner = body.response_format?.type === 'json_object';
+    assert.equal(body.usage_app,planner?'crm':'chat');
     gateway.push({planner, body});
     return Response.json({choices: [{index: 0, message: {role: 'assistant', content: planner ? JSON.stringify(plannerReply) : 'model reply'}}]});
   });
