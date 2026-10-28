@@ -9,3 +9,4 @@
 @media(max-width:1000px){.usage-layout{grid-template-columns:220px minmax(0,1fr);gap:16px}.usage-apps>div{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:760px){.usage-layout{grid-template-columns:minmax(0,1fr)}.usage-calendar{position:static;max-width:none}.usage-calendar-grid{max-width:340px;margin:auto}.usage-calendar-days>button{padding-top:10px;padding-bottom:14px}.usage-calendar-weekdays{font-size:12px}.usage-calendar-heading h3{font-size:17px}}
 
 @media(max-width:760px){.usage-bars small{display:block;font-size:8px}.usage-bars>div:not(:nth-child(5n)):not(:first-child):not(:last-child) small{display:none}}
+@media(max-width:430px){.usage-apps>div{grid-template-columns:minmax(0,1fr)}}
