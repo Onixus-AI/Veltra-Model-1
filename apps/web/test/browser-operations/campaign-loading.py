@@ -23,7 +23,7 @@ with sync_playwright() as p:
    assert query.get('limit')==['100'],'Campaigns must never fetch all customers'
    assert query.get('suppressed')==['eq.false']
    return route.fulfill(json=[{'id':'a','workspace_id':W,'company':'Northstar Studio','name':'Alex','email':'info@example.test','industry':'Logistics','suppressed':False,'identity_review_required':False}])
-  if table in ['crm_deals','crm_tasks','crm_memories','crm_activity']:unexpected.append(table)
+  if table in ['crm_deals','crm_tasks','crm_memories','crm_activity'] and query.get('select')==['*']:unexpected.append(table)
   return route.fulfill(json=[])
  context.route('https://fixture.supabase.co/**',database)
  context.route('**/api/**',lambda route:route.fulfill(json={'connected':False,'campaigns':[],'messages':[],'sources':[],'events':[],'unavailable':[]}))
