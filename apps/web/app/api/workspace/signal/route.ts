@@ -26,3 +26,10 @@ async function handle(request:Request){try{
  return Response.json({connection},{headers:noStore});
  }catch(e){return crmError(e);}}
 export const POST=handle;export const DELETE=handle;
+
+export async function GET(request:Request){try{
+ const {client}=await crmUser(request);
+ const {data,error}=await client.from('crm_signal_connections').select('workspace_id,business_name,signal_client_id,connected_at');
+ if(error)throw Error('503:Signal connection status is unavailable.');
+ return Response.json({connections:data??[]},{headers:noStore});
+}catch(e){return crmError(e);}}
