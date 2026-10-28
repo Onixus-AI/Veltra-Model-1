@@ -1,10 +1,11 @@
 import { NextRequest } from "next/server";
+import {safeMailFramePath} from "@/lib/mail-frame-path";
 export const runtime = "nodejs";
 export const maxDuration = 300;
 type Context = { params: Promise<{ path: string[] }> };
 async function proxy(request: NextRequest, context: Context) {
   const { path } = await context.params;
-  const safe = path.every(part => /^[a-zA-Z0-9@._%+-]+$/.test(part) && part !== "." && part !== "..");
+  const safe = safeMailFramePath(path);
   const isApi = path[0] === "api";
   const isAsset = path[0] === "assets";
   const isPublicImage = path.length === 1 && ["veltra-hero.webp", "veltra-logo.png", "veltra-mail.svg", "veltra-mail.png"].includes(path[0]);
