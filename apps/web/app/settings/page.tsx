@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import LogoutButton from "@/components/logout-button";
 import UsageDashboard from "@/components/usage-dashboard";
 import PlanPackages from "@/components/plan-packages";
 import { FormEvent, useCallback, useEffect, useState } from "react";
@@ -147,6 +148,7 @@ export default function SettingsPage() {
       <header className="settings-header">
         <Link href="/" className="back-link"><ArrowLeft size={16} /> Back to workspace</Link>
         <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Onixus Workspace logo" /></span> Onixus Workspace</div>
+        <LogoutButton/>
       </header>
 
       <section className="settings-content settings-dashboard">

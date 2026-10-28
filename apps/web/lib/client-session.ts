@@ -31,3 +31,15 @@ export function saveApiKey(apiKey: string): void {
     window.sessionStorage.removeItem(API_KEY_STORAGE_KEY);
   }
 }
+
+/** End this browser's session without signing out the user's other devices. */
+export async function signOutCurrentBrowser(): Promise<void> {
+  // Remove the fallback first, including when the provider is unavailable.
+  saveApiKey("");
+  const supabase = browserSupabase();
+  if (supabase) {
+    const { error } = await supabase.auth.signOut({ scope: "local" });
+    if (error) throw error;
+  }
+  window.sessionStorage.removeItem("veltra-password-recovery");
+}
