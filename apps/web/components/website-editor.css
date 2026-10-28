@@ -45,3 +45,22 @@
 .website-preview { max-width: 1500px; margin: 0 auto; }
 .website-preview > .onixus-site { color-scheme: light; }
 @media (max-width: 700px) { .website-toolbar, .website-notice { padding: 16px; gap: 16px; } .website-toolbar nav { margin-left: 0; } .website-notice { display: block; } .website-notice a { display: inline-block; margin-top: 12px; } }
+.website-onyx { padding: 24px 28px; display: grid; grid-template-columns: minmax(200px, .7fr) minmax(0, 1.3fr); gap: 24px; border-bottom: 1px solid #344248; background: #000; }
+.website-onyx h2 { margin: 0 0 10px; font-size: 22px; color: var(--veltra-text, #f4f4f5); }
+.website-onyx p, .website-onyx small { color: #b8c5cb; line-height: 1.6; font-size: 13px; overflow-wrap: anywhere; }
+.website-onyx form { display: grid; gap: 10px; }
+.website-onyx label { font-size: 13px; color: #d8e2e6; }
+.website-onyx textarea, .website-onyx select { width: 100%; padding: 12px; border: 1px solid #344248; border-radius: 10px; background: #050809; color: #f4f4f5; font: inherit; }
+.website-onyx textarea { resize: vertical; }
+.website-onyx a { color: var(--veltra-accent, #00e5ef); }
+.website-onyx-actions { display: flex; align-items: end; gap: 16px; flex-wrap: wrap; }
+.website-onyx-actions label { display: grid; gap: 6px; }
+.website-onyx button, .website-html-editor button { padding: 12px 18px; border-radius: 10px; border: 1px solid var(--veltra-accent, #00e5ef); background: var(--veltra-accent, #00e5ef); color: #000; cursor: pointer; }
+.website-studio button:disabled { opacity: .5; cursor: not-allowed; }
+.website-onyx :is(button, textarea, select):focus-visible { outline: 2px solid var(--veltra-lemon, #f5ff3d); outline-offset: 3px; }
+.website-html-editor > header { padding: 16px 28px; background: #0b1012; }
+.website-html-editor h2 { margin: 0; font-size: 17px; }
+.website-html-editor p { margin: 8px 0; color: #b8c5cb; font-size: 13px; line-height: 1.6; }
+.website-html-editor iframe { width: 100%; min-height: 720px; display: block; border: 0; background: #fff; }
+.website-html-editor > textarea { display: block; width: 100%; min-height: 720px; padding: 24px; border: 0; background: #050809; color: #e2f3f8; font: 14px/1.6 ui-monospace, monospace; resize: vertical; }
+@media(max-width:700px) { .website-onyx { padding: 20px 16px; grid-template-columns: 1fr; gap: 12px; } }
