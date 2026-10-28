@@ -33,10 +33,10 @@ with sync_playwright() as p:
  assert not customer_queries and not unexpected,'Campaign landing must not load any CRM snapshot tables'
  page.get_by_role('button',name='New campaign',exact=True).click()
  page.get_by_role('button',name='Introduce your business',exact=False).click()
- expect(page.get_by_text('Northstar Studio',exact=True)).to_be_visible()
+ expect(page.get_by_role('checkbox',name='Northstar Studio info@example.test',exact=True)).to_be_visible()
  assert len(customer_queries)==1 and not unexpected
  page.get_by_label('Find customers',exact=True).fill('logistics')
  expect(page.get_by_text('Searching customers…')).not_to_be_visible()
- expect(page.get_by_text('Northstar Studio',exact=True)).to_be_visible()
+ expect(page.get_by_role('checkbox',name='Northstar Studio info@example.test',exact=True)).to_be_visible()
  assert not errors,errors
  browser.close()
