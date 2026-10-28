@@ -21,7 +21,12 @@ begin
  end if;
  insert into public.crm_activity(workspace_id,customer_id,kind,title,created_at) values(w,c,p_kind,
  case p_kind when 'email.received' then 'Email received' when 'email.replied' then 'Reply sent' when 'service.event' then 'Operations update' else 'Follow-up sent' end || case when nullif(p_subject,'') is not null then ': '||p_subject else '' end,p_at);
- if p_kind='email.received' then
+ -- One open customer review covers the received-mail activity until reviewed.
+ -- Contact matching above serializes concurrent messages for the same customer.
+ if p_kind='email.received' and not exists(
+  select 1 from public.crm_tasks where workspace_id=w and customer_id=c
+   and status='open' and title='Review customer email and agree next action'
+ ) then
   insert into public.crm_tasks(workspace_id,customer_id,title,due_at) values(w,c,'Review customer email and agree next action',now()+interval '1 day');
  end if;
  return jsonb_build_object('duplicate',false,'customer_id',c,'workspace_id',w);
