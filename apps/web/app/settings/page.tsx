@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import UsageDashboard from "@/components/usage-dashboard";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, ArrowLeft, Check, Copy, CreditCard, KeyRound, LoaderCircle,
   Sparkles, TrendingDown, Wallet, X,
@@ -51,48 +52,6 @@ async function responseData<T>(response: Response): Promise<T> {
     );
   }
   return data as T;
-}
-
-function ConsumptionChart({ consumption }: { consumption: ConsumptionDay[] }) {
-  const points = useMemo(() => {
-    const amounts = new Map(consumption.map(({ date, credits }) => [date, credits]));
-    const today = new Date();
-    const lastThirtyDays = Array.from({ length: 30 }, (_, index) => {
-      const day = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 29 + index));
-      const date = day.toISOString().slice(0, 10);
-      return { date, credits: amounts.get(date) ?? 0 };
-    });
-    const max = Math.max(1, ...lastThirtyDays.map(({ credits }) => credits));
-    return lastThirtyDays.map(({ date, credits }, index) => ({
-      date,
-      credits,
-      x: 12 + (index * 576) / 29,
-      y: 170 - (credits / max) * 145,
-    }));
-  }, [consumption]);
-  const areaPath = `M ${points[0].x} 170 ${points.map(({ x, y }) => `L ${x} ${y}`).join(" ")} L ${points[points.length - 1].x} 170 Z`;
-  const linePath = points.map(({ x, y }, index) => `${index === 0 ? "M" : "L"} ${x} ${y}`).join(" ");
-
-  return (
-    <div className="analytics-chart">
-      <div className="analytics-chart-heading">
-        <div><h3>Credit consumption</h3><p>Daily usage over the last 30 days</p></div>
-        <span><i /> Credits used</span>
-      </div>
-      <svg viewBox="0 0 600 210" role="img" aria-label="Area chart of daily credit consumption over the past 30 days">
-        <defs>
-          <linearGradient id="usage-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#a995ff" stopOpacity=".35" />
-            <stop offset="100%" stopColor="#a995ff" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        {[25, 73, 121, 170].map((y) => <line key={y} x1="12" x2="588" y1={y} y2={y} className="chart-gridline" />)}
-        <path d={areaPath} fill="url(#usage-area)" />
-        <path d={linePath} className="chart-line" />
-      </svg>
-      <div className="chart-dates"><span>{points[0].date}</span><span>Today</span></div>
-    </div>
-  );
 }
 
 export default function SettingsPage() {
@@ -240,9 +199,7 @@ export default function SettingsPage() {
                 <div className="credit-rollover-banner" role="note">
                   Your current balance and allowance come from your account. Purchase terms determine renewal, expiration and rollover.
                 </div>
-                <section className="settings-card chart-card">
-                  <ConsumptionChart consumption={account?.consumption ?? []} />
-                </section>
+                <UsageDashboard/>
                 <p className="settings-note">Monthly allowance: {account?.monthly_credit_allowance?.toLocaleString() ?? "Unavailable"} credits.</p>
               </section>
             )}
