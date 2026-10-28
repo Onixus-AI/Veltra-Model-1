@@ -1,6 +1,6 @@
 /** Host guard: model prose cannot turn a read, failed call or declined review into a write receipt. */
 export function completionClaim(text:string){
- const actions='sent|saved|cleared|created|updated|deleted|scheduled|booked|completed';
+ const actions='merged|deployed|published|sent|saved|cleared|created|updated|deleted|scheduled|booked|completed';
  const subject='queue|messages?|emails?|document|spreadsheet|event|changes?|they|it|everything';
  const verbs='has|have|had|is|are|was|were|been|already|now|successfully|all';
  const clean=text.replace(new RegExp('\\b(?:no|none of the)\\s+(?:'+subject+')\\s+(?:(?:'+verbs+')\\s+){0,6}(?:'+actions+')\\b','gi'),'');
@@ -9,7 +9,7 @@ export function completionClaim(text:string){
 export function verifiedAnswer(answer:string,evidence:{tool:string;content:string;failed?:boolean}[]){
  if(!completionClaim(answer))return answer;
  const receipts=evidence.filter(e=>!e.failed).flatMap(e=>{
-  try{const r=JSON.parse(e.content);if(r.status==='completed'&&((['google_create_file','google_edit_file','calendar_change','crm_change','brain_change'].includes(e.tool)&&r.approval==='confirmed'&&r.receipt)||(e.tool==='mail_health'&&r.action==='reconcile_sent_approvals'&&typeof r.operation_id==='string'&&Number.isInteger(r.cleared)&&Number.isInteger(r.remaining))))return [{tool:e.tool,receipt:r}];}catch{/* Unstructured prose cannot prove a completed mutation. */}return [];
+  try{const r=JSON.parse(e.content);if(r.status==='completed'&&((['google_create_file','google_edit_file','calendar_change','crm_change','brain_change'].includes(e.tool)&&r.approval==='confirmed'&&r.receipt)||(e.tool==='github_develop'&&['create_draft_pr','merge_reviewed_pr'].includes(r.action)&&r.approval==='confirmed'&&r.receipt)||(e.tool==='vercel_list_deployments'&&r.action==='verify_production_deployment'&&r.receipt?.state==='READY'&&r.receipt?.target==='production')||(e.tool==='mail_health'&&r.action==='reconcile_sent_approvals'&&typeof r.operation_id==='string'&&Number.isInteger(r.cleared)&&Number.isInteger(r.remaining))))return [{tool:e.tool,receipt:r}];}catch{/* Unstructured prose cannot prove a completed mutation. */}return [];
  });
  if(!receipts.length)return 'I cannot verify that anything was sent, saved or changed in this turn. No completed-action receipt was returned. Check the tool results; unresolved actions remain unverified.';
  // Display authoritative counts/results instead of trusting a model's broader completion claim.
