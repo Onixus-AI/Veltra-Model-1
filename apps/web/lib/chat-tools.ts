@@ -1,5 +1,5 @@
-import {verifiedAnswer} from './completion-evidence';
 "use client";
+import {verifiedAnswer} from './completion-evidence';
 import {toolPresentation,type TaskObserver} from './task-progress';
 import type {TaskAccessClient} from './task-access-client';
 
