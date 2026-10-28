@@ -28,9 +28,9 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "github_read_file", description: "Read one file from the connected GitHub repository.", parameters: { type: "object", properties: { path: { type: "string" } }, required: ["path"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_commit", description: "Commit new content for one existing file to a new branch and open a draft pull request. The user must confirm before it runs. Read the file first and pass the full new content.", parameters: { type: "object", properties: { path: { type: "string" }, content: { type: "string" }, title: { type: "string" } }, required: ["path", "content", "title"], additionalProperties: false } } },
   { type: "function", function: { name: "github_propose_changes", description: "Propose 1–12 coordinated new or updated text files in the selected repository as one commit and draft PR. Read existing files first and preserve working code. Full before/after review and user confirmation are required. Existing repository CI may run after PR creation; this does not merge or deploy production.", parameters: {type:"object",properties:{title:{type:"string"},files:{type:"array",minItems:1,maxItems:12,items:{type:"object",properties:{path:{type:"string"},content:{type:"string"}},required:["path","content"],additionalProperties:false}}},required:["title","files"],additionalProperties:false} } },
-  {type:'function',function:{name:'github_review_proposal',description:'Prepare a READ-ONLY improvement proposal with host-verified current source quotes. Requires exact quotes from files actually read, observed versus intended behavior, and a before/after test plan. The host checks quoted text at one repository commit and verifies named npm scripts. Test plans are NOT executed and this cannot create a PR. AI-generated publishing is paused.',parameters:{type:'object',properties:{sources:{type:'array',minItems:1,maxItems:4,items:{type:'object',properties:{path:{type:'string'},quote:{type:'string',minLength:12,maxLength:2000}},required:['path','quote'],additionalProperties:false}},observed_behavior:{type:'string',minLength:12},intended_behavior:{type:'string',minLength:12},verification:{type:'object',properties:{directory:{type:'string'},command:{type:'string'},expected_before:{type:'string',minLength:12},expected_after:{type:'string',minLength:12}},required:['directory','command','expected_before','expected_after'],additionalProperties:false}},required:['sources','observed_behavior','intended_behavior','verification'],additionalProperties:false}}},
-  { type: "function", function: { name: "github_pr_checks", description: "Read GitHub checks, commit statuses and preview links for an exact pull-request head commit in the selected repository. No checks or pending checks do not mean success. This reads the existing CI pipeline; it does not dispatch a workflow or deploy production.", parameters: {type:"object",properties:{pull_request:{type:"integer",minimum:1}},required:["pull_request"],additionalProperties:false} } },
-  { type: "function", function: { name: "vercel_list_deployments", description: "List recent Vercel deployments for the selected project.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
+  {type:'function',function:{name:'github_develop',description:'Onyx development workflow in the selected repository. status reads live publishing policy. propose prepares 1–12 text files (args: title, files[{path,content}]) for exact before/after review and draft PR creation; existing CI may execute after approval. release (args: pull_request) prepares a separate exact-head merge review after all checks pass; approval may trigger the configured production pipeline. Never self-approve, bypass checks, claim tests not run, or call a merge deployment success.',parameters:{type:'object',properties:{action:{type:'string',enum:['status','propose','release']},args:{type:'object'}},required:['action'],additionalProperties:false}}},
+  { type: "function", function: { name: "github_pr_checks", description: "Read GitHub checks, commit statuses and preview links for an exact pull-request head commit in the selected repository. Use action diff for changed-file patches; annotations uses a returned check_run ID; jobs uses a workflow run_id from a check details_url; logs uses a returned job_id. All diagnostics must match this current PR head. No checks or pending checks do not mean success. This reads the existing CI pipeline; it does not dispatch a workflow or deploy production.", parameters: {type:"object",properties:{pull_request:{type:"integer",minimum:1},action:{type:"string",enum:["checks","diff","annotations","jobs","logs"]},check_run:{type:"integer",minimum:1},run_id:{type:"integer",minimum:1},job_id:{type:"integer",minimum:1}},required:["pull_request"],additionalProperties:false} } },
+  { type: "function", function: { name: "vercel_list_deployments", description: "List Vercel deployments for the selected project. Supply commit_sha from a merge receipt to verify a READY production deployment for that exact merge. No matching result means deployment remains unverified.", parameters: { type: "object", properties: {commit_sha:{type:"string"}}, additionalProperties: false } } },
   { type: "function", function: { name: "supabase_project", description: "Read the selected Supabase project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
@@ -41,6 +41,7 @@ export type WriteProposal = {
   id: string;
   summary: string;
   repository_review?:RepositoryFileReview[];
+  release?: {ticket:string};
   change?: RepositoryChangeSet | { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
   agent_review?: {target:'crm'|'brain'|'mail'|'google'|'calendar';id:string};
 };
@@ -77,13 +78,33 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
     if(['github_propose_commit','github_propose_changes'].includes(name))return {failed:true,content:'AI-generated repository publishing is paused. Use github_review_proposal to verify current source quotes and describe a test plan. No files, branch or PR were created.'};
     if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context,undefined,access);
     if(!access)throw Error('Start a task with app permission before using a connected product.');
+    if(name==='github_develop'){
+      const a=args.args&&typeof args.args==='object'&&!Array.isArray(args.args)?args.args as Record<string,unknown>:{};
+      if(args.action==='status')return {content:JSON.stringify(await connectionRequest('github/development-policy','GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};
+      if(args.action==='propose'){
+        const files=checkedFiles(a.files),title=String(a.title??'').trim();if(!title||title.length>150)throw Error('Provide a short change-set title.');
+        const policy=await connectionRequest<any>('github/development-policy','GET',undefined,{id:access.id,fetch:access.fetch.bind(access)});if(!policy.publishing_enabled)throw Error('Repository publishing is paused by the workspace owner.');
+        const review=await connectionRequest<Omit<RepositoryChangeSet,'operation'>&{before:{path:string;content:string|null}[]}>('github/change-set','POST',{files,title},{id:access.id,fetch:access.fetch.bind(access)});
+        const operation=crypto.randomUUID(),change:RepositoryChangeSet={repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation};
+        return {content:'Code changes prepared for review. Nothing published; tests not run by this preparation.',proposal:{id:operation,summary:`${review.repository} · ${review.branch} · ${review.base_sha}\n${title}\nCreates a draft PR after approval. Existing repository CI may execute the reviewed code. Does not merge or release.`,change,repository_review:files.map(f=>({path:f.path,before:review.before.find(b=>b.path===f.path)?.content??null,after:f.content}))}};
+      }
+      if(args.action==='release'){
+        if(!Number.isSafeInteger(a.pull_request)||Number(a.pull_request)<1)throw Error('Choose a PR number.');
+        const r=await connectionRequest<any>('github/release-review','POST',{pull_request:a.pull_request},{id:access.id,fetch:access.fetch.bind(access)});
+        return {content:'Release prepared for your approval. Nothing merged or deployed.',proposal:{id:crypto.randomUUID(),summary:`${r.repository} PR #${r.pull_request} · exact head ${r.commit_sha}\n${r.summary}`,release:{ticket:r.ticket}}};
+      }
+      throw Error('Choose status, propose or release.');
+    }
     if(name==='github_review_proposal'){
       const evidence=await connectionRequest<any>('github/proposal-evidence','POST',args,{id:access.id,fetch:access.fetch.bind(access)});
       return {content:JSON.stringify(evidence),data:evidence,canvas:{title:'Proposal evidence · tests not run',content:`# Read-only proposal evidence\n\n${evidence.repository} · commit ${evidence.base_sha}\n\n**Source quotes matched. Diagnosis unverified. Tests not run. Publishing paused.**\n\n## Proposed behavior\n${evidence.observed_behavior}\n\n## Intended behavior\n${evidence.intended_behavior}\n\n## Test plan — not executed\nDirectory: ${evidence.verification.directory}\nCommand: ${evidence.verification.command}\nBefore: ${evidence.verification.expected_before}\nAfter: ${evidence.verification.expected_after}\n\n${evidence.sources.map((source:any)=>`## ${source.path} · lines ${source.line_start}–${source.line_end}\n${codeBlock(source.quote,languageFor(source.path))}`).join('\n\n')}`}};
     }
     if(name==='github_pr_checks'){
       if(!Number.isSafeInteger(args.pull_request)||Number(args.pull_request)<1)throw Error('Choose a pull request number.');
-      return {content:JSON.stringify(await connectionRequest('github/checks?pull_request='+args.pull_request,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};
+      const action=args.action??'checks';if(!['checks','diff','annotations','jobs','logs'].includes(String(action)))throw Error('Choose checks, diff, annotations, jobs or logs.');if(action==='annotations'&&(!Number.isSafeInteger(args.check_run)||Number(args.check_run)<1))throw Error('Choose a returned check run ID.');
+      for(const field of action==='jobs'?['run_id']:action==='logs'?['job_id']:[]){if(!Number.isSafeInteger(args[field])||Number(args[field])<1)throw Error('Choose a returned '+field);}
+      const route=action==='checks'?'github/checks?pull_request='+args.pull_request:'github/diagnostics?pull_request='+args.pull_request+'&action='+action+(action==='annotations'?'&check_run='+args.check_run:action==='jobs'?'&run_id='+args.run_id:action==='logs'?'&job_id='+args.job_id:'');
+      return {content:JSON.stringify(await connectionRequest(route,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};
     }
     if(name==='github_propose_changes'){
       const files=checkedFiles(args.files),title=String(args.title??'').trim();if(!title||title.length>150)throw Error('Provide a short change-set title.');
@@ -126,6 +147,11 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
         canvas: { title: "Repository files", content: `${tree.repository} · ${tree.branch}\n\n${tree.files.map((file) => `- ${file.path}`).join("\n")}` },
       };
     }
+    if(name==='vercel_list_deployments'&&args.commit_sha!=null){
+      if(typeof args.commit_sha!=='string'||!/^[a-f0-9]{40}$/.test(args.commit_sha))throw Error('Use the exact merge SHA from the GitHub receipt.');
+      const data=await connectionRequest<any>('vercel/deployments?commit='+args.commit_sha,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}),matches=(data.deployments??[]).filter((d:any)=>d.commit_sha===args.commit_sha&&d.target==='production');
+      const ready=matches.find((d:any)=>d.state==='READY');return {content:JSON.stringify({status:ready?'completed':'unverified',action:'verify_production_deployment',receipt:ready??null,project:data.project,commit_sha:args.commit_sha,deployments:matches,note:'Provider build status only; does not prove application behavior or a smoke test.'})};
+    }
     const read = READS[name];
     if (read) {return {content:JSON.stringify(await connectionRequest(read,"GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined)).slice(0,60000)};}
     return { failed:true, content: `Unknown tool ${name}.` };
@@ -137,7 +163,7 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
 export async function createPullRequest(change: NonNullable<WriteProposal["change"]>,access?:TaskAccessClient): Promise<string> {
   if(!access)throw Error('Task access is required before creating a pull request.');
   const result = await connectionRequest<{ url: string }>("files" in change?"github/pull-request-set":"github/pull-request", "POST", change,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
-  return `Draft pull request created: ${result.url}. Review it before merging.`;
+  return JSON.stringify({status:'completed',action:'create_draft_pr',approval:'confirmed',receipt:result,note:'Draft PR created. Tests and deployment are unverified until provider checks return.'});
 }
 
 export async function agentToolRequest(name:string,args:Record<string,unknown>,context:Record<string,unknown>,confirm?:WriteProposal['agent_review'],access?:TaskAccessClient):Promise<ToolOutcome>{
@@ -232,6 +258,7 @@ export async function runAgentTurn(
             try{const receipt=JSON.parse(content);if(receipt.status==='completed'&&receipt.approval==='confirmed')confirmedGoogleReceipts.push(JSON.stringify({action:receipt.action,account:receipt.account,receipt:receipt.receipt}));}catch{/* A malformed response is not proof of completion. */}
           }
         }
+        else if(outcome.proposal.release){if(!access)throw Error('Task access is required.');content=JSON.stringify(await connectionRequest('github/release','POST',outcome.proposal.release,{id:access.id,fetch:access.fetch.bind(access)}));}
         else if(outcome.proposal.change)content=await createPullRequest(outcome.proposal.change,access);
         else throw Error('This proposal has no executable review. Request a new proposal.');
       }
