@@ -8,7 +8,7 @@ test('publishing tools are hidden and stale calls cannot contact a provider',asy
   assert(!CHAT_TOOLS.some(t=>t.function.name===name));
   const mock=t.mock.method(globalThis,'fetch',async()=>{throw Error('Unexpected network request');});
   const result=await runToolCall({id:'paused',type:'function',function:{name,arguments:'{}'}});
-  assert.equal(result.failed,true);assert.match(result.content,/publishing is paused/);assert.equal(result.proposal,undefined);assert.equal(mock.mock.callCount(),0);mock.mock.restore();
+  assert.equal(result.failed,true);assert.match(result.content,/legacy publishing tool is retired/);assert.equal(result.proposal,undefined);assert.equal(mock.mock.callCount(),0);mock.mock.restore();
  }
 });
 test('proposal evidence preserves host verification limits without a write approval',async()=>{

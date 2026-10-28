@@ -75,7 +75,7 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
   const args = parseArgs(call.function.arguments);
   const name = call.function.name;
   try {
-    if(['github_propose_commit','github_propose_changes'].includes(name))return {failed:true,content:'AI-generated repository publishing is paused. Use github_review_proposal to verify current source quotes and describe a test plan. No files, branch or PR were created.'};
+    if(['github_propose_commit','github_propose_changes'].includes(name))return {failed:true,content:'This legacy publishing tool is retired. Refresh Workspace to load github_develop, then call its status action to check the live policy. No files, branch or PR were created.'};
     if(AGENT_TOOLS.some(t=>t.function.name===name))return await agentToolRequest(name,args,context,undefined,access);
     if(!access)throw Error('Start a task with app permission before using a connected product.');
     if(name==='github_develop'){
