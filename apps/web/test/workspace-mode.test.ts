@@ -10,3 +10,10 @@ test('each mode has focused starter prompts without claiming integrations are li
 test('catalog keys stay stable while customers see Onixus product names',()=>{assert.equal(toolDisplayName('Veltra CRM'),'Onixus CRM');assert.equal(toolDisplayName('Veltra Gather'),'Onixus Gather');assert.equal(toolDisplayName('Shopify'),'Shopify');assert.equal(connectorToolInMode('Veltra CRM','business'),true);});
 
 test("Personal mode is available without changing private data scopes",()=>{assert.equal(workspaceMode("personal"),"personal");});
+
+test('Website Builder stays available in every connector mode',async()=>{
+ const {connectorSections}=await import('../lib/connector-catalog');
+ const section=connectorSections.find(s=>s.id==='websites');
+ assert.ok(section?.tools.some(t=>t.name==='Website Builder'&&t.kind==='workspace'));
+ for(const mode of ['personal','creator','dev','business'] as const){assert.equal(connectorSectionInMode('websites',mode),true);assert.equal(connectorToolInMode('Website Builder',mode),true);}
+});

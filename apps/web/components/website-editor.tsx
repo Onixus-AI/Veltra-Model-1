@@ -2,6 +2,7 @@
 import {Puck,Render,type Config,type Data} from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
 import Link from 'next/link';
+import WorkspaceAppearance from '@/components/workspace-appearance';
 import {useRef,useState} from 'react';
 import {exportWebsite,readWebsiteData,safeSiteLink,starterWebsite,websiteStyles,type SiteBlock} from '@/lib/website-document';
 import './website-editor.css';
@@ -30,7 +31,7 @@ export default function WebsiteEditor(){
   try{if(file.size>250000)throw Error('Choose a project smaller than 250 KB.');const next=readWebsiteData(JSON.parse(await file.text()));setData(next);setRevision(n=>n+1);setError('');setNotice('Project opened in this editor. Download your project to keep your changes.');}catch(e){setError(e instanceof Error?e.message:'Project could not be opened.');}finally{if(input.current)input.current.value='';}
  }
  return <main className="website-studio">
-  <header className="website-toolbar"><Link href="/">Onixus Workspace</Link><h1><img src="/brands/onixus-websites-icon-v1.png" alt="" width={32} height={32}/>Website builder</h1><nav aria-label="Website actions"><button onClick={()=>setPreview(v=>!v)}>{preview?'Edit website':'Preview'}</button><button onClick={()=>input.current?.click()}>Open project</button><button onClick={()=>exportFile('json')}>Download project</button><button onClick={()=>exportFile('html')}>Export HTML</button></nav></header>
+  <header className="website-toolbar"><Link href="/">Onixus Workspace</Link><h1><img src="/brands/onixus-websites-icon-v1.png" alt="" width={32} height={32}/>Website builder</h1><nav aria-label="Website actions"><button onClick={()=>setPreview(v=>!v)}>{preview?'Edit website':'Preview'}</button><button onClick={()=>input.current?.click()}>Open project</button><button onClick={()=>exportFile('json')}>Download project</button><WorkspaceAppearance/><button onClick={()=>exportFile('html')}>Export HTML</button></nav></header>
   <input ref={input} type="file" accept="application/json,.json" hidden onChange={e=>void importFile(e.target.files?.[0])}/>
   <div className="website-notice"><p>Included in Personal, Creator, Dev and Business. Edit sections, preview and export a draft. Full-site AI generation requires sufficient wallet credits; optional top-ups are separate. Changes stay in this editor until you download them. Hosting, custom domains and cloud saving are not connected here yet.</p><Link href="/design">Generate a website with Onyx</Link></div>
   {notice&&<p className="website-message" role="status">{notice}</p>}{error&&<p className="website-message" role="alert">{error}</p>}
