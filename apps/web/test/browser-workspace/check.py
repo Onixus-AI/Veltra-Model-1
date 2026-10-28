@@ -20,7 +20,9 @@ with sync_playwright() as p:
  expect(page.get_by_role('button',name='Collapse sidebar',exact=True)).to_be_visible()
  assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
  assert page.locator('.workspace-sidebar nav svg').first.evaluate('(el)=>getComputedStyle(el).color')=='rgb(0, 229, 239)','Sidebar line icons must use Veltra cyan'
- assert page.locator('#workspace-sidebar nav img').count()==0,'Navigation uses line icons, not product logos'
+ website_mark=page.locator('#workspace-sidebar a[href="/websites"] img')
+ expect(website_mark).to_have_attribute('src','/brands/onixus-websites-icon-v1.png')
+ assert page.locator('#workspace-sidebar nav img').count()==1,'Only Website Builder uses its requested product logo in the main navigation'
  icons=page.locator('#workspace-sidebar > nav:first-child > button svg,#workspace-sidebar > nav:first-child > a svg').evaluate_all('(els)=>els.map(el=>el.innerHTML)')
  assert len(icons)==len(set(icons)),'Each workspace destination needs a distinct icon'
  assert page.locator('.workspace-topbar').evaluate('(el)=>getComputedStyle(el).backgroundImage')=='none','Header must use a solid background'
@@ -53,6 +55,11 @@ with sync_playwright() as p:
  expect(page.get_by_role('textbox',name='Message Onixus Workspace')).to_have_value('Business draft to keep')
  page.get_by_role('button',name='Creator',exact=True).click()
  expect(page.get_by_role('textbox',name='Message Onixus Workspace')).to_have_value('Creator draft to keep')
+ page.get_by_role('button',name='Personal',exact=True).click()
+ expect(page.get_by_role('button',name='Personal',exact=True)).to_have_attribute('aria-pressed','true')
+ expect(page.get_by_role('link',name='Website builder',exact=True)).to_have_attribute('href','/websites')
+ assert page.get_by_role('button',name='Onixus CRM',exact=True).count()==0
+ page.get_by_role('button',name='Creator',exact=True).click()
  expect(page.get_by_role('button',name='Project files',exact=True)).to_be_visible()
  assert page.get_by_role('button',name='Onixus CRM',exact=True).count()==0
  page.screenshot(path=str(out/'workspace-creator.png'))

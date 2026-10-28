@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import UsageDashboard from "@/components/usage-dashboard";
+import PlanPackages from "@/components/plan-packages";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle, ArrowLeft, Check, Copy, CreditCard, KeyRound, LoaderCircle,
@@ -89,6 +90,7 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { const tab=new URLSearchParams(window.location.search).get("tab");if(tab==="subscription"||tab==="usage"||tab==="keys"||tab==="account")setActiveTab(tab); }, []);
 
   async function createKey(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -281,6 +283,7 @@ export default function SettingsPage() {
                   <div className="allocation-track"><div style={{ width: `${balancePercent}%` }} /></div>
                   <p className="renewal-date">{account?.billing_period_end ? `Billing period ends ${new Date(account.billing_period_end).toLocaleDateString()}` : "Your credit allocation is on a rolling 30-day basis."}</p>
                 </section>
+                <PlanPackages />
                 <div className="subscription-footnote"><Check size={14} /><span>Review your accepted purchase terms for renewal and rollover details.</span></div>
               </section>
             )}

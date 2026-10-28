@@ -424,6 +424,7 @@ export default function OnyxWorkspace() {
           {workspaceMode!=="dev"&&<button title="Onixus Mail" aria-label="Onixus Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Onixus Mail</span></button>}
           {workspaceMode==="business"&&<button title="Onixus CRM" aria-label="Onixus CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Onixus CRM</span></button>}
           <button title="Calendar — meetings and reviewed event changes" aria-label="Calendar" aria-pressed={calendarOpen} onClick={()=>openTool("calendar")}><CalendarDays size={17}/><span>Calendar</span></button>
+          <Link href="/websites" title="Website builder" aria-label="Website builder"><ToolLogo name="Website Builder"/><span>Websites</span></Link>
           <Link href="/workspace/files" title="Docs & Sheets — write documents and edit spreadsheets" aria-label="Documents and spreadsheets"><FolderOpen size={17}/><span>Docs &amp; Sheets</span></Link>
           <details className="workspace-more-tools"><summary title="More tools"><MoreHorizontal size={17}/><span>More tools</span></summary><div>
           <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
