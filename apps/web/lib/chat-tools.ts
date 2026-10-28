@@ -1,4 +1,5 @@
 "use client";
+import {verifiedAnswer} from './completion-evidence';
 import {toolPresentation,type TaskObserver} from './task-progress';
 import type {TaskAccessClient} from './task-access-client';
 
@@ -169,6 +170,7 @@ export async function runAgentTurn(
   const maxRounds=12,maxCalls=24;
   let toolCalls=0;
   const receipts:string[]=[];
+  const actionEvidence:{tool:string;content:string;failed?:boolean}[]=[];
   const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
   const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
   const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
@@ -202,7 +204,7 @@ export async function runAgentTurn(
       if(nextRequested)return 'The requested tool did not return an execution receipt: '+nextRequested+'. Its results were not verified. No further actions ran.';
       if(googleWriteRequested&&toolCalls===0&&/(?:review|proposal)[\s\S]{0,100}(?:created|pending|ready)|(?:created|saved|updated|scheduled)\s+(?:the|your|a|one)\b/i.test(answer))return 'No Google action or review was executed. Nothing was created or changed. Retry the request or open Workspace → Docs & Sheets.';
       if(confirmedGoogleReceipts.length&&/pending (?:your )?approval|please (?:review and )?approve|waiting for (?:your )?(?:confirmation|approval)/i.test(answer))return 'The reviewed Google action already completed; no further approval is pending. Provider receipts:\n\n'+confirmedGoogleReceipts.join('\n\n')+'\n\nAny additional content verification must have its own read-tool receipt.';
-      return answer;
+      return verifiedAnswer(answer,actionEvidence);
     }
     convo.push({ role: "assistant", content: message.content ?? "", tool_calls: calls });
     for (const call of calls) {
@@ -234,6 +236,7 @@ export async function runAgentTurn(
         else throw Error('This proposal has no executable review. Request a new proposal.');
       }
       observer?.event({type:'result',id:progressId,state:outcome.failed?'failed':outcome.proposal&&content.includes('user declined')?'skipped':'completed',detail:content});
+      actionEvidence.push({tool:call.function.name,content,failed:outcome.failed||Boolean(outcome.proposal&&content.includes('user declined'))});
       const path=parseArgs(call.function.arguments).path;
       receipts.push(`${call.function.name}${typeof path==='string'?' · '+path.slice(0,180):''}: ${outcome.failed?'failed':outcome.proposal&&content.includes('user declined')?'declined':'result received'}`);
       convo.push({ role: "tool", tool_call_id: call.id, content });
@@ -256,7 +259,7 @@ export async function runAgentTurn(
     const data=await response.json().catch(()=>({}));
     const message=data.choices?.[0]?.message;
     if(response.ok&&typeof message?.content==='string'&&message.content.trim()&&!message.tool_calls?.length)
-      return 'Partial investigation — tool allowance reached.\n\n'+message.content;
+      return 'Partial investigation — tool allowance reached.\n\n'+verifiedAnswer(message.content,actionEvidence);
   }catch(error){if(observer?.cancelled())throw Error('Pending task work was stopped.');}
   return fallback;
 }
