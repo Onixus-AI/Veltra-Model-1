@@ -10,14 +10,14 @@ test('logout clears the fallback key and revokes only the current session; failu
  Object.defineProperty(globalThis,'window',{configurable:true,value:{sessionStorage:{getItem:(k:string)=>values.get(k)??null,removeItem:(k:string)=>values.delete(k)}}});
  t.after(()=>{Reflect.deleteProperty(globalThis,'window');delete process.env.NEXT_PUBLIC_SUPABASE_URL;delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;});
  const auth=browserSupabase()!.auth;
- const logout=t.mock.method(auth,'signOut',async(options:unknown)=>{assert.deepEqual(options,{scope:'local'});return {error:null};});
+ const logout=t.mock.method(auth,'signOut',async(options:unknown):Promise<{error:Error|null}>=>{assert.deepEqual(options,{scope:'local'});return {error:null};});
  await signOutCurrentBrowser();
  assert.equal(values.has('veltra-api-key'),false);
  assert.equal(values.has('veltra-password-recovery'),false);
  assert.equal(values.get('veltra-appearance-v1'),'keep');
  assert.equal(logout.mock.callCount(),1);
  values.set('veltra-api-key','fixture-secret');
- logout.mock.mockImplementation(async()=>{throw Error('Provider offline');});
+ logout.mock.mockImplementation(async()=>({error:Error('Provider offline')}));
  await assert.rejects(signOutCurrentBrowser(),/Provider offline/);
  assert.equal(values.has('veltra-api-key'),false);
 });
