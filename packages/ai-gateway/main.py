@@ -23,6 +23,7 @@ from agent_runs import create_router as agent_router, run_worker
 from model_routing import request_groups, image_provider, POLICY
 from background import FreeQuota, ResponseCache, run_groups
 import voice
+from usage_reporting import usage_report
 
 
 CONFIG_PATH = Path(__file__).with_name("config.yaml")
@@ -100,6 +101,7 @@ class ChatCompletionRequest(BaseModel):
     stream: bool = False
     tools: list[dict[str, Any]] | None = Field(default=None, max_length=32)
     tool_choice: str | dict[str, Any] | None = None
+    usage_app: Literal["chat", "crm", "mail", "signal", "business_os", "code"] | None = None
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -183,7 +185,7 @@ async def get_wallet(organization_id: str) -> dict[str, Any] | None:
     return wallets[0] if wallets else None
 
 
-async def deduct_credits(organization_id: str, credits: int, model: str) -> None:
+async def deduct_credits(organization_id: str, credits: int, model: str, category: str = "chat") -> None:
     if credits == 0:
         return
 
@@ -197,7 +199,7 @@ async def deduct_credits(organization_id: str, credits: int, model: str) -> None
             response = await client.post(
                 f"{supabase_url.rstrip('/')}/rest/v1/rpc/deduct_credits_simple",
                 json={"p_org_id": organization_id, "p_credits_needed": credits,
-                      "p_category": "chat", "p_model": model, "p_tokens": credits},
+                      "p_category": category, "p_model": model, "p_tokens": credits},
                 headers={
                     "apikey": service_role_key,
                     "Authorization": f"Bearer {service_role_key}",
@@ -223,11 +225,11 @@ async def deduct_credits(organization_id: str, credits: int, model: str) -> None
         raise HTTPException(status_code=503, detail="Your account is temporarily unavailable. Please try again shortly.")
 
 
-async def settle_credits(organization_id: str, tokens: int, model: str) -> None:
+async def settle_credits(organization_id: str, tokens: int, model: str, category: str = "chat") -> None:
     if tokens <= 0:
         return
     try:
-        await deduct_credits(organization_id, tokens, model)
+        await deduct_credits(organization_id, tokens, model, category) if category != "chat" else await deduct_credits(organization_id, tokens, model)
     except HTTPException as error:
         if error.status_code != 402:
             raise
@@ -237,7 +239,7 @@ async def settle_credits(organization_id: str, tokens: int, model: str) -> None:
             raise
         charge = min(tokens, remaining)
         logger.info("credit bill capped tokens=%s charged=%s model=%s", tokens, charge, model)
-        await deduct_credits(organization_id, charge, model)
+        await deduct_credits(organization_id, charge, model, category) if category != "chat" else await deduct_credits(organization_id, charge, model)
 
 
 def trim_messages_to_budget(
@@ -353,6 +355,12 @@ async def get_authenticated_principal(
         "key_prefix": None,
         "user_id": user_id,
     }
+
+
+@app.get("/v1/usage")
+async def get_usage(credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)) -> dict[str, Any]:
+    principal = await get_authenticated_principal(credentials)
+    return await usage_report(supabase_request, principal["organization_id"])
 
 
 @app.get("/v1/account")
@@ -556,7 +564,7 @@ async def create_chat_completion(
                 return
 
             try:
-                await settle_credits(organization_id, total_tokens, request.model)
+                await settle_credits(organization_id, total_tokens, request.model, "workspace."+request.usage_app) if request.usage_app else await settle_credits(organization_id, total_tokens, request.model)
             except HTTPException as error:
                 yield f"event: error\ndata: {json.dumps({'error': error.detail})}\n\n"
                 return
@@ -589,7 +597,7 @@ async def create_chat_completion(
         result, fresh = await BACKGROUND_CACHE.fetch(key, complete)
         logger.info("background completion alias=%s served=%s cached=%s", request.model, result.get("model"), not fresh)
     if fresh:
-        await settle_credits(organization_id, result["usage"]["total_tokens"], request.model)
+        await settle_credits(organization_id, result["usage"]["total_tokens"], request.model, "workspace."+request.usage_app) if request.usage_app else await settle_credits(organization_id, result["usage"]["total_tokens"], request.model)
     return result
 
 
