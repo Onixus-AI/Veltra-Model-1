@@ -8,6 +8,7 @@ class UsageTests(unittest.IsolatedAsyncioTestCase):
         async def db(table, params):
             calls.append((table,params))
             return {
+                'mail_credit_requests':[],
                 'usage_logs':[{'id':'old','category':'chat','credits_deducted':7,'created_at':'2026-10-27T10:00:00Z'},{'id':'new','category':'workspace.crm','credits_deducted':3,'created_at':'2026-10-27T11:00:00Z'}],
                 'agent_runs':[{'id':'run','status':'running','credits_reserved':100,'credits_used':20,'created_at':'2026-10-27T12:00:00Z'}],
                 'credit_transactions':[{'id':'grant','amount':2000000,'description':'Grant','created_at':'2026-10-27T12:00:00Z'}]
@@ -76,3 +77,11 @@ class UsageTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(params['and'],'(created_at.lt.2024-03-01T00:00:00+00:00)')
         for month,day in [('2024-13',None),('2024-2',None),('2024-02','2024-02-30'),('2024-02','2024-03-01')]:
             with self.assertRaises(ValueError):await usage_report(db,'org',month=month,day=day)
+
+    async def test_mail_holds_are_not_spend(self):
+        async def db(table,params):
+            return [{'id':'mail-hold','status':'reserved','credits_reserved':9000,'created_at':'2026-10-27T12:00:00Z'}] if table=='mail_credit_requests' else []
+        result=await usage_report(db,'client-org',month='2026-10')
+        self.assertEqual(result['reserved_remaining'],9000)
+        self.assertEqual(result['mail_reserved_remaining'],9000)
+        self.assertEqual(result['used'],0)

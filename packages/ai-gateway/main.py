@@ -734,3 +734,7 @@ async def create_transcription(
 
 # Existing authentication and database helpers remain authoritative for task access.
 app.include_router(agent_router(get_authenticated_principal, bearer_scheme, supabase_request))
+
+# Mail uses its existing account capability; no client provider keys or expiring sessions.
+from mail_billing import create_router as mail_billing_router
+app.include_router(mail_billing_router(supabase_request, lambda params: litellm.acompletion(**params)))
