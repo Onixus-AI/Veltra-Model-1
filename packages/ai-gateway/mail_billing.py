@@ -87,7 +87,8 @@ def create_router(db, call):
         tokens=result.get('usage',{}).get('total_tokens')
         if type(tokens) is not int or not 0<=tokens<=budget:
             raise HTTPException(409,'Mail wallet: provider token receipt requires reconciliation')
-        result['onixus_receipt']={'id':str(request.request_id),'credits':tokens,'app':'mail'}
+        result['onixus_receipt']={'id':str(request.request_id),'provider_id':result.get('id'),'credits':tokens,'app':'mail'}
+        result['id']='onixus-mail-'+str(request.request_id)
         settled=await db('rpc/finish_mail_credits',method='POST',params={},payload={'p_id':str(request.request_id),'p_tokens':tokens,'p_model':str(result.get('model') or model),'p_response':result,'p_status':'succeeded'})
         if settled is not True: raise HTTPException(409,'Mail wallet: settlement requires reconciliation')
         return result

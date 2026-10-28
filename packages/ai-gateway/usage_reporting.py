@@ -34,6 +34,8 @@ async def usage_report(database, organization, now=None, month=None, day=None):
     logs,runs,ledger=await asyncio.gather(read('usage_logs','id,category,model_used,tokens_consumed,credits_deducted,created_at'),read('agent_runs','id,status,stage,credits_reserved,credits_used,created_at'),read('credit_transactions','id,amount,description,created_at'))
     mail_requests=await read('mail_credit_requests','id,status,credits_reserved,created_at')
     mail_reserved=sum(max(0,int(r.get('credits_reserved') or 0)) for r in mail_requests if r.get('status')=='reserved')
+    pending_review=[r for r in mail_requests if r.get('status')=='reserved' and datetime.fromisoformat(r['created_at'].replace('Z','+00:00')) < now-timedelta(minutes=5)]
+    if pending_review:warnings.append(f'{len(pending_review)} Mail credit hold(s) need reconciliation; they are not completed charges.')
     events=[];reserved=mail_reserved
     for row in logs:
         category=str(row.get('category') or '')
