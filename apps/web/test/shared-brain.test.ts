@@ -63,7 +63,7 @@ test('agent CRM tools execute only reviewed changes and reject wrong tool classe
  const f=fixture(),base={...f,authorization:'Bearer fixture-user'};
  const p=await agentAction({...base,name:'crm_change',args:{action:'create_customer',args:{company:'Harbor'}}});assert.ok(p.proposal);
  assert.equal(f.tables.crm_customers.length,1);
- await agentAction({...base,name:'confirm',args:{},confirm:p.proposal!.agent_review});assert.equal(f.tables.crm_customers.length,2);
+ const receipt=await agentAction({...base,name:'confirm',args:{},confirm:p.proposal!.agent_review});assert.equal(JSON.parse(receipt.content).status,'completed');assert.equal(JSON.parse(receipt.content).approval,'confirmed');assert.equal(f.tables.crm_customers.length,2);
  await assert.rejects(()=>agentAction({...base,name:'crm_read',args:{action:'suppress',args:{}}}),/correct CRM/);
  f.tables.crm_conversations.push({id:X,user_id:U,workspace_id:W,customer_id:C});
  await assert.rejects(()=>agentScope(f.client,U,{conversation_id:X,crm_scope:{workspace_id:W}}),/context differ/);

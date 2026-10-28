@@ -9,9 +9,14 @@ export function completionClaim(text:string){
 export function verifiedAnswer(answer:string,evidence:{tool:string;content:string;failed?:boolean}[]){
  if(!completionClaim(answer))return answer;
  const receipts=evidence.filter(e=>!e.failed).flatMap(e=>{
-  try{const r=JSON.parse(e.content);if(r.status==='completed'&&((['google_create_file','google_edit_file','calendar_change'].includes(e.tool)&&r.approval==='confirmed'&&r.receipt)||(e.tool==='mail_health'&&r.action==='reconcile_sent_approvals'&&typeof r.operation_id==='string'&&Number.isInteger(r.cleared)&&Number.isInteger(r.remaining))))return [{tool:e.tool,receipt:r}];}catch{/* Unstructured prose cannot prove a completed mutation. */}return [];
+  try{const r=JSON.parse(e.content);if(r.status==='completed'&&((['google_create_file','google_edit_file','calendar_change','crm_change','brain_change'].includes(e.tool)&&r.approval==='confirmed'&&r.receipt)||(e.tool==='mail_health'&&r.action==='reconcile_sent_approvals'&&typeof r.operation_id==='string'&&Number.isInteger(r.cleared)&&Number.isInteger(r.remaining))))return [{tool:e.tool,receipt:r}];}catch{/* Unstructured prose cannot prove a completed mutation. */}return [];
  });
  if(!receipts.length)return 'I cannot verify that anything was sent, saved or changed in this turn. No completed-action receipt was returned. Check the tool results; unresolved actions remain unverified.';
  // Display authoritative counts/results instead of trusting a model's broader completion claim.
- return 'Verified action receipts:\n\n'+receipts.map(r=>JSON.stringify(r)).join('\n\n')+'\n\nThese receipts prove only the listed operations. Mail provider acceptance does not prove delivery; unresolved queue entries remain queued.';
+ return 'Verified action receipts:\n\n'+receipts.map(r=>JSON.stringify(r)).join('\n\n')+'\n\nThese receipts prove only the listed operations. Proposed memory is not approved recall, and Mail provider acceptance does not prove delivery.';
+}
+
+/** Only the authenticated executor constructs this after a reviewed database write returns changed:true. */
+export function reviewedActionReceipt(action:'crm'|'brain',reviewId:string,result:{kind:string;changed?:boolean;reply:string;details?:unknown}){
+ return {status:result.kind==='result'&&result.changed===true?'completed':'unverified',approval:'confirmed',action,review_id:reviewId,receipt:{message:result.reply,records:result.details??null}};
 }
