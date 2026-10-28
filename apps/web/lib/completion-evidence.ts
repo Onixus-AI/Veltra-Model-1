@@ -1,6 +1,10 @@
 /** Host guard: model prose cannot turn a read, failed call or declined review into a write receipt. */
 export function completionClaim(text:string){
- return /\b(?:I(?:'ve| have)?|we(?:'ve| have)?)\s+(?:(?:successfully|already|now)\s+)?(?:sent|saved|cleared|created|updated|deleted|scheduled|booked|completed)\b|\b(?:queue|messages?|emails?|document|spreadsheet|event|changes?)\s+(?:has |have )?(?:been )?(?:successfully )?(?:sent|saved|cleared|created|updated|deleted|scheduled|booked|completed)\b/i.test(text);
+ const actions='sent|saved|cleared|created|updated|deleted|scheduled|booked|completed';
+ const subject='queue|messages?|emails?|document|spreadsheet|event|changes?|they|it|everything';
+ const verbs='has|have|had|is|are|was|were|been|already|now|successfully|all';
+ const clean=text.replace(new RegExp('\\b(?:no|none of the)\\s+(?:'+subject+')\\s+(?:(?:'+verbs+')\\s+){0,6}(?:'+actions+')\\b','gi'),'');
+ return new RegExp('\\b(?:I(?:\\x27ve| have)?|we(?:\\x27ve| have)?)\\s+(?:(?:successfully|already|now)\\s+)?(?:'+actions+')\\b|\\b(?:'+subject+')\\s+(?:(?:'+verbs+')\\s+){0,6}(?:'+actions+')\\b','i').test(clean);
 }
 export function verifiedAnswer(answer:string,evidence:{tool:string;content:string;failed?:boolean}[]){
  if(!completionClaim(answer))return answer;
