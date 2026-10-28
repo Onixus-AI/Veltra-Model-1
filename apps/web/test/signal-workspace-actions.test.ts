@@ -1,0 +1,26 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {dom} from './helpers/dom-global';
+import './helpers/react-global';
+import {act,createElement} from 'react';
+import {createRoot} from 'react-dom/client';
+import {AppRouterContext} from 'next/dist/shared/lib/app-router-context.shared-runtime';
+import SignalWorkspaceActions from '../components/signal-workspace-actions';
+const workspace='11111111-1111-4111-8111-111111111111',client='22222222-2222-4222-8222-222222222222',id='33333333-3333-4333-8333-333333333333';
+test('iframe actions require exact origin/source/business; review cancels safely and stale frames cannot revive a review',async t=>{
+ Object.defineProperty(window,'sessionStorage',{configurable:true,value:{getItem:()=>null}});
+ const iframe=document.body.appendChild(document.createElement('iframe')),host=document.body.appendChild(document.createElement('div')),root=createRoot(host),frame={current:iframe};
+ const messages:any[]=[],calls:string[]=[];t.mock.method(iframe.contentWindow!,'postMessage',(...args:any[])=>messages.push(args));
+ let resolveReview:((r:Response)=>void)|null=null,delay=false;
+ t.mock.method(globalThis,'fetch',async(input:any)=>{const path=String(input);calls.push(path);if(path==='/api/workspace/signal')return Response.json({connections:[{workspace_id:workspace,signal_client_id:client}]});if(path==='/api/google/propose'){if(delay)return new Promise<Response>(r=>{resolveReview=r;});return Response.json({ticket:'t'.repeat(30),title:'Brand profile',account:{email:'owner@test.test'}});}throw Error('No write should occur: '+path);});
+ const router={push:()=>undefined} as any;
+ const render=(revision:number)=>act(async()=>{root.render(createElement(AppRouterContext.Provider,{value:router},createElement(SignalWorkspaceActions,{frame,workspace,revision})));});
+ t.after(()=>{act(()=>root.unmount());host.remove();iframe.remove();});
+ const action={type:'onixus.signal.action',id,client,action:'google',kind:'doc',title:'Brand profile',content:'Brand copy'};
+ const send=(origin='https://www.onixus.xyz',source=iframe.contentWindow,data:any=action)=>act(async()=>{window.dispatchEvent(new dom.window.MessageEvent('message',{origin,source,data}));await new Promise(r=>setTimeout(r,10));});
+ await render(0);await send('https://attacker.test');await send('https://www.onixus.xyz',window);assert.equal(calls.length,0);
+ await send(undefined,undefined,{...action,client:id});assert.deepEqual(calls,['/api/workspace/signal']);assert.equal(messages.at(-1)[0].ok,false);
+ await send();assert.ok(host.querySelector('[role=dialog]'));assert.ok(!calls.includes('/api/google/create'));
+ const cancel=[...host.querySelectorAll('button')].find(b=>b.textContent==='Cancel')!;await act(async()=>cancel.click());assert.equal(host.querySelector('[role=dialog]'),null);assert.match(messages.at(-1)[0].error,/Cancelled/);
+ delay=true;await send();assert.ok(resolveReview);await render(1);await act(async()=>{resolveReview!(Response.json({ticket:'t'.repeat(30),title:'stale'}));await new Promise(r=>setTimeout(r,10));});assert.equal(host.querySelector('[role=dialog]'),null);
+});

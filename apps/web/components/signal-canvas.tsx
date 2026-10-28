@@ -1,9 +1,10 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import Link from 'next/link';
+import SignalWorkspaceActions from './signal-workspace-actions';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 const SIGNAL='https://www.onixus.xyz';
-export default function SignalCanvas({workspace:initial='',onClose}:{workspace?:string;onClose?:()=>void}){
+export default function SignalCanvas({workspace:initial='',onClose,onOpen}:{workspace?:string;onClose?:()=>void;onOpen?:(tool:'mail'|'calendar')=>void}){
  const frame=useRef<HTMLIFrameElement>(null),[spaces,setSpaces]=useState<{id:string;name:string}[]>([]),[workspace,setWorkspace]=useState(initial),[error,setError]=useState(''),[attempt,setAttempt]=useState(0),[opening,setOpening]=useState(true);
  useEffect(()=>{const selected=initial||new URLSearchParams(window.location.search).get('crm_workspace')||'';if(selected)setWorkspace(selected);},[initial]);
  useEffect(()=>{let live=true;void(async()=>{try{const r=await fetch('/api/crm/workspaces',{headers:await gatewayAuthorizationHeaders(),cache:'no-store'});const d=await r.json();if(!r.ok)throw Error('Businesses could not load.');if(live){setSpaces(d.workspaces??[]);setWorkspace(current=>d.workspaces?.some((s:{id:string})=>s.id===current)?current:d.workspaces?.length===1?d.workspaces[0].id:'');}}catch{if(live){setError('Businesses could not load. Check your Workspace sign-in.');setOpening(false);}}})();return()=>{live=false;};},[]);
@@ -17,6 +18,6 @@ export default function SignalCanvas({workspace:initial='',onClose}:{workspace?:
   window.addEventListener('message',receive);const timer=setTimeout(()=>{if(active&&!requested){setError('Signal did not respond. Reload Signal to try again.');setOpening(false);}},25000);
   return()=>{active=false;controller.abort();clearTimeout(timer);window.removeEventListener('message',receive);};
  },[workspace,attempt]);
- return <section className="mail-canvas"><header><div><img src="/brands/onixus-signal-icon-v2.png" width={24} height={24} alt=""/><strong>Signal</strong></div><div><label>Business <select value={workspace} onChange={e=>setWorkspace(e.target.value)}><option value="">Choose a business</option>{spaces.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><Link href={'/crm?view=Connections'+(workspace?'&workspace='+encodeURIComponent(workspace):'')}>Connection settings</Link><button onClick={()=>setAttempt(n=>n+1)}>Reload Signal</button>{onClose&&<button onClick={onClose}>Back to canvas</button>}</div></header>
+ return <section className="mail-canvas"><SignalWorkspaceActions frame={frame} workspace={workspace} revision={attempt} onOpen={onOpen}/><header><div><img src="/brands/onixus-signal-icon-v2.png" width={24} height={24} alt=""/><strong>Signal</strong></div><div><label>Business <select value={workspace} onChange={e=>setWorkspace(e.target.value)}><option value="">Choose a business</option>{spaces.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><Link href={'/crm?view=Connections'+(workspace?'&workspace='+encodeURIComponent(workspace):'')}>Connection settings</Link><button onClick={()=>setAttempt(n=>n+1)}>Reload Signal</button>{onClose&&<button onClick={onClose}>Back to canvas</button>}</div></header>
  {error?<div className="mail-canvas-state" role="alert"><h2>Open Signal</h2><p>{error}</p><Link href={'/crm?view=Connections'+(workspace?'&workspace='+encodeURIComponent(workspace):'')}>Manage Signal connection</Link></div>:workspace?<><p role="status" hidden={!opening}>Opening Signal…</p><iframe key={workspace+':'+attempt} ref={frame} title="Signal workspace" src={SIGNAL+'/workspace/embedded'} referrerPolicy="no-referrer" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals"/></>:<div className="mail-canvas-state">Choose the business whose Signal account you want to open.</div>}</section>;
 }
