@@ -6,7 +6,9 @@ export const runtime = "nodejs";
 export async function GET(request: NextRequest) {
   const authorization = gatewayAuthorization(request);
 
-  const upstream = await fetch(`${gatewayUrl()}/v1/usage`, {
+  const query = new URLSearchParams();
+  for (const key of ["month", "day"]) { const value = request.nextUrl.searchParams.get(key); if (value) query.set(key,value); }
+  const upstream = await fetch(`${gatewayUrl()}/v1/usage?${query}`, {
     headers: {
       ...(authorization ? { Authorization: authorization } : {}),
       Accept: "application/json",

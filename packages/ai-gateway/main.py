@@ -358,9 +358,12 @@ async def get_authenticated_principal(
 
 
 @app.get("/v1/usage")
-async def get_usage(credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)) -> dict[str, Any]:
+async def get_usage(month: str | None = None, day: str | None = None, credentials: HTTPAuthorizationCredentials | None = Security(bearer_scheme)) -> dict[str, Any]:
     principal = await get_authenticated_principal(credentials)
-    return await usage_report(supabase_request, principal["organization_id"])
+    try:
+        return await usage_report(supabase_request, principal["organization_id"], month=month, day=day)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
 
 
 @app.get("/v1/account")
