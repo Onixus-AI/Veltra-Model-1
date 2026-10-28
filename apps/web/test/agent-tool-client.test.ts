@@ -65,3 +65,20 @@ test('declining a review stops forcing the rest of an explicitly named sequence'
  const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{const b=JSON.parse(String(init?.body));if(input==='/api/chat'){if(turns++===0){assert.equal(b.tool_choice.function.name,'google_create_file');return Response.json({choices:[{message:{tool_calls:[{id:'create',type:'function',function:{name:'google_create_file',arguments:'{"kind":"doc","title":"Checks","content":"Hello"}'}}]}}]});}assert.equal(b.tool_choice,undefined);assert.match(b.messages.at(-1).content,/declined/);return Response.json({choices:[{message:{content:'Cancelled.'}}]});}assert.equal(b.name,'google_create_file');assert.equal(b.confirm,undefined);return Response.json({content:'Waiting',proposal:{id:R,summary:'Create Checks',agent_review:{target:'google',id:R}}});});
  try{assert.equal(await runAgentTurn([{role:'user',content:'Use google_create_file and google_read_editor for Checks'}],'fixture',{},async()=>false,()=>{},()=>{}),'Cancelled.');}finally{mock.mock.restore();if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('mentioning a write tool in a capability question never forces its execution',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};
+ try{for(const text of ['Use onyx_capabilities. Report the available brain_change actions. No writes.','Use onyx_capabilities to explain brain_change actions']){
+ let turns=0;const ran:string[]=[];
+ const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL,init?:RequestInit)=>{
+  const b=JSON.parse(String(init?.body));
+  if(input==='/api/chat'){
+   if(turns++===0){assert.equal(b.tool_choice.function.name,'onyx_capabilities');return Response.json({choices:[{message:{tool_calls:[{id:'capabilities',type:'function',function:{name:'onyx_capabilities',arguments:'{}'}}]}}]});}
+   assert.equal(b.tool_choice,undefined);return Response.json({choices:[{message:{content:'Memory actions require review.'}}]});
+  }
+  ran.push(b.name);return Response.json({content:JSON.stringify({memory:{actions:['propose','approve','correct','forget']}})});
+ });
+ await runAgentTurn([{role:'user',content:text}],'fixture',{},async()=>{throw Error('No write review requested');},()=>{},()=>{});
+ assert.deepEqual(ran,['onyx_capabilities']);mock.mock.restore();
+ }}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});

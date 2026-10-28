@@ -203,7 +203,7 @@ export async function runAgentTurn(
   const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
   // Conditional/optional follow-on tools remain the model's decision; never force
   // "if missing, create" or "after approval, read" before that condition holds.
-  const requiredClause=userText.split(/\b(?:if|unless|after|before|when|once|provided|until|then)\b/i)[0];
+  const requiredClause=userText.split(/[.!?](?:\s|$)|[\r\n]|\b(?:to|report|describe|explain|summarize|list|show|what|which|whether|about|if|unless|after|before|when|once|provided|until|then)\b/i)[0];
   const requestedTools=namedToolRequest&&!/\b(?:either|or|optionally|maybe)\b/i.test(requiredClause)?CHAT_TOOLS.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(requiredClause)).sort((a,b)=>requiredClause.indexOf(a)-requiredClause.indexOf(b)):[];
   const attemptedTools=new Set<string>();
   let explicitSequenceStopped=false;
