@@ -48,6 +48,7 @@ with sync_playwright() as p:
   messages=[{'id':'message','campaign_id':'campaign','customer_id':'a','name':'Alex Morgan','company':'Northstar Studio','email':'alex@example.com','subject':config['steps'][0]['subject'].replace('{{company}}','Northstar Studio'),'body':config['steps'][0]['body'].replace('{{name}}','Alex Morgan').replace('{{company}}','Northstar Studio')+'\n\n'+config['postal_address']+'\nTo stop these messages, reply STOP or unsubscribe.','step':0,'status':status,'due_at':'2026-10-21T09:00:00Z','provider_id':'receipt-1' if status=='sent' else None,'last_error':None}] if config else []
   route.fulfill(json={'defaults':state['defaults'],'worker':{'last_checked_at':None,'last_success_at':None,'last_error':None,'interval_seconds':30},'campaigns':campaigns,'messages':messages,'daily':{'day':'2026-10-21','time_zone':'UTC','sent_today':1 if status=='sent' else 0,'awaiting_review':1 if config and status=='draft' else 0,'needs_attention':0,'approved_due':0,'awaiting_receipt':0}})
  context.route('**/api/crm/outreach**',outreach)
+ context.route('https://fixture.supabase.co/rest/v1/crm_customers*',lambda route:route.fulfill(json=[{'id':'a','workspace_id':W,'company':'Northstar Studio','name':'Alex Morgan','email':'alex@example.com','industry':'Design services','suppressed':False,'identity_review_required':False}]))
  page=context.new_page();page.clock.install();errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.goto('http://127.0.0.1:3188/?outreach');page.wait_for_load_state('networkidle')
  expect(page.get_by_role('heading',name='Start with one useful conversation.')).to_be_visible()
@@ -67,6 +68,8 @@ with sync_playwright() as p:
  expect(page.get_by_label('Business postal address')).to_have_value('100 Example Road, Test City')
  expect(page.get_by_label('Booking link (optional)',exact=True)).to_have_value(state['defaults']['booking_url'])
  expect(page.get_by_text('1 selected',exact=True)).to_be_visible()
+ page.clock.run_for(300)
+ expect(page.get_by_role('button',name='Prepare messages',exact=False)).to_be_enabled()
  page.get_by_role('button',name='Prepare messages',exact=False).click()
  expect(page.get_by_label('Run this exact follow-up',exact=False)).to_be_checked()
  page.get_by_role('button',name='Review setup',exact=False).click()
