@@ -9,7 +9,7 @@ export async function usageActivity(request:Request,period:{month:string;since:s
   const response=await net(origin+'/chat/usage?'+new URLSearchParams({month:period.month}),{headers:{Authorization:request.headers.get('authorization')??''},cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)});
   if(!response.ok)throw Error('Mail activity unavailable');
   const mail=await response.json();if(mail.month!==period.month||!Array.isArray(mail.daily)||!Number.isSafeInteger(mail.operations))throw Error('Invalid Mail period');
-  activity.mail={status:'verified',operations:mail.operations,model_requests:mail.model_requests,known_tokens:mail.known_tokens,unknown_token_receipts:mail.unknown_token_receipts,wallet_metered:false,note:mail.note};
+  activity.mail={status:'verified',operations:mail.operations,model_requests:mail.model_requests,known_tokens:mail.known_tokens,unknown_token_receipts:mail.unknown_token_receipts,wallet_metered:mail.wallet_metered===true,note:mail.note};
   for(const row of mail.daily)if(typeof row.date==='string'&&row.date.startsWith(period.month+'-'))daily[row.date]={mail:Number(row.operations??0)};
   for(const warning of mail.warnings??[])if(typeof warning==='string')warnings.push(warning);
   if(typeof mail.workspace_id==='string'){

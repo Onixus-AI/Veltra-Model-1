@@ -32,7 +32,9 @@ async def usage_report(database, organization, now=None, month=None, day=None):
         return rows
     import asyncio
     logs,runs,ledger=await asyncio.gather(read('usage_logs','id,category,model_used,tokens_consumed,credits_deducted,created_at'),read('agent_runs','id,status,stage,credits_reserved,credits_used,created_at'),read('credit_transactions','id,amount,description,created_at'))
-    events=[];reserved=0
+    mail_requests=await read('mail_credit_requests','id,status,credits_reserved,created_at')
+    mail_reserved=sum(max(0,int(r.get('credits_reserved') or 0)) for r in mail_requests if r.get('status')=='reserved')
+    events=[];reserved=mail_reserved
     for row in logs:
         category=str(row.get('category') or '')
         model = str(row.get('model_used') or '')
@@ -64,4 +66,4 @@ async def usage_report(database, organization, now=None, month=None, day=None):
             daily[day_key]['apps'][event['app']]+=event['credits']
             daily[day_key]['operations'][event['app']]+=1
     visible_events=[e for e in events if not day or datetime.fromisoformat(e['at'].replace('Z','+00:00')).astimezone(timezone.utc).date().isoformat()==day]
-    return {'month':month,'selected_day':day,'period_end':end.isoformat(),'filtered_event_count':len(visible_events),'since':since,'until':now.isoformat(),'time_zone':'UTC','apps':apps,'events':visible_events[:250],'event_count':len(events),'event_limit':250,'consumption':list(daily.values()),'used':sum(e['credits'] for e in events),'reserved_remaining':reserved,'ledger':ledger[:100],'warnings':warnings,'note':'Chat includes historical charges recorded by the shared chat-completion endpoint; its embedded assistants cannot be separated retroactively. New Workspace Chat and CRM requests record their source explicitly. Truly unknown categories stay unassigned. Mail and Signal may meter through separate services. Reservations are separate from spend; task labels describe operation types, not historical prompts.'}
+    return {'month':month,'selected_day':day,'period_end':end.isoformat(),'filtered_event_count':len(visible_events),'since':since,'until':now.isoformat(),'time_zone':'UTC','apps':apps,'events':visible_events[:250],'event_count':len(events),'event_limit':250,'consumption':list(daily.values()),'used':sum(e['credits'] for e in events),'reserved_remaining':reserved,'mail_reserved_remaining':mail_reserved,'ledger':ledger[:100],'warnings':warnings,'note':'Chat includes historical charges recorded by the shared chat-completion endpoint; its embedded assistants cannot be separated retroactively. New Workspace Chat and CRM requests record their source explicitly. Truly unknown categories stay unassigned. Mail and Signal may meter through separate services. Reservations are separate from spend; task labels describe operation types, not historical prompts.'}
