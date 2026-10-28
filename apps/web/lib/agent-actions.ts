@@ -4,6 +4,7 @@ import type {AccessApp} from './task-access-policy';
 import type {SupabaseClient} from '@supabase/supabase-js';
 import {validId,type CrmScope,runCrmChat,validatePlan} from './crm/chat-actions';
 import {brainPlan,runBrain,type BrainScope} from './shared-brain';
+import {reviewedActionReceipt} from './completion-evidence';
 import {formatCrmReply} from './crm/chat-format';
 import {executeMailTool} from './mail-chat';
 import {browserEnabled,inspectBrowserPage} from './browser/inspect';
@@ -48,8 +49,8 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
  }
  if(o.confirm){
   if(!validId(o.confirm.id))throw Error('400:Invalid action review.');
-  if(o.confirm.target==='crm')return {content:formatCrmReply(await crm(undefined,o.confirm.id))};
-  if(o.confirm.target==='brain')return {content:formatCrmReply(await runBrain({client,user,scope,review_id:o.confirm.id,app}))};
+  if(o.confirm.target==='crm')return {content:JSON.stringify(reviewedActionReceipt('crm',o.confirm.id,await crm(undefined,o.confirm.id)))};
+  if(o.confirm.target==='brain')return {content:JSON.stringify(reviewedActionReceipt('brain',o.confirm.id,await runBrain({client,user,scope,review_id:o.confirm.id,app})))};
   const {data:review,error}=await client.from('crm_conversations').select('workspace_id,customer_id,revision,messages').eq('id',o.confirm.id).eq('user_id',user).eq('title','Mail tool review').maybeSingle();
   if(error||!review||review.revision!==0||(review.workspace_id??null)!==(scope.workspace_id??null)||(review.customer_id??null)!==(scope.customer_id??null))throw Error('409:Mail review used or scope changed.');
   const p=JSON.parse(review.messages[0].content);if(p.type!=='prepare_quote_followups'||!p.identity||typeof p.identity.account_id!=='string'||!Number.isInteger(p.identity.link_version)||!Number.isFinite(p.expires_at)||p.expires_at<=Date.now())throw Error('409:Mail review expired.');
