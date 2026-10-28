@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/json",
       Accept: "text/event-stream, application/json",
     },
-    body: JSON.stringify({...upstreamPayload,messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
+    body: JSON.stringify({...upstreamPayload,usage_app:'chat',messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
     cache: "no-store",
   });
 
