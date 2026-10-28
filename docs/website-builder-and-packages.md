@@ -47,3 +47,9 @@ npm run build
 ```
 
 Browser fixture: bundle `test/browser-websites/main.tsx` with esbuild, JSX automatic, `@` aliased to the web directory and `process.env` defined as `{}`. Load the editor or append `?plans` for the package comparison. Test export/import without production customer data or model calls. Manual browser checks verified edit/preview, real HTML/JSON downloads, the edited title in exported JSON, 390px layout without horizontal overflow, and three Business users at 139 USD.
+
+## HTML imports and in-app Onyx revisions
+
+`Import HTML` opens one `.html`/`.htm` file up to 250 KB, locally. Imported markup uses a separate code editor; it is not converted to Puck blocks. The static preview removes active elements, refresh metadata, external stylesheet links, event attributes and navigation targets. A sandbox with no permissions and a restrictive CSP disable scripts, forms and network access. Original source remains intact for export. Linked assets are not uploaded or resolved.
+
+The in-app `Build with Onyx` panel sends the current HTML and user prompt to the existing authenticated agent-run API only after submission. It shows a 12,000/20,000-credit maximum reservation, checks the available wallet, reuses uncertain request IDs and applies HTML only from a completed run receipt. Existing server-side ownership and credit settlement remain authoritative. The UI can request cancellation and undo the most recent Onyx revision. HTML over 39,000 characters can be edited/exported but cannot be sent for a revision through this bounded context path. No image generation or publishing is invoked.

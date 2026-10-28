@@ -82,3 +82,19 @@ jobs:
         with:
           name: workspace-screenshots
           path: apps/web/work/workspace-screenshots
+
+      - name: Verify website HTML import and Onyx revisions
+        run: |
+          mkdir -p work/website-browser
+          npx --yes --package=esbuild@0.25.12 esbuild test/browser-websites/main.tsx --bundle --jsx=automatic --alias:@=. --define:process.env='{}' --loader:.woff=file --loader:.woff2=file --outfile=work/website-browser/app.js
+          cp test/browser-setup/index.html work/website-browser/index.html
+          cp -r public/brands work/website-browser/brands
+          python -m http.server 3190 --bind 127.0.0.1 --directory work/website-browser > /tmp/website-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+          python test/browser-websites/check.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: website-screenshots
+          path: apps/web/work/website-screenshots
