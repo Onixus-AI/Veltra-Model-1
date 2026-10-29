@@ -1,0 +1,11 @@
+import type {Operations} from './crm/operations';
+export type SignalOverview={workspace:string;policy:{production_mode:string;autopublish?:{mode?:string}}|null;items:{id:string;platform:string;caption:string;status:string;created_at:string}[]|null;unavailable:string[];checked_at:string;limit:number};
+export type WorkspaceAction={id:string;source:'CRM'|'Mail'|'Signal';title:string;detail:string;at:string|null;receipt:string;href:string;snapshot:boolean};
+export function workspaceActions(workspace:string,operations:Operations|null,signal:SignalOverview|null):WorkspaceAction[]{
+ const crm=(view:string)=>'/crm?workspace='+encodeURIComponent(workspace)+'&view='+view;
+ const rows:WorkspaceAction[]=(operations?.events??[]).map(e=>({id:'crm:'+e.id,source:'CRM',title:e.title,detail:e.kind.replaceAll('_',' '),at:e.created_at,receipt:'crm_activity:'+e.id,href:crm('Overview'),snapshot:false}));
+ for(const s of operations?.sources??[])rows.push({id:'research:'+s.id,source:'CRM',title:s.label,detail:`${s.last_error?'Needs attention: '+s.last_error:!s.enabled?'Paused':s.exhausted_at?'Source complete':'Scheduled'} · ${s.imported} imported · ${s.enriched} enriched`,at:s.last_run_at,receipt:'crm_discovery_sources:'+s.id,href:crm('Sources'),snapshot:true});
+ for(const m of operations?.outreach?.messages??[])rows.push({id:'mail:'+m.id,source:'Mail',title:m.subject||m.company,detail:`${m.company} · ${m.status==='sent'?'Provider accepted; inbox delivery not confirmed':m.status==='approved'?'Approved; not a send receipt':m.status}${m.last_error?' · '+m.last_error:''}`,at:null,receipt:'outreach_message:'+m.id,href:crm('Automation'),snapshot:true});
+ if(signal?.workspace===workspace)for(const c of signal.items??[])rows.push({id:'signal:'+c.id,source:'Signal',title:`${c.platform} · ${c.status}`,detail:(c.caption||'Content recorded')+(c.status==='published'?' · Queue status only; open Signal for provider confirmation.':''),at:c.created_at,receipt:'signal_content_queue:'+c.id,href:'/?canvas=signal&mode=business&crm_workspace='+encodeURIComponent(workspace),snapshot:true});
+ return rows.filter(r=>!r.at||Number.isFinite(Date.parse(r.at))).sort((a,b)=>(b.at?Date.parse(b.at):0)-(a.at?Date.parse(a.at):0));
+}
