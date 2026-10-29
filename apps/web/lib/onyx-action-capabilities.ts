@@ -18,6 +18,7 @@ export function toolSessionError(tools:unknown):string|null{
 export function toolSessionReference(tools:unknown):string{
   const names=toolNames(tools);
   return '\nCurrent host capability contract (takes precedence over older assistant statements or saved procedures about available tools): '+JSON.stringify({
+    signal:names.has('signal_creative')?{tool:'signal_creative',reads:['context','library','result'],reviewed_writes:['one still-image draft'],publishing:false,vision:false}:'Signal tool not advertised in this session; request Signal creative tools in a refreshed Workspace chat.',
     memory:names.has('brain_change')?ONYX_ACTION_CAPABILITIES.memory:'No memory tool advertised by this client.',
     development:names.has('github_develop')?ONYX_ACTION_CAPABILITIES.development:'No development tool advertised by this client.',
     rule:'Use the advertised tool and read its result before declaring an action unavailable. Memory approve uses action and id only; content/source_ref are required for propose/correct. Never infer publishing is paused from conversation history. Capabilities are not authorization, live policy, or completion receipts.',
