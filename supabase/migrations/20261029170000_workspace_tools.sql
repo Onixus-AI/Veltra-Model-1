@@ -2,6 +2,7 @@ begin;
 create schema if not exists workspace_private;
 revoke all on schema workspace_private from public,anon,authenticated;
 create table if not exists workspace_private.search_limits(user_id uuid not null,day date not null,calls integer not null default 0,primary key(user_id,day));
+alter table workspace_private.search_limits enable row level security;
 create or replace function public.workspace_claim_web_search() returns boolean language plpgsql security definer set search_path='' as $$
 declare uid uuid:=auth.uid(); result integer;
 begin
@@ -38,4 +39,13 @@ begin
 end $$;
 revoke all on function public.crm_confirm_bulk_import(uuid) from public,anon;
 grant execute on function public.crm_confirm_bulk_import(uuid) to authenticated;
+-- Realtime carries only existing RLS-authorized CRM event records, to existing members.
+do $$ begin
+ if exists(select 1 from pg_publication where pubname='supabase_realtime') then
+  if not (select relrowsecurity from pg_class where oid='public.crm_activity'::regclass) then raise exception 'CRM activity RLS must be enabled';end if;
+  if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='crm_activity') then
+   alter publication supabase_realtime add table public.crm_activity;
+  end if;
+ end if;
+end $$;
 commit;

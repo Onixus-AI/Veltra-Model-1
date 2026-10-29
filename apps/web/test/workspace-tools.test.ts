@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {webSearch,searchQuery} from '../lib/web-search';
-import {importRows} from '../lib/crm/bulk-import';
+import {importRows,csvImportRows} from '../lib/crm/bulk-import';
 import {groupWorkspaceActions,workspaceActions} from '../lib/workspace-activity';
 import {appsForTool} from '../lib/task-access-policy';
 test('search validates public queries and returns source links without following instructions',async()=>{
@@ -19,3 +19,12 @@ test('bulk activity groups repeated operations but preserves every receipt',()=>
  const groups=groupWorkspaceActions(rows);assert.equal(groups.length,1);assert.equal(groups[0].events.length,2);assert.deepEqual(new Set(groups[0].events.map(x=>x.receipt)),new Set(['crm_activity:1','crm_activity:2']));
 });
 test('tools retain current-task app access boundaries',()=>{assert.deepEqual(appsForTool('web_search'),['browser']);assert.deepEqual(appsForTool('crm_bulk_import'),['crm']);});
+
+test('CSV import preserves quoted fields and requires actual file provenance',()=>{
+ const rows=csvImportRows('company,email\n"One, Inc",one@example.org','contacts.csv');assert.equal(rows[0].company,'One, Inc');assert.equal(rows[0].source,'contacts.csv');
+ assert.throws(()=>csvImportRows('company,email\n"unclosed','contacts.csv'),/unclosed/);assert.throws(()=>csvImportRows('company\nOne',''),/filename/);
+});
+
+test('research and bulk-import tools are advertised together within the gateway limit',async()=>{
+ const {toolsForMessages}=await import('../lib/chat-tools');const tools=toolsForMessages([{role:'user',content:'Search the web for businesses and bulk import my CSV'}]);assert.ok(tools.length<=32);assert.ok(tools.some(t=>t.function.name==='web_search'));assert.ok(tools.some(t=>t.function.name==='crm_bulk_import'));
+});

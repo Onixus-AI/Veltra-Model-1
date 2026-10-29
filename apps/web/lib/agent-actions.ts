@@ -1,5 +1,5 @@
 import {webSearch} from './web-search';
-import {prepareImport} from './crm/bulk-import';
+import {prepareImport,csvImportRows} from './crm/bulk-import';
 import {signalAgentAction} from './signal-agent';
 import {ONYX_ACTION_CAPABILITIES} from './onyx-action-capabilities';
 import {googleAgentAction} from './google-agent';
@@ -35,7 +35,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   const quota=await client.rpc('workspace_claim_web_search');if(quota.error)throw Error('503:Search allowance could not be verified.');if(!quota.data)throw Error('409:Daily web-search allowance reached (20 searches per user, UTC).');
   return {content:JSON.stringify(await webSearch(args.query,process.env.FIRECRAWL_API_KEY))};
  }
- if(o.name==='crm_bulk_import'&&!o.confirm)return prepareImport(client,user,scope.workspace_id,args.rows);
+ if(o.name==='crm_bulk_import'&&!o.confirm){if(args.rows&&args.csv)throw Error('400:Choose rows or CSV, not both.');return prepareImport(client,user,scope.workspace_id,args.csv?csvImportRows(args.csv,args.source_name):args.rows);}
  if(o.confirm?.target==='crm'){
   const review=await client.from('crm_conversations').select('workspace_id,customer_id,messages').eq('id',o.confirm.id).eq('user_id',user).maybeSingle();
   let kind='';try{kind=JSON.parse(review.data?.messages?.[0]?.content??'{}').type;}catch{}

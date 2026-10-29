@@ -15,6 +15,17 @@ export function importRows(value:unknown):ImportRow[]{
   return {company,name:text('name',250),email:email||null,phone:text('phone',100),website,industry:text('industry',200),location:text('location',300),source};
  });
 }
+export function csvImportRows(value:unknown,filename:unknown){
+ if(typeof value!=='string'||!value.trim()||value.length>200000)throw Error('400:Provide a CSV file of at most 200 KB.');
+ if(typeof filename!=='string'||!filename.trim()||filename.length>250)throw Error('400:Use the supplied CSV filename as its source.');
+ const lines:string[][]=[];let line:string[]=[],cell='',quoted=false;
+ for(let i=0;i<value.length;i++){const ch=value[i];if(ch==='"'){if(quoted&&value[i+1]==='"'){cell+='"';i++;}else if(!quoted&&cell.length)throw Error('400:Malformed CSV quotes.');else quoted=!quoted;}else if(ch===','&&!quoted){line.push(cell);cell='';}else if((ch==='\n'||ch==='\r')&&!quoted){if(ch==='\r'&&value[i+1]==='\n')i++;line.push(cell);if(line.some(c=>c.trim()))lines.push(line);line=[];cell='';}else cell+=ch;}
+ if(quoted)throw Error('400:CSV contains an unclosed quoted field.');line.push(cell);if(line.some(c=>c.trim()))lines.push(line);
+ const headers=lines.shift()?.map(h=>h.replace(/^\uFEFF/,'').trim().toLowerCase().replaceAll(' ','_'))??[];
+ const aliases:Record<string,string>={company_name:'company',business:'company',business_name:'company',email_address:'email',contact_name:'name',source_url:'source'};
+ const fields=headers.map(h=>aliases[h]??h);if(!fields.includes('company')||new Set(fields).size!==fields.length||fields.some(k=>!['company','name','email','phone','website','industry','location','source'].includes(k)))throw Error('400:CSV needs a company column and supported business-contact headers.');
+ return importRows(lines.map(cells=>{if(cells.length!==fields.length)throw Error('400:CSV row does not match its headers.');return {...Object.fromEntries(fields.map((key,i)=>[key,cells[i]])),source:fields.includes('source')?cells[fields.indexOf('source')]:filename};}));
+}
 export async function prepareImport(client:SupabaseClient,user:string,workspace:unknown,rows:unknown){
  if(!validId(workspace))throw Error('400:Select a business conversation before importing.');const records=importRows(rows);
  const member=await client.from('crm_memberships').select('role').eq('workspace_id',workspace).eq('user_id',user).maybeSingle();if(member.error||!['owner','member'].includes(member.data?.role??''))throw Error('403:Import requires an authorized business editor.');
