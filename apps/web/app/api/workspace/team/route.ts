@@ -1,4 +1,4 @@
-import {createClient} from '@supabase/supabase-js';
+import {createClient,type SupabaseClient} from '@supabase/supabase-js';
 import {crmUser,crmError} from '@/lib/crm/server';
 import {uuid,noStore,readJson} from '@/lib/revenue/server';
 import {businessTeam,teamRuntime} from '@/lib/business-team/catalog';
@@ -15,7 +15,7 @@ export async function GET(request:Request){try{
  if(result.error)throw Error('503:Team job storage is not ready.');
  return Response.json({workspace,team:businessTeam,runtime:teamRuntime(),can_run:role==='owner',jobs:result.data},{headers:noStore});
  }catch(e){return crmError(e);}}
-export async function POST(request:Request){let running:string|undefined;let server:ReturnType<typeof createClient>|undefined;
+export async function POST(request:Request){let running:string|undefined;let server:SupabaseClient|undefined;
  try{
  const body=await readJson(request,2000),{client,user,role,workspace}=await context(request,body.workspace);
  if(role!=='owner')throw Error('403:Only the business owner can run the pilot.');if(!uuid(body.request_key))throw Error('400:Request key required.');
