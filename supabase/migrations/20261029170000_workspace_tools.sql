@@ -13,6 +13,7 @@ begin
 end $$;
 revoke all on function public.workspace_claim_web_search() from public,anon;
 grant execute on function public.workspace_claim_web_search() to authenticated;
+create index if not exists crm_bulk_import_match on public.crm_customers(workspace_id,lower(btrim(company)),lower(coalesce(email,'')));
 create or replace function public.crm_confirm_bulk_import(p_review uuid) returns jsonb language plpgsql security invoker set search_path='' as $$
 declare review public.crm_conversations%rowtype; payload jsonb; row jsonb; added integer:=0; skipped integer:=0; receipt jsonb;
 begin
@@ -28,7 +29,7 @@ begin
  perform pg_advisory_xact_lock(hashtextextended(review.workspace_id::text,0));
  for row in select value from jsonb_array_elements(payload->'rows') loop
   if coalesce(length(trim(row->>'company')),0) not between 1 and 250 or coalesce(length(row->>'source'),0) not between 1 and 1000 or coalesce(length(row->>'email'),0)>254 then raise exception 'Invalid business contact';end if;
-  if exists(select 1 from public.crm_customers where workspace_id=review.workspace_id and lower(company)=lower(trim(row->>'company')) and lower(coalesce(email,''))=lower(coalesce(row->>'email',''))) then skipped:=skipped+1;
+  if exists(select 1 from public.crm_customers where workspace_id=review.workspace_id and lower(btrim(company))=lower(trim(row->>'company')) and lower(coalesce(email,''))=lower(coalesce(row->>'email',''))) then skipped:=skipped+1;
   else
    insert into public.crm_customers(workspace_id,company,name,email,phone,website,industry,location,source) values(review.workspace_id,trim(row->>'company'),coalesce(row->>'name',''),nullif(row->>'email',''),coalesce(row->>'phone',''),coalesce(row->>'website',''),coalesce(row->>'industry',''),coalesce(row->>'location',''),row->>'source');added:=added+1;
   end if;

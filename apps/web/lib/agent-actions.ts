@@ -1,4 +1,4 @@
-import {webSearch} from './web-search';
+import {webSearch,searchQuery} from './web-search';
 import {prepareImport,csvImportRows} from './crm/bulk-import';
 import {signalAgentAction} from './signal-agent';
 import {ONYX_ACTION_CAPABILITIES} from './onyx-action-capabilities';
@@ -31,11 +31,11 @@ export async function agentScope(client:SupabaseClient,user:string,context:Agent
 export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail'|'google'|'calendar'|'signal';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
  const {client,user,scope,args}=o,app=o.app??'chat';
  if(o.name==='web_search'&&!o.confirm){
-  if(!process.env.FIRECRAWL_API_KEY)throw Error('503:Web search is not configured.');
+  const query=searchQuery(args.query);if(!process.env.FIRECRAWL_API_KEY)throw Error('503:Web search is not configured.');
   const quota=await client.rpc('workspace_claim_web_search');if(quota.error)throw Error('503:Search allowance could not be verified.');if(!quota.data)throw Error('409:Daily web-search allowance reached (20 searches per user, UTC).');
-  return {content:JSON.stringify(await webSearch(args.query,process.env.FIRECRAWL_API_KEY))};
+  return {content:JSON.stringify(await webSearch(query,process.env.FIRECRAWL_API_KEY))};
  }
- if(o.name==='crm_bulk_import'&&!o.confirm){if(args.rows&&args.csv)throw Error('400:Choose rows or CSV, not both.');return prepareImport(client,user,scope.workspace_id,args.csv?csvImportRows(args.csv,args.source_name):args.rows);}
+ if(o.name==='crm_bulk_import'&&!o.confirm){if(scope.customer_id)throw Error('400:Choose the business conversation, not a single customer, before importing.');if(args.rows&&args.csv)throw Error('400:Choose rows or CSV, not both.');return prepareImport(client,user,scope.workspace_id,args.csv?csvImportRows(args.csv,args.source_name):args.rows);}
  if(o.confirm?.target==='crm'){
   const review=await client.from('crm_conversations').select('workspace_id,customer_id,messages').eq('id',o.confirm.id).eq('user_id',user).maybeSingle();
   let kind='';try{kind=JSON.parse(review.data?.messages?.[0]?.content??'{}').type;}catch{}
