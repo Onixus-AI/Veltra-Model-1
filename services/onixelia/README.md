@@ -1,6 +1,6 @@
 # Onixelia internal planning pilot
 
-This service embeds Hermes as the Onixelia operations worker. It creates internal plan proposals only. Onyx owns Build, repair, quality and improvements; Onixa owns Grow across sales, campaigns, Signal, outreach and community; Onixelia owns Automate across workflows, schedules and handoffs. Jev provides decision support to the owning role when reviewing a plan. Onyx supplies an allowlisted aggregate snapshot and records assignments in Workspace; the snapshot excludes contact details, message bodies and connector credentials. It does not send, publish, book meetings, activate recurring schedules or debit a client wallet.
+This service embeds Hermes as the Onixelia operations worker. It creates internal plan proposals only. Onyx orchestrates the whole team, assigns work, steps in across all lanes, and owns Build, repair, quality and improvements; Onixa owns Grow across sales, campaigns, Signal, outreach and community; Onixelia owns Automate across workflows, schedules and handoffs. Jev provides decision support to the owning role when reviewing a plan. Onyx supplies an allowlisted aggregate snapshot and records assignments in Workspace; the snapshot excludes contact details, message bodies and connector credentials. It does not send, publish, book meetings, activate recurring schedules or debit a client wallet.
 
 ## Deployment contract
 
