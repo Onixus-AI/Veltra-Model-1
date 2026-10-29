@@ -1,4 +1,4 @@
-import {verificationPreflight,ONYX_VERIFICATION_POLICY} from '@/lib/verification-preflight';
+import {verificationPreflight,isPreflightCall,ONYX_VERIFICATION_POLICY} from '@/lib/verification-preflight';
 import {toolSessionError,toolSessionReference} from '@/lib/onyx-action-capabilities';
 import {brainQueryFromMessages} from '@/lib/brain-retrieval';
 import {runtimeContext} from '@/lib/runtime-context';
@@ -173,14 +173,14 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/json",
       Accept: "text/event-stream, application/json",
     },
-    body: JSON.stringify({...upstreamPayload,...(preflight?{tool_choice:{type:'function',function:{name:preflight}}}:{}),usage_app:'chat',messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
+    body: JSON.stringify({...upstreamPayload,...(preflight?{tools:payload.tools.map((t:{function:{name:string}})=>t.function.name===preflight&&preflight==='signal_creative'?{...t,function:{...t.function,parameters:{type:'object',properties:{action:{type:'string',enum:['context']}},required:['action'],additionalProperties:false}}}:t),tool_choice:{type:'function',function:{name:preflight}}}:{}),usage_app:'chat',messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
     cache: "no-store",
   });
 
   if(preflight&&upstream.ok&&payload.stream!==true){
     const result=await upstream.json();
     const calls=result.choices?.[0]?.message?.tool_calls;
-    if(!Array.isArray(calls)||!calls.some((call:{function?:{name?:string}})=>call.function?.name===preflight))
+    if(!Array.isArray(calls)||calls.length!==1||!isPreflightCall(calls[0],preflight))
       return Response.json({choices:[{message:{role:'assistant',content:'The required live check did not execute, so I cannot verify this account or app state. No result is confirmed.'}}]},{headers:{'Cache-Control':'no-store'}});
     return Response.json(result,{headers:{'Cache-Control':'no-store'}});
   }

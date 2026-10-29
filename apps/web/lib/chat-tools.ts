@@ -5,7 +5,7 @@ import type {TaskAccessClient} from './task-access-client';
 
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
-import {AGENT_TOOLS} from './agent-tool-catalog';
+import {AGENT_TOOLS,SIGNAL_CREATIVE_TOOL} from './agent-tool-catalog';
 import {checkedFiles} from './build-artifacts';
 import type {RepositoryChangeSet,RepositoryFileReview} from './repository-changes';
 import {deviceTimeZone} from './runtime-context';
@@ -35,7 +35,15 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
-export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes'].includes(tool.function.name));
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative'].includes(tool.function.name));
+
+export function toolsForMessages(messages:{role:string;content?:unknown;tool_calls?:ToolCall[]}[]){
+ const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
+ if(!/\b(?:signal|brand|artwork|creative|campaign images?|generate (?:an? |six )?images?)\b/i.test(userText)&&!messages.some(m=>m.tool_calls?.some(c=>c.function.name==='signal_creative')))return CHAT_TOOLS;
+ const optional=['n8n_project','railway_project','supabase_project','vercel_list_deployments'];
+ const omitted=optional.find(name=>!userText.toLowerCase().includes(name.split('_')[0]));
+ return omitted?[...CHAT_TOOLS.filter(t=>t.function.name!==omitted),SIGNAL_CREATIVE_TOOL]:CHAT_TOOLS;
+}
 
 export type WriteProposal = {
   id: string;
@@ -43,7 +51,7 @@ export type WriteProposal = {
   repository_review?:RepositoryFileReview[];
   release?: {ticket:string};
   change?: RepositoryChangeSet | { repository: string; branch: string; connection_version: number; path: string; sha: string; content: string; title: string; operation: string };
-  agent_review?: {target:'crm'|'brain'|'mail'|'google'|'calendar';id:string};
+  agent_review?: {target:'crm'|'brain'|'mail'|'google'|'calendar'|'signal';id:string};
 };
 
 export type CanvasItem = { title: string; content: string;kind?:'markdown'|'image' };
@@ -194,6 +202,7 @@ export async function runAgentTurn(
   observer?:TaskObserver,
 ): Promise<string> {
   const convo = [...messages];
+  const turnTools=toolsForMessages(messages);
   const maxRounds=12,maxCalls=24;
   let toolCalls=0;
   const receipts:string[]=[];
@@ -204,7 +213,7 @@ export async function runAgentTurn(
   // Conditional/optional follow-on tools remain the model's decision; never force
   // "if missing, create" or "after approval, read" before that condition holds.
   const requiredClause=userText.split(/[.!?](?:\s|$)|[\r\n]|\b(?:to|report|describe|explain|summarize|list|show|what|which|whether|about|if|unless|after|before|when|once|provided|until|then)\b/i)[0];
-  const requestedTools=namedToolRequest&&!/\b(?:either|or|optionally|maybe)\b/i.test(requiredClause)?CHAT_TOOLS.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(requiredClause)).sort((a,b)=>requiredClause.indexOf(a)-requiredClause.indexOf(b)):[];
+  const requestedTools=namedToolRequest&&!/\b(?:either|or|optionally|maybe)\b/i.test(requiredClause)?turnTools.map(t=>t.function.name).filter(name=>new RegExp('\\b'+name+'\\b').test(requiredClause)).sort((a,b)=>requiredClause.indexOf(a)-requiredClause.indexOf(b)):[];
   const attemptedTools=new Set<string>();
   let explicitSequenceStopped=false;
   let retriedMissingAction=false;
@@ -215,7 +224,7 @@ export async function runAgentTurn(
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:"chat", messages: convo, tools: CHAT_TOOLS,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
@@ -254,7 +263,9 @@ export async function runAgentTurn(
         if(approved)observer?.event({type:'step',id:progressId,...presentation});
         if(!approved){explicitSequenceStopped=true;content='The user declined this action. Do not run it or any dependent action.';}
         else if(outcome.proposal.agent_review){
-          content=(await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access)).content;
+          const confirmedOutcome=await agentToolRequest('confirm',{},extraBody,outcome.proposal.agent_review,access);
+          content=confirmedOutcome.content;if(confirmedOutcome.canvas)onCanvas(confirmedOutcome.canvas);
+          if(confirmedOutcome.failed){outcome.failed=true;explicitSequenceStopped=true;}
           if(['google','calendar'].includes(outcome.proposal.agent_review.target)){
             try{const receipt=JSON.parse(content);if(receipt.status==='completed'&&receipt.approval==='confirmed')confirmedGoogleReceipts.push(JSON.stringify({action:receipt.action,account:receipt.account,receipt:receipt.receipt}));}catch{/* A malformed response is not proof of completion. */}
           }

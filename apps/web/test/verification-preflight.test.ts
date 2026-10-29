@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {verificationPreflight,ONYX_VERIFICATION_POLICY} from '../lib/verification-preflight';
+import {verificationPreflight,isPreflightCall,ONYX_VERIFICATION_POLICY} from '../lib/verification-preflight';
 const tools=['onyx_capabilities','mail_health','google_status','calendar_status'].map(name=>({type:'function',function:{name}}));
 const check=(text:string,tail:unknown[]=[],choice?:unknown)=>verificationPreflight([{role:'user',content:text},...tail],tools,choice);
 test('live account prompts request a supported read before the answer',()=>{
@@ -22,4 +22,12 @@ test('old receipts do not authorize claims about the current request and scope i
  assert.equal(verificationPreflight([{role:'tool',content:'old'},{role:'user',content:'Check Gmail now'}],tools,'auto'),'mail_health');
  assert.match(ONYX_VERIFICATION_POLICY,/does not prove the linked Signal business lacks/);
  assert.match(ONYX_VERIFICATION_POLICY,/failed or denied read means unverified, not empty/);
+});
+
+test('a required preflight accepts only reads, including the action on multiplexed tools',()=>{
+ const call=(name:string,args:unknown)=>({function:{name,arguments:JSON.stringify(args)}});
+ assert.equal(isPreflightCall(call('signal_creative',{action:'context'}),'signal_creative'),true);
+ assert.equal(isPreflightCall(call('signal_creative',{action:'propose',brief:{}}),'signal_creative'),false);
+ assert.equal(isPreflightCall(call('mail_health',{action:'reconcile'}),'mail_health'),false);
+ assert.equal(isPreflightCall(call('mail_health',{action:'status'}),'mail_health'),true);
 });

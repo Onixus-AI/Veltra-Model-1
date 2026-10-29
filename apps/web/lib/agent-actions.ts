@@ -1,3 +1,4 @@
+import {signalAgentAction} from './signal-agent';
 import {ONYX_ACTION_CAPABILITIES} from './onyx-action-capabilities';
 import {googleAgentAction} from './google-agent';
 import {taskAccessEnabled} from './task-access-config';
@@ -25,8 +26,9 @@ export async function agentScope(client:SupabaseClient,user:string,context:Agent
  return scope;
 }
 /** One authenticated execution path for model tools. The model never supplies identity, table or destination. */
-export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail'|'google'|'calendar';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
+export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail'|'google'|'calendar'|'signal';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
  const {client,user,scope,args}=o,app=o.app??'chat';
+ if(o.name==='signal_creative'||o.confirm?.target==='signal')return signalAgentAction(o);
  if(o.name.startsWith('google_')||o.name.startsWith('calendar_')||o.confirm?.target==='google'||o.confirm?.target==='calendar')return googleAgentAction(o);
  if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
  const crm=async(plan?:unknown,review_id?:string)=>{
@@ -37,7 +39,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   }:undefined});
  };
  const mail=async(name:string,a:Record<string,unknown>)=>{if(!o.mailOrigin)throw Error('503:Mail connection is unavailable.');return executeMailTool({tool:name,arguments:a},o.authorization,o.mailOrigin);};
- if((o.name==='onyx_capabilities'||o.name==='veltra_capabilities')&&!o.confirm&&taskAccessEnabled())return {content:JSON.stringify({platform:{current_time:true},actions:ONYX_ACTION_CAPABILITIES, note:'These are supported tools, not observed connections. Every app needs Allow for this task before access. Use the relevant tool to request access; never infer a connection is active.',apps:['CRM','Mail','Shared brain','GitHub','Vercel','Supabase','Railway','n8n','Google Drive / Docs / Sheets','Google Calendar','Private brand files'],browser:{available:browserEnabled(),reads:['public HTTPS inspection'],writes:false},writes:'Task access does not replace the existing exact-action reviews.'})};
+ if((o.name==='onyx_capabilities'||o.name==='veltra_capabilities')&&!o.confirm&&taskAccessEnabled())return {content:JSON.stringify({platform:{current_time:true},actions:ONYX_ACTION_CAPABILITIES, note:'These are supported tools, not observed connections. Every app needs Allow for this task before access. Use the relevant tool to request access; never infer a connection is active.',apps:['CRM','Mail','Shared brain','GitHub','Vercel','Supabase','Railway','n8n','Google Drive / Docs / Sheets','Google Calendar','Private brand files','Signal creatives (task-specific catalog)'],browser:{available:browserEnabled(),reads:['public HTTPS inspection'],writes:false},writes:'Task access does not replace the existing exact-action reviews.'})};
  if((o.name==='onyx_capabilities'||o.name==='veltra_capabilities')&&!o.confirm){
   const observations=await Promise.allSettled([
    scope.workspace_id?client.from('crm_memberships').select('role').eq('workspace_id',scope.workspace_id).eq('user_id',user).maybeSingle().then(r=>r.error?null:r.data):Promise.resolve(null),
