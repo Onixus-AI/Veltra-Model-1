@@ -420,9 +420,10 @@ export default function OnyxWorkspace() {
       {accessRequest&&<TaskAccessDialog request={accessRequest} onDecision={answerAppAccess}/>}
       <aside id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
         <nav aria-label="Workspace tools">
+          {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><LayoutDashboard size={17}/><span>Business overview</span></Link>}
+
           <button title="Chat" aria-label="Chat" onClick={()=>{setCanvasVisible(false);setPanelFull(false);setMobileView("chat");if(window.innerWidth<761)setSidebarOpen(false);}}><MessageSquare size={17}/><span>Onyx</span></button>
           {workspaceMode==="dev"&&<button title="Super Coder" aria-label="Super Coder" aria-pressed={buildOpen} onClick={()=>openTool("build")}><Code2 size={17}/><span>Super Coder</span></button>}
-          {workspaceMode==="business"&&<Link href="/workspace" title="Business overview"><LayoutDashboard size={17}/><span>Business overview</span></Link>}
           {workspaceMode!=="dev"&&<button title="Onixus Mail" aria-label="Onixus Mail" aria-pressed={mailOpen} onClick={()=>openTool("mail")}><Mail size={17}/><span>Onixus Mail</span></button>}
           {workspaceMode==="business"&&<button title="Onixus CRM" aria-label="Onixus CRM" aria-pressed={crmOpen} onClick={()=>openTool("crm")}><Users size={17}/><span>Onixus CRM</span></button>}
           <button title="Calendar — meetings and reviewed event changes" aria-label="Calendar" aria-pressed={calendarOpen} onClick={()=>openTool("calendar")}><CalendarDays size={17}/><span>Calendar</span></button>
