@@ -14,8 +14,9 @@ export async function GET(request:Request){try{
  const result=await client.from('workspace_team_jobs').select('id,workspace_id,status,plan,receipts,failure,created_at,finished_at').eq('workspace_id',workspace).order('created_at',{ascending:false}).limit(20);
  if(result.error)throw Error('503:Team job storage is not ready.');
  const work=await client.from('revenue_jobs').select('id,kind,status,run_at,updated_at,finished_at,attempts,max_attempts,last_error,cancel_reason').eq('workspace_id',workspace).order('updated_at',{ascending:false}).limit(100);
+ const attempts=work.data?.length?await client.from('revenue_job_runs').select('job_id,attempt,worker,started_at,finished_at,outcome,error').eq('workspace_id',workspace).in('job_id',work.data.map(j=>j.id)).order('started_at',{ascending:false}).limit(500):{data:[],error:null};
  const schedule=await client.from('workspace_team_schedule').select('enabled,last_day').eq('workspace_id',workspace).maybeSingle();
- return Response.json({schedule:schedule.data??{enabled:false,last_day:null},schedule_error:schedule.error?'Daily schedule storage is not ready.':null,work:work.data??[],work_error:work.error?'Operational jobs could not be loaded.':null,checked_at:new Date().toISOString(),workspace,team:businessTeam,runtime:teamRuntime(),can_run:role==='owner',jobs:result.data},{headers:noStore});
+ return Response.json({schedule:schedule.data??{enabled:false,last_day:null},schedule_error:schedule.error?'Daily schedule storage is not ready.':null,work:(work.data??[]).map(job=>({...job,runs:(attempts.data??[]).filter(run=>run.job_id===job.id)})),attempts_error:attempts.error?'Attempt receipts could not be loaded.':null,work_error:work.error?'Operational jobs could not be loaded.':null,checked_at:new Date().toISOString(),workspace,team:businessTeam,runtime:teamRuntime(),can_run:role==='owner',jobs:result.data},{headers:noStore});
  }catch(e){return crmError(e);}}
 export async function POST(request:Request){let running:string|undefined;let server:SupabaseClient|undefined;
  try{

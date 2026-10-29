@@ -1,7 +1,7 @@
 /** Display only persisted work. A proposal is never a completed business action. */
 export const workStages=['Scheduled','Working','Review','Blocked','Complete'] as const;
 export type WorkStage=typeof workStages[number];
-export type OperationalJob={id:string;kind:string;status:string;run_at:string;updated_at:string;finished_at:string|null;attempts:number;max_attempts:number;last_error:unknown;cancel_reason:string|null};
+export type OperationalJob={id:string;kind:string;status:string;run_at:string;updated_at:string;finished_at:string|null;attempts:number;max_attempts:number;last_error:unknown;cancel_reason:string|null;runs?:{attempt:number;worker:string;started_at:string;finished_at:string|null;outcome:string|null;error:unknown}[]};
 export function workStage(job:OperationalJob):WorkStage{
  if(job.status==='succeeded')return 'Complete';
  if(['failed','dead','cancelled','blocked'].includes(job.status))return 'Blocked';
