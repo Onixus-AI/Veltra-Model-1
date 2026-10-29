@@ -1,5 +1,6 @@
 "use client";
 import {saveCloudHistory,type HistoryWrite} from '@/lib/cloud-history';
+import BusinessLiveActivity from './business-live-activity';
 import TaskCenter from './task-center';
 import ChatSetup from './chat-setup';
 import type {SetupProfile} from '@/lib/setup-profile';
@@ -357,7 +358,7 @@ export default function OnyxWorkspace() {
       const answer = await runAgentTurn(
         gatewayMessages,
         nextMessages.some((message) => message.attachments?.length) ? VISION_MODEL : activeModel.model,
-        { mail_request_key: crypto.randomUUID(), ...(savedSetup?{setup_context:savedSetup,...(savedSetup.timezone_confirmed?{time_zone:savedSetup.time_zone}:{})}:{}), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
+        { usage_app:crmOpen?"crm":businessOsOpen?"business_os":"chat", mail_request_key: crypto.randomUUID(), ...(savedSetup?{setup_context:savedSetup,...(savedSetup.timezone_confirmed?{time_zone:savedSetup.time_zone}:{})}:{}), ...(savedCloud ? { conversation_id: savedCloud.id } : {}), ...(crmOpen&&crmScope?{crm_scope:crmScope}:{}) },
         requestWriteApproval,
         (status) => setToolStatus(status),
         (item) => { setArtifact({ kind: item.kind??"markdown", title: item.title, content: item.content }); if(item.kind==="image"){setMailOpen(false);setCodeOpen(false);setBuildOpen(false);setCrmOpen(false);setTmsOpen(false);setShopifyOpen(false);} setCanvasVisible(true); },
@@ -467,11 +468,11 @@ export default function OnyxWorkspace() {
               ))}
             </div>}
           </div>
-
+{workspaceMode==='business'&&<BusinessLiveActivity workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} task={taskRun}/>}
         </div>
 
 
-        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app,false)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)} activity={workspaceMode==='business'&&!businessOsOpen&&!crmOpen&&<details className="workspace-activity-drawer"><summary>Business activity</summary><OperationsCenter minimal compact workspace={(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||''} currentTask={sending?toolStatus:''} onNavigate={view=>{setCrmNavigation({workspace:(crmOpen?crmScope?.workspace_id:cloud?.workspace_id||crmScope?.workspace_id)||'',view,revision:Date.now()});openTool('crm');}}/></details>}/>}
+        {(taskRun||workspaceMode==='business')&&<TaskCenter task={taskRun} busy={sending} onStop={stopTask} onRetry={()=>{setInput(taskRun?.purpose??'');}} onOpen={app=>openTool(app,false)} onFollowups={()=>void sendMessage(undefined,FOLLOWUP_PROMPT)} canFollowup={!sending&&historyLoaded&&workspaceMode==='business'&&Boolean(cloud?.workspace_id||crmScope?.workspace_id)}/>}
         {imageMode&&<div className="image-creation-settings"><button onClick={()=>setImageMode(false)} disabled={sending}>Image mode ×</button>
           {imageMode && <label className="image-model-label">Image model · 100 credits per image<select aria-label="Image model" disabled={sending} value={imageModel} onChange={(event) => setImageModel(event.target.value)}>
             <option value="recraft/recraft-v4.1-flash">Recraft Flash · ~$0.007 provider cost</option>

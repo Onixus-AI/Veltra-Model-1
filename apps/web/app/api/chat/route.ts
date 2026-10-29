@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       "Content-Type": "application/json",
       Accept: "text/event-stream, application/json",
     },
-    body: JSON.stringify({...upstreamPayload,...(preflight?{tools:payload.tools.map((t:{function:{name:string}})=>t.function.name===preflight&&preflight==='signal_creative'?{...t,function:{...t.function,parameters:{type:'object',properties:{action:{type:'string',enum:['context']}},required:['action'],additionalProperties:false}}}:t),tool_choice:{type:'function',function:{name:preflight}}}:{}),usage_app:'chat',messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
+    body: JSON.stringify({...upstreamPayload,...(preflight?{tools:payload.tools.map((t:{function:{name:string}})=>t.function.name===preflight&&preflight==='signal_creative'?{...t,function:{...t.function,parameters:{type:'object',properties:{action:{type:'string',enum:['context']}},required:['action'],additionalProperties:false}}}:t),tool_choice:{type:'function',function:{name:preflight}}}:{}),usage_app:payload.usage_app==='crm'?'crm':payload.usage_app==='business_os'?'business_os':'chat',messages:[{role:'system',content:runtimeContext(payload.time_zone)},...(setupReference(payload.setup_context)?[{role:'system',content:setupReference(payload.setup_context)}]:[]),{role:'system',content:brainReference(sharedKnowledge)},...messages]}),
     cache: "no-store",
   });
 

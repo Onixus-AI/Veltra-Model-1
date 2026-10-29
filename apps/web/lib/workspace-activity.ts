@@ -9,3 +9,9 @@ export function workspaceActions(workspace:string,operations:Operations|null,sig
  if(signal?.workspace===workspace)for(const c of signal.items??[])rows.push({id:'signal:'+c.id,source:'Signal',title:`${c.platform} · ${c.status}`,detail:(c.caption||'Content recorded')+(c.status==='published'?' · Queue status only; open Signal for provider confirmation.':''),at:c.created_at,receipt:'signal_content_queue:'+c.id,href:'/?canvas=signal&mode=business&crm_workspace='+encodeURIComponent(workspace),snapshot:true});
  return rows.filter(r=>!r.at||Number.isFinite(Date.parse(r.at))).sort((a,b)=>(b.at?Date.parse(b.at):0)-(a.at?Date.parse(a.at):0));
 }
+
+export function groupWorkspaceActions(rows:WorkspaceAction[]){
+ const groups=new Map<string,WorkspaceAction[]>();
+ for(const r of rows){const key=!r.snapshot&&r.at?r.source+':'+r.title+':'+r.detail+':'+r.at.slice(0,16):r.id;const group=groups.get(key)||[];group.push(r);groups.set(key,group);}
+ return [...groups].map(([id,events])=>({id,events}));
+}

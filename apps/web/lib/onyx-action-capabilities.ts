@@ -1,5 +1,7 @@
 /** Supported actions, not connection state or permission to execute a write. */
 export const ONYX_ACTION_CAPABILITIES = {
+  research:{tool:'web_search',reads:['up to five public HTTPS search results'],configured:'Check tool response',daily_limit:20},
+  importing:{tool:'crm_bulk_import',review_required:true,batch_limit:500,policy:'Business contacts only; skip existing company/email matches; no sending or consent inference'},
   memory: {tool:'brain_change',actions:['propose','approve','correct','forget'],approval_arguments:['action','id'],review_required:true},
   development: {tool:'github_develop',actions:['status','propose','release','verify_release'],policy:'Read live status before publishing; proposal and release require separate human reviews.',testing:'Existing repository CI; no arbitrary shell or model-weight training.'},
 };

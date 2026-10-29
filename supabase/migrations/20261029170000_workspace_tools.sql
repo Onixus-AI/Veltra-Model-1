@@ -1,0 +1,41 @@
+begin;
+create schema if not exists workspace_private;
+revoke all on schema workspace_private from public,anon,authenticated;
+create table if not exists workspace_private.search_limits(user_id uuid not null,day date not null,calls integer not null default 0,primary key(user_id,day));
+create or replace function public.workspace_claim_web_search() returns boolean language plpgsql security definer set search_path='' as $$
+declare uid uuid:=auth.uid(); result integer;
+begin
+ if uid is null then raise exception 'Sign in'; end if;
+ insert into workspace_private.search_limits(user_id,day,calls) values(uid,(now() at time zone 'UTC')::date,1)
+ on conflict(user_id,day) do update set calls=workspace_private.search_limits.calls+1 where workspace_private.search_limits.calls<20 returning calls into result;
+ return result is not null;
+end $$;
+revoke all on function public.workspace_claim_web_search() from public,anon;
+grant execute on function public.workspace_claim_web_search() to authenticated;
+create or replace function public.crm_confirm_bulk_import(p_review uuid) returns jsonb language plpgsql security invoker set search_path='' as $$
+declare review public.crm_conversations%rowtype; payload jsonb; row jsonb; added integer:=0; skipped integer:=0; receipt jsonb;
+begin
+ select * into review from public.crm_conversations where id=p_review and user_id=auth.uid() for update;
+ if not found then raise exception 'Import review not found';end if;
+ if not exists(select 1 from public.crm_memberships where workspace_id=review.workspace_id and user_id=auth.uid() and role in ('owner','member')) then raise exception 'Business editor required';end if;
+ payload:=(review.messages->0->>'content')::jsonb;
+ if payload->>'type'<>'crm_bulk_import_review' or review.customer_id is not null then raise exception 'Invalid import review';end if;
+ if review.revision=1 then return (review.messages->1->>'content')::jsonb;end if;
+ if review.revision<>0 or (payload->>'expires_at')::numeric<extract(epoch from now())*1000 then raise exception 'Review expired';end if;
+ if jsonb_typeof(payload->'rows')<>'array' or jsonb_array_length(payload->'rows') not between 1 and 500 then raise exception 'Import needs 1-500 records';end if;
+ -- Serializes concurrent imports for this business; replay returns the stored receipt.
+ perform pg_advisory_xact_lock(hashtextextended(review.workspace_id::text,0));
+ for row in select value from jsonb_array_elements(payload->'rows') loop
+  if coalesce(length(trim(row->>'company')),0) not between 1 and 250 or coalesce(length(row->>'source'),0) not between 1 and 1000 or coalesce(length(row->>'email'),0)>254 then raise exception 'Invalid business contact';end if;
+  if exists(select 1 from public.crm_customers where workspace_id=review.workspace_id and lower(company)=lower(trim(row->>'company')) and lower(coalesce(email,''))=lower(coalesce(row->>'email',''))) then skipped:=skipped+1;
+  else
+   insert into public.crm_customers(workspace_id,company,name,email,phone,website,industry,location,source) values(review.workspace_id,trim(row->>'company'),coalesce(row->>'name',''),nullif(row->>'email',''),coalesce(row->>'phone',''),coalesce(row->>'website',''),coalesce(row->>'industry',''),coalesce(row->>'location',''),row->>'source');added:=added+1;
+  end if;
+ end loop;
+ receipt:=jsonb_build_object('status','completed','review_id',review.id,'workspace_id',review.workspace_id,'imported',added,'skipped',skipped,'messages_sent',0);
+ update public.crm_conversations set revision=1,messages=messages||jsonb_build_array(jsonb_build_object('role','assistant','content',receipt::text)),updated_at=now() where id=review.id;
+ return receipt;
+end $$;
+revoke all on function public.crm_confirm_bulk_import(uuid) from public,anon;
+grant execute on function public.crm_confirm_bulk_import(uuid) to authenticated;
+commit;

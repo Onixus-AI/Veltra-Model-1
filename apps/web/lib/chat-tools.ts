@@ -224,7 +224,7 @@ export async function runAgentTurn(
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:extraBody.usage_app??"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);

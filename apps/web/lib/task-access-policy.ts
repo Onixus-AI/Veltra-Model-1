@@ -8,5 +8,5 @@ export function appsForTool(name:string,args:Record<string,unknown>={},confirm?:
  if(name.startsWith('google_'))return ['google'];if(name.startsWith('calendar_'))return ['calendar'];
  if(confirm?.target)return confirm.target==='mail'?['mail']:confirm.target==='brain'?['brain']:['crm'];
  if(name.startsWith('github_'))return ['github'];if(name.startsWith('vercel_'))return ['vercel'];if(name.startsWith('supabase_'))return ['supabase'];if(name.startsWith('railway_'))return ['railway'];if(name.startsWith('n8n_'))return ['n8n'];
- if(name.startsWith('mail_'))return ['mail'];if(name.startsWith('brain_'))return ['brain'];if(name==='browser_inspect')return ['browser'];if(name.startsWith('crm_'))return /outreach|campaign/.test(String(args.action))?['crm','mail']:['crm'];return [];
+ if(name.startsWith('mail_'))return ['mail'];if(name.startsWith('brain_'))return ['brain'];if(name==='browser_inspect'||name==='web_search')return ['browser'];if(name.startsWith('crm_'))return /outreach|campaign/.test(String(args.action))?['crm','mail']:['crm'];return [];
 }
