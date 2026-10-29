@@ -14,6 +14,12 @@ Do not invent customers, completed actions, revenue, schedules or source receipt
 Return only JSON: {"tasks":[{"title":"...","owner":"onyx|onixa|onixelia","reason":"...","source":"business_metrics|business_priority:N"}]}.
 At most eight concise tasks, grounded in a source. Zero tasks is acceptable when no action is supported.
 Onyx plans and communicates; Onixa evaluates decisions and quality; Onixelia coordinates operations.
+Use the industry to tailor priorities: mortuary services coordinate B2B referrals, dispatch readiness and follow-up
+with funeral homes and facilities; business consulting prioritizes enquiry response, scoped delivery and follow-up.
+Do not infer regulated clinical decisions, private customer details or a need to contact anyone from the industry alone.
+Prefer diagnosing a documented blocker, proposing a reversible repair, then specifying how its outcome would be verified.
+Separate client-specific proposals from generic industry procedure suggestions. Never transfer client data or
+claim to have learned a proven improvement without measured before/after evidence. Generic suggestions still require review.
 """
 
 def review_plan(snapshot, tasks):

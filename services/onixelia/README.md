@@ -27,3 +27,11 @@ Do not enable recurring execution or add client-facing charges until tenant isol
 ## Remaining authorized work
 
 After the pilot: industry workflows from inquiry to action, qualified lead follow-up and content publication using saved policies; measured package allowance/pricing; unify Workspace with Revenue's visual system; ensure the Onixus logo appears on all pages. The existing $299/month plus $699 setup proposal is not newly published by this implementation.
+
+## Daily scheduling and Business Team board
+
+The board reads the latest 100 scoped `revenue_jobs`, polling every ten seconds while visible. Only a source `succeeded` job is shown complete. Provider acceptance and delivery are separate facts; a successful internal draft is not a sent email. Older source jobs without named agent provenance retain their source-worker attribution.
+
+Migration `20261029203000_team_daily_schedule.sql` adds owner-controlled, default-off daily planning. The cron claims at most one due business per pass, once per UTC date, shared with the three-run daily pilot cap. An owner who loses membership cannot keep scheduling work. Pause stops future claims; it does not interrupt a request already executing. A failed run consumes that day's automatic claim to prevent retry spend loops.
+
+Daily planning currently checks a bounded sample of operational job health and creates reviewed proposals. It does **not** automatically repair jobs, publish campaigns, send messages or update shared industry playbooks. Those require supported execution handlers, business authorization and outcome receipts. No private client information is shared between businesses. Runtime hosting/key activation remains pending; do not enable schedules before a verified end-to-end provider run.

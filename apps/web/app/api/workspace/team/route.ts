@@ -13,11 +13,14 @@ export async function GET(request:Request){try{
  const {client,role,workspace}=await context(request,new URL(request.url).searchParams.get('workspace'));
  const result=await client.from('workspace_team_jobs').select('id,workspace_id,status,plan,receipts,failure,created_at,finished_at').eq('workspace_id',workspace).order('created_at',{ascending:false}).limit(20);
  if(result.error)throw Error('503:Team job storage is not ready.');
- return Response.json({workspace,team:businessTeam,runtime:teamRuntime(),can_run:role==='owner',jobs:result.data},{headers:noStore});
+ const work=await client.from('revenue_jobs').select('id,kind,status,run_at,updated_at,finished_at,attempts,max_attempts,last_error,cancel_reason').eq('workspace_id',workspace).order('updated_at',{ascending:false}).limit(100);
+ const schedule=await client.from('workspace_team_schedule').select('enabled,last_day').eq('workspace_id',workspace).maybeSingle();
+ return Response.json({schedule:schedule.data??{enabled:false,last_day:null},schedule_error:schedule.error?'Daily schedule storage is not ready.':null,work:work.data??[],work_error:work.error?'Operational jobs could not be loaded.':null,checked_at:new Date().toISOString(),workspace,team:businessTeam,runtime:teamRuntime(),can_run:role==='owner',jobs:result.data},{headers:noStore});
  }catch(e){return crmError(e);}}
 export async function POST(request:Request){let running:string|undefined;let server:SupabaseClient|undefined;
  try{
  const body=await readJson(request,2000),{client,user,role,workspace}=await context(request,body.workspace);
+ if(body.action==='schedule'){if(role!=='owner')throw Error('403:Business owner required.');if(typeof body.enabled!=='boolean')throw Error('400:Choose enabled or paused.');if(body.enabled&&teamRuntime().hermes!=='configured')throw Error('503:Connect the worker before enabling daily reviews.');const changed=await client.rpc('workspace_team_schedule_set',{p_workspace:workspace,p_enabled:body.enabled});if(changed.error)throw Error('503:Schedule could not be saved.');return Response.json({enabled:body.enabled},{headers:noStore});}
  if(role!=='owner')throw Error('403:Only the business owner can run the pilot.');if(!uuid(body.request_key))throw Error('400:Request key required.');
  if(teamRuntime().hermes!=='configured')throw Error('503:Onixelia is not connected. No job was executed.');
  const url=process.env.NEXT_PUBLIC_SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!key)throw Error('503:Team receipt storage is not configured.');
