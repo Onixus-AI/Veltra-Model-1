@@ -1,7 +1,7 @@
 export const businessTeam = [
- {id:'onyx',name:'Onyx',role:'Business lead',engine:'Onixus',description:'Plans work from verified business records and coordinates the next action.'},
- {id:'onixa',name:'Onixa',role:'Decisions and quality',engine:'Jev',description:'Evaluates priorities and finished content. Scores support decisions; they do not authorize sending or spending.'},
- {id:'onixelia',name:'Onixelia',role:'Operations',engine:'Hermes',description:'Executes assigned internal planning jobs and reports actual results and blockers.'},
+ {id:'onyx',name:'Onyx',role:'Build · Repair & improvement',engine:'Onixus',description:'Owns system health, repairs, quality, new capabilities and the verified improvement loop.'},
+ {id:'onixa',name:'Onixa',role:'Grow · Sales & marketing',engine:'Signal / CRM / Jev decision support',description:'Owns sales acquisition, email campaigns, Signal, outreach and community growth.'},
+ {id:'onixelia',name:'Onixelia',role:'Automate · Workflows & delivery',engine:'Hermes',description:'Owns workflows, schedules, handoffs and keeping permitted work moving to completion.'},
 ] as const;
 export type TeamMember = typeof businessTeam[number]['id'];
 export function memberName(id:unknown):string{return businessTeam.find(m=>m.id===id)?.name??'Unassigned';}

@@ -25,6 +25,6 @@ export async function executePilot(id:string,snapshot:PlanningSnapshot,transport
  const sources=new Set(['business_metrics',...snapshot.priorities.map((_,i)=>'business_priority:'+i)]);
  if(tasks.some(task=>!sources.has(task.source)))throw Error('503:Plan cites an unavailable source.');
  const review=result.review;
- if(!review||review.engine!=='jev'||typeof review.model!=='string'||!/^typesafe\/jev-1\.14(?:-\d{8})?$/.test(review.model)||typeof review.score!=='number'||!Number.isFinite(review.score)||review.score<0||review.score>10||typeof review.confidence!=='number'||!Number.isFinite(review.confidence)||review.confidence<0||review.confidence>1||review.decision!=='review_only')throw Error('503:Onixa returned an invalid review receipt.');
+ if(!review||review.engine!=='jev'||typeof review.model!=='string'||!/^typesafe\/jev-1\.14(?:-\d{8})?$/.test(review.model)||typeof review.score!=='number'||!Number.isFinite(review.score)||review.score<0||review.score>10||typeof review.confidence!=='number'||!Number.isFinite(review.confidence)||review.confidence<0||review.confidence>1||review.decision!=='review_only')throw Error('503:Decision support returned an invalid review receipt.');
  return {tasks,review:{engine:'jev',model:review.model,score:review.score,confidence:review.confidence,cost_usd:typeof review.cost_usd==='number'&&Number.isFinite(review.cost_usd)&&review.cost_usd>=0?review.cost_usd:null},engine:'hermes',version:result.version,model:typeof result.model==='string'?result.model.slice(0,100):null,usage:result.usage??null};
 }

@@ -39,7 +39,7 @@ export async function POST(request:Request){let running:string|undefined;let ser
  const at=new Date().toISOString();
  const receipts=[{member:'onyx',action:'Verified business snapshot',status:'completed',at:snapshot.checked_at,source:'revenue_overview'},
  {member:'onixelia',action:'Prepared an internal daily plan',status:'completed',at,engine:result.engine,version:result.version,model:result.model,usage:result.usage},
- {member:'onixa',action:'Evaluated the internal plan',status:'completed',at,...result.review,detail:'Quality score '+result.review.score.toFixed(1)+'/10. This is a review, not execution authorization.'},
+ {member:'onyx',action:'Reviewed plan quality with Jev decision support',status:'completed',at,...result.review,detail:'Quality score '+result.review.score.toFixed(1)+'/10. This is a review, not execution authorization.'},
  {member:'onyx',action:'Recorded proposed assignments',status:'completed',at,detail:'Assignments are proposals. No emails sent, posts published or calendar events changed.'}];
  const saved=await server.from('workspace_team_jobs').update({status:'completed',plan:result.tasks,receipts,finished_at:at}).eq('id',job.id).eq('workspace_id',workspace).eq('requested_by',user.id).eq('status','running').select('id,status,plan,receipts,created_at,finished_at').single();
  if(saved.error)throw Error('503:Execution finished but its receipt could not be saved. Check the job before retrying.');running=undefined;
