@@ -39,12 +39,26 @@ begin
 end $$;
 revoke all on function public.crm_confirm_bulk_import(uuid) from public,anon;
 grant execute on function public.crm_confirm_bulk_import(uuid) to authenticated;
+-- Operational metadata only. Tool payloads, customer messages and private files are never copied here.
+create table if not exists public.workspace_business_events(
+ id uuid primary key default gen_random_uuid(),workspace_id uuid not null references public.crm_workspaces(id) on delete cascade,
+ actor_id uuid not null,tool text not null check(length(tool)<=100),status text not null check(status in ('observed','review','completed','failed')),created_at timestamptz not null default now());
+alter table public.workspace_business_events enable row level security;
+revoke all on public.workspace_business_events from public,anon,authenticated;
+grant select on public.workspace_business_events to authenticated;
+grant select,insert on public.workspace_business_events to service_role;
+drop policy if exists workspace_business_events_members on public.workspace_business_events;
+create policy workspace_business_events_members on public.workspace_business_events for select to authenticated using(exists(select 1 from public.crm_memberships m where m.workspace_id=workspace_business_events.workspace_id and m.user_id=(select auth.uid())));
+create index if not exists workspace_business_events_recent on public.workspace_business_events(workspace_id,created_at desc);
 -- Realtime carries only existing RLS-authorized CRM event records, to existing members.
 do $$ begin
  if exists(select 1 from pg_publication where pubname='supabase_realtime') then
   if not (select relrowsecurity from pg_class where oid='public.crm_activity'::regclass) then raise exception 'CRM activity RLS must be enabled';end if;
   if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='crm_activity') then
    alter publication supabase_realtime add table public.crm_activity;
+  end if;
+  if not exists(select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='workspace_business_events') then
+   alter publication supabase_realtime add table public.workspace_business_events;
   end if;
  end if;
 end $$;

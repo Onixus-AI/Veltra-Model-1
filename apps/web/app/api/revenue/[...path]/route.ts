@@ -106,6 +106,7 @@ async function handle(request: Request, context: Context) {
         const messages = must(m) as {direction: string; body: string; occurred_at: string}[];
         return ok({messages, comments: must(comments), summary: summarizeThread(messages.map(x => ({direction: x.direction, text: x.body, occurred_at: x.occurred_at})))});
       }
+      if (view === 'business-activity') return ok({events: must(await client.from('workspace_business_events').select('id,tool,status,created_at').eq('workspace_id',w).order('created_at',{ascending:false}).limit(100))});
       if (view === 'automation') {
         const [jobs, workflows, controls] = await Promise.all([
           client.from('revenue_jobs').select('id,kind,workflow_key,status,attempts,max_attempts,run_at,last_error,cancel_reason,chain_depth,customer_id,message_id,created_at,updated_at,finished_at').eq('workspace_id', w).order('updated_at', {ascending: false}).limit(100),
