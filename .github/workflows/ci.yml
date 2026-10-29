@@ -45,3 +45,11 @@ jobs:
       - run: node --test apps/web/test/browser-worker.integration.mjs
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/veltra-browser/node_modules/playwright/index.mjs
+  onixelia-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests/onixelia -p 'test_*.py'
