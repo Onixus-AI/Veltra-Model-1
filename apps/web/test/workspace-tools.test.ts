@@ -28,3 +28,7 @@ test('CSV import preserves quoted fields and requires actual file provenance',()
 test('research and bulk-import tools are advertised together within the gateway limit',async()=>{
  const {toolsForMessages}=await import('../lib/chat-tools');const tools=toolsForMessages([{role:'user',content:'Search the web for businesses and bulk import my CSV'}]);assert.ok(tools.length<=32);assert.ok(tools.some(t=>t.function.name==='web_search'));assert.ok(tools.some(t=>t.function.name==='crm_bulk_import'));
 });
+
+test('a completed import needs a reviewed host receipt, not prose',async()=>{
+ const {verifiedAnswer}=await import('../lib/completion-evidence');assert.match(verifiedAnswer('I created the records',[{tool:'crm_bulk_import',content:JSON.stringify({status:'completed',approval:'confirmed',receipt:{imported:2,skipped:1,messages_sent:0}})}]),/Verified action receipts/);assert.match(verifiedAnswer('I created the records',[{tool:'crm_bulk_import',content:'Imported'}]),/cannot verify/);
+});

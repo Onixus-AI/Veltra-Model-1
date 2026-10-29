@@ -41,7 +41,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   let kind='';try{kind=JSON.parse(review.data?.messages?.[0]?.content??'{}').type;}catch{}
   if(kind==='crm_bulk_import_review'){
    if(review.data?.workspace_id!==scope.workspace_id||scope.customer_id)throw Error('409:Return to the business context used for this import.');
-   const r=await client.rpc('crm_confirm_bulk_import',{p_review:o.confirm.id});if(r.error)throw Error('409:Import could not complete. Check the review, role and returned receipt before retrying.');return {content:JSON.stringify(r.data)};
+   const r=await client.rpc('crm_confirm_bulk_import',{p_review:o.confirm.id});if(r.error)throw Error('409:Import could not complete. Check the review, role and returned receipt before retrying.');if(r.data?.status!=='completed'||r.data.review_id!==o.confirm.id||r.data.workspace_id!==scope.workspace_id||!Number.isSafeInteger(r.data.imported)||!Number.isSafeInteger(r.data.skipped))throw Error('503:Import returned no verified receipt.');return {content:JSON.stringify({status:'completed',approval:'confirmed',action:'crm_bulk_import',review_id:o.confirm.id,receipt:r.data})};
   }
  }
  if(o.name==='signal_creative'||o.confirm?.target==='signal')return signalAgentAction(o);
