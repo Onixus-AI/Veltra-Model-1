@@ -22,3 +22,16 @@ class Contract(unittest.TestCase):
     def test_budget_configuration_required(self):
         with patch.dict('os.environ',{'ONIXELIA_TOKEN':'x'*32,'OPENROUTER_API_KEY':'test','ONIXELIA_MODEL':'test'},clear=True):
             self.assertFalse(server.configured())
+    def test_actual_provider_cap_is_checked(self):
+        import io
+        def response(value):
+            class Result(io.BytesIO):
+                def __enter__(self):return self
+                def __exit__(self,*_):self.close()
+            return Result(__import__('json').dumps({'data':value}).encode())
+        with patch.dict('os.environ',{'OPENROUTER_API_KEY':'test'},clear=True):
+            for value in [{'limit':None,'limit_remaining':100},{'limit':10,'limit_remaining':10},{'limit':5,'limit_remaining':5,'limit_reset':'daily'},{'limit':5,'limit_remaining':0}]:
+                with patch.object(server.urllib.request,'urlopen',return_value=response(value)):
+                    with self.assertRaises(ValueError):server.verify_budget()
+            with patch.object(server.urllib.request,'urlopen',return_value=response({'limit':5,'limit_remaining':4,'limit_reset':None})):
+                server.verify_budget()

@@ -19,4 +19,4 @@ export function validatePlan(value:unknown):PilotTask[]{
   return {title:(t.title as string).trim(),owner:t.owner as TeamMember,reason:(t.reason as string).trim(),source:(t.source as string).trim()};
  });
 }
-export function teamRuntime(){return {hermes:process.env.ONIXELIA_URL&&process.env.ONIXELIA_TOKEN?'configured':'not_connected',scope:pilotScope,recurring:false};}
+export function teamRuntime(){return {hermes:process.env.ONIXELIA_URL&&process.env.ONIXELIA_TOKEN&&process.env.ONIXELIA_TOKEN.length>=32?'configured':'not_connected',scope:pilotScope,recurring:false};}
