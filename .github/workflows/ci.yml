@@ -45,3 +45,15 @@ jobs:
       - run: node --test apps/web/test/browser-worker.integration.mjs
         env:
           PLAYWRIGHT_MODULE: ${{ runner.temp }}/veltra-browser/node_modules/playwright/index.mjs
+  onixelia-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tests/onixelia -p 'test_*.py'
+      - name: Verify pinned Hermes library contract
+        run: |
+          docker build -f services/onixelia/Dockerfile -t onixelia-pilot .
+          docker run --rm --entrypoint /opt/hermes/.venv/bin/python -e HERMES_SOURCE=/opt/hermes onixelia-pilot -c "import sys,inspect,json;sys.path[:0]=['/opt/hermes','/opt/onixelia'];import run_plan;from run_agent import AIAgent;from pathlib import Path;required={'model','api_key','base_url','provider','api_mode','enabled_toolsets','max_iterations','max_tokens','quiet_mode','skip_memory','skip_context_files','save_trajectories'};assert required.issubset(inspect.signature(AIAgent).parameters);assert json.loads(Path('/etc/hermes/image-provenance.json').read_text()).get('version');print('Pinned Hermes import and constructor contract verified; no model calls made.')"

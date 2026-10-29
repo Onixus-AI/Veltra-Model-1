@@ -20,3 +20,9 @@ export function businessJobActions(workspace:string,jobs:BusinessJob[]):Workspac
 
 export type BusinessToolEvent={id:string;tool:string;status:string;created_at:string};
 export function businessToolActions(workspace:string,events:BusinessToolEvent[]):WorkspaceAction[]{return events.filter(e=>Number.isFinite(Date.parse(e.created_at))).map(e=>({id:'tool:'+e.id,source:'Business OS',title:e.tool.replaceAll('_',' ')+' · '+e.status,detail:e.status==='completed'?'A reviewed host action returned a completion receipt.':e.status==='review'?'An exact-action review was prepared; the action was not yet applied.':e.status==='failed'?'The host tool did not complete. Check its source before retrying.':'The host received a tool response. This is not proof of downstream delivery.',at:e.created_at,receipt:'workspace_business_events:'+e.id,href:'/?view=chat&mode=business&crm_workspace='+encodeURIComponent(workspace),snapshot:false}));}
+
+export type TeamJobReceipt={id:string;status:string;created_at:string;receipts:{member:string;action:string;status:string;at:string;engine?:string;detail?:string}[]};
+export function teamJobActions(workspace:string,jobs:TeamJobReceipt[]):WorkspaceAction[]{
+ const names:Record<string,string>={onyx:'Onyx',onixa:'Onixa',onixelia:'Onixelia'};
+ return jobs.flatMap(job=>job.receipts.filter(r=>names[r.member]&&Number.isFinite(Date.parse(r.at))).map((r,i)=>({id:'team:'+job.id+':'+i,source:'Business OS' as const,title:names[r.member]+' · '+r.action+' · '+r.status,detail:r.detail||'Recorded internal planning step. This is not a receipt for sending or publishing.',at:r.at,receipt:'workspace_team_jobs:'+job.id+':'+i,href:'/workspace/team?workspace='+encodeURIComponent(workspace),snapshot:false})));
+}

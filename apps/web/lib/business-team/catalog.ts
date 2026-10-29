@@ -1,0 +1,22 @@
+export const businessTeam = [
+ {id:'onyx',name:'Onyx',role:'Business lead',engine:'Onixus',description:'Plans work from verified business records and coordinates the next action.'},
+ {id:'onixa',name:'Onixa',role:'Decisions and quality',engine:'Jev',description:'Evaluates priorities and finished content. Scores support decisions; they do not authorize sending or spending.'},
+ {id:'onixelia',name:'Onixelia',role:'Operations',engine:'Hermes',description:'Executes assigned internal planning jobs and reports actual results and blockers.'},
+] as const;
+export type TeamMember = typeof businessTeam[number]['id'];
+export function memberName(id:unknown):string{return businessTeam.find(m=>m.id===id)?.name??'Unassigned';}
+export const pilotScope='internal_daily_plan';
+export const pilotLimits={maxTasks:8,maxSnapshotBytes:16000,maxOutputBytes:20000,maxRunSeconds:40};
+export type PilotTask={title:string;owner:TeamMember;reason:string;source:string};
+export function validatePlan(value:unknown):PilotTask[]{
+ if(!value||typeof value!=='object'||Array.isArray(value))throw Error('Invalid plan');
+ const tasks=(value as {tasks?:unknown}).tasks;
+ if(!Array.isArray(tasks)||tasks.length>pilotLimits.maxTasks)throw Error('Plan needs at most eight tasks');
+ return tasks.map(raw=>{
+  if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Invalid task');const t=raw as Record<string,unknown>;
+  for(const key of ['title','reason','source'])if(typeof t[key]!=='string'||!t[key].trim()||(t[key] as string).length>(key==='reason'?600:250))throw Error('Invalid task '+key);
+  if(!businessTeam.some(m=>m.id===t.owner))throw Error('Unknown team member');
+  return {title:(t.title as string).trim(),owner:t.owner as TeamMember,reason:(t.reason as string).trim(),source:(t.source as string).trim()};
+ });
+}
+export function teamRuntime(){return {hermes:process.env.ONIXELIA_URL&&process.env.ONIXELIA_TOKEN&&process.env.ONIXELIA_TOKEN.length>=32?'configured':'not_connected',scope:pilotScope,recurring:false};}
