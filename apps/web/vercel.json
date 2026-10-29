@@ -3,6 +3,10 @@
     {
       "path": "/api/revenue/worker",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/workspace/team/daily",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
