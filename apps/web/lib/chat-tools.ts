@@ -35,14 +35,25 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
-export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative'].includes(tool.function.name));
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import'].includes(tool.function.name));
 
 export function toolsForMessages(messages:{role:string;content?:unknown;tool_calls?:ToolCall[]}[]){
  const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
- if(!/\b(?:signal|brand|artwork|creative|campaign images?|generate (?:an? |six )?images?)\b/i.test(userText)&&!messages.some(m=>m.tool_calls?.some(c=>c.function.name==='signal_creative')))return CHAT_TOOLS;
- const optional=['n8n_project','railway_project','supabase_project','vercel_list_deployments'];
- const omitted=optional.find(name=>!userText.toLowerCase().includes(name.split('_')[0]));
- return omitted?[...CHAT_TOOLS.filter(t=>t.function.name!==omitted),SIGNAL_CREATIVE_TOOL]:CHAT_TOOLS;
+ const called=new Set(messages.flatMap(m=>m.tool_calls?.map(c=>c.function.name)??[]));
+ const wanted=[
+  ...(/\b(?:signal|brand|artwork|creative|campaign images?|generate (?:an? |six )?images?)\b/i.test(userText)||called.has('signal_creative')?['signal_creative']:[]),
+  ...(/\b(?:web|search|research|find|look up|latest|current)\b/i.test(userText)||called.has('web_search')?['web_search']:[]),
+  ...(/\b(?:bulk|import|upload|csv)\b/i.test(userText)||called.has('crm_bulk_import')?['crm_bulk_import']:[]),
+ ];
+ if(!wanted.length)return CHAT_TOOLS;
+ const selected=[...CHAT_TOOLS];
+ for(const name of ['n8n_project','railway_project','supabase_project','vercel_list_deployments','brand_read_text','brand_list_files','mail_find_followups']){
+  if(selected.length+wanted.length<=32)break;
+  if(userText.toLowerCase().includes(name.split('_')[0])||called.has(name))continue;
+  const i=selected.findIndex(t=>t.function.name===name);if(i>=0)selected.splice(i,1);
+ }
+ // Explicitly requested tools take priority over unrelated catalogue entries.
+ return [...selected.slice(0,32-wanted.length),...AGENT_TOOLS.filter(t=>wanted.includes(t.function.name))];
 }
 
 export type WriteProposal = {
@@ -224,7 +235,7 @@ export async function runAgentTurn(
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:extraBody.usage_app??"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);

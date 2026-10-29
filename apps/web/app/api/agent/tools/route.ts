@@ -1,3 +1,4 @@
+import {recordBusinessTool} from '@/lib/business-tool-events';
 import {requireTaskAccess,assertTaskAccess,assertReviewAccess,TaskAccessError,appsForTool} from '@/lib/task-access';
 import {crmUser,crmError} from '@/lib/crm/server';
 import {agentAction,agentScope} from '@/lib/agent-actions';
@@ -12,5 +13,7 @@ export async function POST(request:Request){try{
  const {client,user}=await crmUser(request);
  if(b.name==='current_time')return Response.json({content:JSON.stringify(currentTime(b.args.time_zone))},{headers:{'Cache-Control':'no-store'}});
  if(b.confirm?.target==='crm')await assertReviewAccess(request,b.task_id,client,user.id,b.confirm.id);const scope=await agentScope(client,user.id,b);
- return Response.json(await agentAction({client,user:user.id,scope,name:b.name,args:b.args,confirm:b.confirm,authorization:request.headers.get('authorization')!,mailOrigin:process.env.VELTRA_MAIL_URL,appAccess:apps=>assertTaskAccess(request,b.task_id,apps)}),{headers:{'Cache-Control':'no-store'}});
+ let outcome;try{outcome=await agentAction({client,user:user.id,scope,name:b.name,args:b.args,confirm:b.confirm,authorization:request.headers.get('authorization')!,mailOrigin:process.env.VELTRA_MAIL_URL,appAccess:apps=>assertTaskAccess(request,b.task_id,apps)}); }catch(error){await recordBusinessTool(client,user.id,scope.workspace_id,b.confirm?'confirm_'+b.confirm.target:b.name);throw error;}
+ await recordBusinessTool(client,user.id,scope.workspace_id,b.confirm?'confirm_'+b.confirm.target:b.name,outcome);
+ return Response.json(outcome,{headers:{'Cache-Control':'no-store'}});
 }catch(e){if(e instanceof TaskAccessError)return e.response;return crmError(e);}}

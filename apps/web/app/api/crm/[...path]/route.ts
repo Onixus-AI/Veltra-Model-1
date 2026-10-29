@@ -58,7 +58,7 @@ async function handle(request:Request,context:Context){try{
  if(path[0]==='conversations'){
   if(path.length===1&&method==='GET'){
    const w=url.searchParams.get('workspace'),c=url.searchParams.get('customer');
-   let q=client.from('crm_conversations').select('id,title,revision,workspace_id,customer_id,updated_at').neq('title','CRM action review').neq('title','Shared brain review').neq('title','Mail tool review').order('updated_at',{ascending:false}).limit(50);
+   let q=client.from('crm_conversations').select('id,title,revision,workspace_id,customer_id,updated_at').neq('title','CRM bulk import review').neq('title','CRM action review').neq('title','Shared brain review').neq('title','Mail tool review').order('updated_at',{ascending:false}).limit(50);
    q=w?q.eq('workspace_id',w):q.is('workspace_id',null);q=c?q.eq('customer_id',c):q.is('customer_id',null);
    const {data,error}=await q;if(error)throw error;return ok({conversations:data});
   }
