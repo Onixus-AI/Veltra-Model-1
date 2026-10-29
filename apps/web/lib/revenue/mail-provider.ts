@@ -88,6 +88,7 @@ export function buildMime(m: OutboundMail, now = new Date()): string {
     ...(m.replyTo ? [`Reply-To: ${headerSafe(m.replyTo)}`] : []),
     `Subject: ${encodedSubject}`, `Date: ${now.toUTCString()}`,
     `Message-ID: ${messageIdFor(m.idempotencyKey)}`,
+    ...(/^Onixus daily report — \d{4}-\d{2}-\d{2}$/.test(m.subject) ? ['Auto-Submitted: auto-generated', 'X-Auto-Response-Suppress: All'] : []),
     // References is folded one id per line so long chains stay under the 998-character line limit.
     ...(thread.inReplyTo ? [`In-Reply-To: ${thread.inReplyTo}`, `References: ${thread.references.join('\r\n ')}`] : []),
     'MIME-Version: 1.0', 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '',

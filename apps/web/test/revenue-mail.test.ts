@@ -172,3 +172,10 @@ test('worker: retries use findSent so a crash after sending never double-sends; 
   assert.equal(none.failed, 1);
   assert.match((completed['5'].error as {message: string}).message, /Connect Google in Onixus Mail/);
 });
+
+test('daily report notifications suppress automated replies without changing normal mail', () => {
+ const mail={idempotencyKey:'report-test',from:'sender@example.com',to:'owner@example.com',subject:'Onixus daily report — 2026-10-30',body:'Daily summary'};
+ assert.match(buildMime(mail),/^Auto-Submitted: auto-generated$/m);
+ assert.match(buildMime(mail),/^X-Auto-Response-Suppress: All$/m);
+ assert.doesNotMatch(buildMime({...mail,subject:'Customer follow-up'}),/^Auto-Submitted:/m);
+});
