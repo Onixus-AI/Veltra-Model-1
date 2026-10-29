@@ -2,12 +2,10 @@
 import BusinessNavigation from '@/components/workspace-business-nav';
 
 import Link from 'next/link';
-import {useEffect,useState,type FormEvent} from 'react';
+import {useEffect,useState} from 'react';
 import {ArrowRight,ArrowUpRight,MessageSquare,Mail,Users,Search,CheckCheck,Plug,Settings2,Sparkles,ArrowUp,RefreshCw,CalendarDays,FolderOpen,Palette} from 'lucide-react';
 import {mailHealthSummary,type MailHealth} from '@/lib/mail-health';
 import BusinessSummary from '@/components/business-summary';
-import type {Operations} from '@/lib/crm/operations';
-import OperationsCenter from '@/components/crm/operations-center';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 import './workspace.css';
 
@@ -15,11 +13,10 @@ type State='loading'|'connected'|'available'|'unavailable';
 type Space={id:string;name:string};
 const contextKey='veltra-home-business';
 export default function WorkspaceHome(){
- const [operations,setOperations]=useState<Operations|null>(null),[historyLimit,setHistoryLimit]=useState(100);
  const [spaces,setSpaces]=useState<Space[]>([]),[workspace,setWorkspace]=useState('');
  const [crm,setCrm]=useState<State>('loading'),[mail,setMail]=useState<State>('loading'),[error,setError]=useState('');
  const [mailRuntime,setMailRuntime]=useState<MailHealth|null>(null);
- const [prompt,setPrompt]=useState(''),[refresh,setRefresh]=useState(0),[loading,setLoading]=useState(true);
+ const [refresh,setRefresh]=useState(0),[loading,setLoading]=useState(true);
  useEffect(()=>{let active=true;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);
  async function load(){setLoading(true);setError('');
   try{const headers=await gatewayAuthorizationHeaders();
@@ -34,22 +31,18 @@ export default function WorkspaceHome(){
   finally{clearTimeout(timeout);if(active)setLoading(false);}
  }void load();return()=>{active=false;clearTimeout(timeout);controller.abort();};},[refresh]);
  useEffect(()=>{let active=true;const poll=setInterval(()=>{void gatewayAuthorizationHeaders().then(headers=>fetch('/api/mail/link',{headers,cache:'no-store',signal:AbortSignal.timeout(10000)})).then(async response=>{if(!response.ok)throw Error('Unavailable');const data=await response.json();if(active){setMail(data.connected?'connected':'available');setMailRuntime(data);}}).catch(()=>{if(active){setMail('unavailable');setMailRuntime(null);}});},30000);return()=>{active=false;clearInterval(poll);};},[]);
- function changeWorkspace(value:string){setOperations(null);setHistoryLimit(100);setWorkspace(value);try{localStorage.setItem(contextKey,value);}catch{}}
+ function changeWorkspace(value:string){setWorkspace(value);try{localStorage.setItem(contextKey,value);}catch{}}
  const context=workspace?'&crm_workspace='+encodeURIComponent(workspace):'';
  const chat='/?view=chat&mode=work'+context;
  const crmUrl=(view='Overview')=>'/crm?view='+encodeURIComponent(view)+(workspace?'&workspace='+encodeURIComponent(workspace):'');
- function begin(event:FormEvent){event.preventDefault();if(prompt.trim())window.location.assign(chat+'&prompt='+encodeURIComponent(prompt.trim()));}
+
  const label=(state:State)=>({loading:'Checking…',connected:'Connected',available:'Ready to connect',unavailable:'Connection needs attention'}[state]);
  const mailHealth=mailHealthSummary(mailRuntime);
  const activeSpace=spaces.find(s=>s.id===workspace);
- return <main className="suite-home">
+ return <main className="suite-home overview-home">
   <header className="suite-header"><Link href="/workspace" className="suite-brand"><img src="/veltra-logo.png" alt="Onixus Workspace"/><span>Onixus Workspace<small>Your business workspace</small></span></Link><BusinessNavigation workspace={workspace} current="overview"/></header>
-  <section className="suite-intro"><div><h1>Business Overview</h1><p>Customers, sales, meetings and priorities for your business.</p></div><label className="suite-business">Working in<select aria-label="Business workspace" disabled={loading||!spaces.length} value={workspace} onChange={event=>changeWorkspace(event.target.value)}><option value="">{loading?'Loading businesses…':'Choose a business'}</option>{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><small>{activeSpace?'Your overview follows this business.':'Choose a business to see its activity.'}</small></label></section>
-  <section className="business-journey" aria-label="How your workspace works"><Link href="/settings/connections?mode=business"><strong>Connect</strong><span>Link the tools your business uses.</span></Link><Link href={'/workspace/team?workspace='+encodeURIComponent(workspace)}><strong>Assign and review</strong><span>Give your team responsibilities and review requested actions.</span></Link><a href="#business-results"><strong>Follow results</strong><span>See outcomes here and job progress in Business Team.</span></a></section>
-  <div id="business-results" className="suite-section-title"><div><span className="suite-eyebrow">YOUR BUSINESS AT A GLANCE</span><h2>{activeSpace?`${activeSpace.name}, in motion.`:'See what needs your attention.'}</h2></div><a href={crmUrl()}>Open CRM details <ArrowRight size={16}/></a></div>
+  <section className="suite-intro"><div><h1>Business Overview</h1><p>Your results, priorities and team in one place.</p></div><label className="suite-business">Working in<select aria-label="Business workspace" disabled={loading||!spaces.length} value={workspace} onChange={event=>changeWorkspace(event.target.value)}><option value="">{loading?'Loading businesses…':'Choose a business'}</option>{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><small>{activeSpace?'Your overview follows this business.':'Choose a business to see its activity.'}</small></label></section>
   {workspace?<BusinessSummary key={workspace} workspace={workspace}/>:<section className="suite-empty"><h2>{loading?'Loading your business…':'Choose a business to see its overview.'}</h2><p>{error||'Your customers, pipeline, meetings and priorities will appear here.'}</p><a href="/crm">Open CRM</a></section>}
-  <section className="suite-start" aria-label="Start a task"><div className="suite-start-label"><Sparkles size={17}/><span>What would you like to work on?</span><span className="suite-start-tag">ONYX</span></div><form onSubmit={begin}><label className="suite-sr" htmlFor="home-task">Your task</label><textarea id="home-task" rows={2} maxLength={2000} value={prompt} onChange={event=>setPrompt(event.target.value)} placeholder="Plan my day, draft a follow-up, or help me think through an idea…"/><div className="suite-start-footer"><span>Opens in Chat. You review the message before sending.</span><button type="submit" disabled={!prompt.trim()}>Start in Chat <ArrowUp size={17}/></button></div></form></section>
-  <nav className="suite-shortcuts" aria-label="Quick actions"><a href={crmUrl('Sources')}><Search size={15}/>Find prospects<ArrowUpRight size={13}/></a><a href={crmUrl('Automation')}><Mail size={15}/>Review outreach<ArrowUpRight size={13}/></a><a href={crmUrl('Customers')}><Users size={15}/>View customers<ArrowUpRight size={13}/></a><a href={chat+'&prompt='+encodeURIComponent('Help me review my priorities and plan my next steps.')}><CheckCheck size={15}/>Plan my day<ArrowUpRight size={13}/></a></nav>
   {error&&<div className="suite-error" role="alert"><span>{error}</span><button type="button" disabled={loading} onClick={()=>setRefresh(n=>n+1)}><RefreshCw size={14}/>Try again</button></div>}
   <details className="suite-tool-directory"><summary>Open your workspace tools</summary><section className="suite-products" aria-label="Your workspace tools">
    <a className="suite-product" href={chat}><span className="suite-tool-icon suite-chat"><img src="/brands/onixus-chat-icon-v2.png" alt="" width={32} height={32}/></span><div><h2>Onyx</h2><p>Ask, plan and take reviewed actions across your tools.</p><span className="suite-status">Ready when you are</span></div><ArrowUpRight size={19}/></a>
