@@ -1,6 +1,6 @@
 import type {Operations} from './crm/operations';
 export type SignalOverview={workspace:string;policy:{production_mode:string;autopublish?:{mode?:string}}|null;items:{id:string;platform:string;caption:string;status:string;created_at:string}[]|null;unavailable:string[];checked_at:string;limit:number};
-export type WorkspaceAction={id:string;source:'CRM'|'Mail'|'Signal';title:string;detail:string;at:string|null;receipt:string;href:string;snapshot:boolean};
+export type WorkspaceAction={id:string;source:'CRM'|'Mail'|'Signal'|'Business OS';title:string;detail:string;at:string|null;receipt:string;href:string;snapshot:boolean};
 export function workspaceActions(workspace:string,operations:Operations|null,signal:SignalOverview|null):WorkspaceAction[]{
  const crm=(view:string)=>'/crm?workspace='+encodeURIComponent(workspace)+'&view='+view;
  const rows:WorkspaceAction[]=(operations?.events??[]).map(e=>({id:'crm:'+e.id,source:'CRM',title:e.title,detail:e.kind.replaceAll('_',' '),at:e.created_at,receipt:'crm_activity:'+e.id,href:crm('Overview'),snapshot:false}));
@@ -15,3 +15,5 @@ export function groupWorkspaceActions(rows:WorkspaceAction[]){
  for(const r of rows){const key=!r.snapshot&&r.at?r.source+':'+r.title+':'+r.detail+':'+r.at.slice(0,16):r.id;const group=groups.get(key)||[];group.push(r);groups.set(key,group);}
  return [...groups].map(([id,events])=>({id,events}));
 }
+export type BusinessJob={id:string;kind:string;status:string;attempts:number;run_at:string;updated_at:string;last_error:string|null;cancel_reason:string|null};
+export function businessJobActions(workspace:string,jobs:BusinessJob[]):WorkspaceAction[]{return jobs.filter(j=>Number.isFinite(Date.parse(j.updated_at))).map(j=>({id:'workflow:'+j.id,source:'Business OS',title:j.kind.replaceAll('_',' ')+' · '+j.status,detail:`Attempt ${j.attempts} · Scheduled ${j.run_at}${j.last_error?' · '+j.last_error:''}${j.cancel_reason?' · '+j.cancel_reason:''}`,at:j.updated_at,receipt:'revenue_jobs:'+j.id,href:'/revenue?w='+encodeURIComponent(workspace)+'&view=automation&job='+encodeURIComponent(j.id),snapshot:true}));}
