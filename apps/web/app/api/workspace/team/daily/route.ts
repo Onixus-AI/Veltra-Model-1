@@ -19,12 +19,19 @@ export async function GET(request:Request){
  if(start.error)return Response.json({error:'Daily claim failed'},{status:503,headers:noStore});
  const job=start.data;if(!job)return Response.json({started:0},{headers:noStore});
  try{
- const [jobs,business]=await Promise.all([db.from('revenue_jobs').select('status').eq('workspace_id',workspace).order('updated_at',{ascending:false}).limit(1000),db.from('crm_workspaces').select('industry').eq('id',workspace).single()]);
- if(jobs.error||business.error)throw Error('Context unavailable');
- const metrics={failures:{dead_jobs:jobs.data.filter(j=>j.status==='dead').length}};
- const snapshot=planningSnapshot(business.data.industry||'Business services',{generated_at:new Date().toISOString(),metrics},[]);
+ const checkedAt=new Date().toISOString();
+ const [dead,overdue,pending,failed,business]=await Promise.all([
+ db.from('revenue_jobs').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','dead'),
+ db.from('crm_tasks').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','open').lt('due_at',checkedAt),
+ db.from('revenue_messages').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','drafted'),
+ db.from('revenue_messages').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','failed'),
+ db.from('crm_workspaces').select('industry').eq('id',workspace).single()]);
+ if(dead.error||overdue.error||pending.error||failed.error||business.error||[dead.count,overdue.count,pending.count,failed.count].some(value=>value===null))throw Error('Context unavailable');
+ const metrics={failures:{dead_jobs:dead.count,failed_sends:failed.count},commitments:{overdue:overdue.count},outreach:{awaiting_approval:pending.count}};
+ const priorities=[...(overdue.count? [{kind:'overdue'}]:[]),...((dead.count||failed.count)?[{kind:'failed'}]:[]),...(pending.count?[{kind:'approval'}]:[])];
+ const snapshot=planningSnapshot(business.data.industry||'Business services',{generated_at:checkedAt,metrics},priorities);
  const result=await executePilot(job.id,snapshot),at=new Date().toISOString();
- const receipts=[{member:'onyx',action:'Checked operational job health',status:'completed',at:snapshot.checked_at,source:'revenue_jobs',detail:'Most recent 1,000 jobs at most; not a full business audit.'},{member:'onixelia',action:'Prepared daily improvement proposals',status:'completed',at,engine:result.engine,model:result.model,version:result.version,usage:result.usage},{member:'onixa',action:'Reviewed daily improvement proposals',status:'completed',at,...result.review,detail:'Review only. Proposed work requires its own execution receipt.'}];
+ const receipts=[{member:'onyx',action:'Checked daily business queues',status:'completed',at:snapshot.checked_at,source:'revenue_jobs,crm_tasks,revenue_messages',detail:'Exact scoped counts of overdue commitments, Mail drafts, failed sends and dead jobs. Other connectors are not audited by this run.'},{member:'onixelia',action:'Prepared daily improvement proposals',status:'completed',at,engine:result.engine,model:result.model,version:result.version,usage:result.usage},{member:'onixa',action:'Reviewed daily improvement proposals',status:'completed',at,...result.review,detail:'Review only. Proposed work requires its own execution receipt.'}];
  const saved=await db.from('workspace_team_jobs').update({status:'completed',plan:result.tasks,receipts,finished_at:at}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');if(saved.error)throw Error('Receipt save failed');
  return Response.json({started:1,status:'completed',job_id:job.id},{headers:noStore});
  }catch{await db.from('workspace_team_jobs').update({status:'failed',failure:'Daily review failed. No external actions authorized.',finished_at:new Date().toISOString()}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');return Response.json({started:1,status:'failed',job_id:job.id},{headers:noStore});}

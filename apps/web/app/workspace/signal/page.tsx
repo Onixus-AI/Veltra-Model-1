@@ -1,3 +1,2 @@
-'use client';
-import SignalCanvas from '@/components/signal-canvas';
-export default function SignalPage(){return <main style={{height:'100dvh'}}><SignalCanvas/></main>;}
+import {redirect} from 'next/navigation';
+export default async function SignalPage({searchParams}:{searchParams:Promise<{workspace?:string}>}){const {workspace}=await searchParams;redirect('/?canvas=signal&mode=business'+(workspace&&/^[0-9a-f-]{36}$/i.test(workspace)?'&crm_workspace='+encodeURIComponent(workspace):''));}
