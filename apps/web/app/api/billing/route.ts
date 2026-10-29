@@ -15,6 +15,9 @@ export async function POST(request: NextRequest) {
  }
  const body = await request.json().catch(() => null);
  const action = body?.action === "portal" ? "portal" : "checkout";
+ // New packages require verified plan-specific pricing and cost-backed metering.
+ // Preserve existing customers’ billing portal; never enroll new plans as the legacy generic SKU.
+ if (action === "checkout") return Response.json({ detail: "New Workspace packages are available by scope request. Contact Onixus to confirm your plan, setup and credit terms before payment." }, { status: 409 });
  const origin = request.nextUrl.origin;
  let upstream: Response;
  try {
