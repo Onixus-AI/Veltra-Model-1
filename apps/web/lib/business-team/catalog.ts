@@ -1,7 +1,7 @@
 export const businessTeam = [
- {id:'onyx',name:'Onyx',role:'Business lead',engine:'Onixus',description:'Plans work from verified business records and coordinates the next action.'},
- {id:'onixa',name:'Onixa',role:'Decisions and quality',engine:'Jev',description:'Evaluates priorities and finished content. Scores support decisions; they do not authorize sending or spending.'},
- {id:'onixelia',name:'Onixelia',role:'Operations',engine:'Hermes',description:'Executes assigned internal planning jobs and reports actual results and blockers.'},
+ {id:'onyx',name:'Onyx',role:'Build · Orchestration & support',engine:'Onixus',description:'Orchestrates the whole team, sets priorities and assigns work. Builds, repairs and improves systems, and steps in wherever help is needed.'},
+ {id:'onixa',name:'Onixa',role:'Grow · Sales & marketing',engine:'Signal / CRM / Jev decision support',description:'Owns sales acquisition, email campaigns, Signal, outreach and community growth.'},
+ {id:'onixelia',name:'Onixelia',role:'Automate · Workflows & delivery',engine:'Hermes',description:'Owns workflows, schedules, handoffs and keeping permitted work moving to completion.'},
 ] as const;
 export type TeamMember = typeof businessTeam[number]['id'];
 export function memberName(id:unknown):string{return businessTeam.find(m=>m.id===id)?.name??'Unassigned';}
@@ -20,3 +20,4 @@ export function validatePlan(value:unknown):PilotTask[]{
  });
 }
 export function teamRuntime(){return {hermes:process.env.ONIXELIA_URL&&process.env.ONIXELIA_TOKEN&&process.env.ONIXELIA_TOKEN.length>=32?'configured':'not_connected',scope:pilotScope,recurring:false};}
+export const businessTeamPolicy='\nWhen discussing the Onixus business team, use Build. Grow. Automate. '+businessTeam.map(member=>member.name+' owns '+member.role+': '+member.description).join(' ')+' Onyx is the lead orchestrator and all-rounder: he sets priorities, delegates, monitors progress, gives direction and steps in across Build, Grow and Automate whenever help is needed. He can perform any permitted task through available tools. Onixa and Onixelia retain primary accountability for Grow and Automate. Record the actual performer in receipts, even when Onyx covers another lane. Responsibility ownership does not mean a worker is connected, a daily job is scheduled, or an action has executed. Check current capabilities and actual actor receipts before claiming named-agent execution. Preserve all existing business permissions, exact-action reviews, publishing policies and spending limits. Jev is decision support, not proof that an agent executed a job. Repairs and reusable learning belong to Onyx; do not silently modify production, train shared models or share private client data.\n';

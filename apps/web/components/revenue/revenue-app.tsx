@@ -14,7 +14,7 @@ type Workspace = {id: string; name: string; environment: string; role: string};
 type Json = Record<string, any>;
 
 const views: {key: Exclude<View, 'customer'>; label: string; icon: typeof Gauge}[] = [
-  {key: 'overview', label: 'Overview', icon: Gauge}, {key: 'pipeline', label: 'Pipeline', icon: Columns3}, {key: 'prospects', label: 'Prospects', icon: ListOrdered}, {key: 'customers', label: 'Customers', icon: Users},
+  {key: 'overview', label: 'Sales summary', icon: Gauge}, {key: 'pipeline', label: 'Pipeline', icon: Columns3}, {key: 'prospects', label: 'Prospects', icon: ListOrdered}, {key: 'customers', label: 'Customers', icon: Users},
   {key: 'mail', label: 'Mail', icon: Inbox}, {key: 'automation', label: 'Automation', icon: Bot}, {key: 'reviews', label: 'Identity reviews', icon: UserCheck},
 ];
 
@@ -112,7 +112,7 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         if (!r.ok) throw new Error(body.error);
         const list = body.workspaces as Workspace[];
         setWorkspaces(list);
-        const wanted = readUrl().w || localStorage.getItem('onixus-revenue-workspace') || '';
+        const wanted = readUrl().w || localStorage.getItem('veltra-home-business') || localStorage.getItem('onixus-revenue-workspace') || '';
         setW(list.find(x => x.id === wanted)?.id ?? list[0]?.id ?? '');
       } catch (e) { setError(e instanceof Error ? e.message : 'Could not load workspaces.'); }
     });
@@ -150,9 +150,9 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
     <div className="rev" data-theme={theme === 'system' ? undefined : theme}>
       <a className="rev-skip" href="#rev-main">Skip to content</a>
       <aside className="rev-side">
-        <a className="rev-brand" href="/crm"><span>Onixus</span> <small>Revenue</small></a>
+        <a className="rev-brand" href={"/workspace?workspace="+encodeURIComponent(w)}><img src="/veltra-logo.png" alt="Onixus logo" width={32} height={32}/><span>Onixus</span> <small>Sales &amp; operations</small></a>
         <label className="rev-field"><span>Workspace</span>
-          <select value={w} disabled={!workspaces.length || preview} onChange={e => { setW(e.target.value); localStorage.setItem('onixus-revenue-workspace', e.target.value); setTick(t => t + 1); }}>
+          <select value={w} disabled={!workspaces.length || preview} onChange={e => { setW(e.target.value); localStorage.setItem('onixus-revenue-workspace', e.target.value); localStorage.setItem('veltra-home-business',e.target.value); setTick(t => t + 1); }}>
             {workspaces.length ? workspaces.map(x => <option key={x.id} value={x.id}>{x.name}{x.environment !== 'production' ? ` (${x.environment})` : ''}</option>) : <option value="">No workspace</option>}
           </select>
         </label>
@@ -161,8 +161,9 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         </nav>
         <div className="rev-suite">
           <span>Onixus Workspace</span>
-          <a href="/crm">CRM <ArrowUpRight size={14} aria-hidden/></a>
-          <a href="/">Onixus Chat <ArrowUpRight size={14} aria-hidden/></a>
+          <a href={"/workspace?workspace="+encodeURIComponent(w)}>Business Overview <ArrowUpRight size={14} aria-hidden/></a>
+          <a href={"/workspace/team?workspace="+encodeURIComponent(w)}>Business Team <ArrowUpRight size={14} aria-hidden/></a>
+          <a href={"/?view=chat&mode=business&crm_workspace="+encodeURIComponent(w)}>Ask Onyx <ArrowUpRight size={14} aria-hidden/></a>
         </div>
         <fieldset className="rev-theme"><legend>Theme</legend>
           {([['system', Monitor], ['light', Sun], ['dark', Moon]] as const).map(([t, Icon]) =>
@@ -173,7 +174,7 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         {preview && <div className="rev-banner" role="note"><strong>Preview with sample data.</strong> Nothing on this page is from a real workspace, and changes are disabled.</div>}
         {error && <div className="rev-alert" role="alert">{error}</div>}
         {notice && <div className="rev-ok" role="status">{notice}</div>}
-        {signedIn === false && <section className="rev-panel"><h1>Sign in to Onixus Revenue</h1><p>Use your Onixus Workspace account. Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue/preview">View a preview with sample data</a></section>}
+        {signedIn === false && <section className="rev-panel"><h1>Sign in to sales & operations</h1><p>Use your Onixus Workspace account. Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue/preview">View a preview with sample data</a></section>}
         {signedIn && !w && !error && <section className="rev-panel"><h1>No workspace yet</h1><p>Create a workspace in Onixus CRM first.</p><a className="rev-button primary" href="/crm">Open CRM</a></section>}
         {signedIn && w && <>
           {view === 'overview' && <Overview {...shared}/>}

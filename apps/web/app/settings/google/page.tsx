@@ -1,2 +1,2 @@
-import GoogleWorkspacePanel from '@/components/google-workspace';
-export default function GoogleWorkspacePage(){return <GoogleWorkspacePanel/>;}
+import {redirect} from 'next/navigation';
+export default function GoogleWorkspacePage(){redirect('/workspace/files');}
