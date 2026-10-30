@@ -10,6 +10,7 @@ begin
  end if;
  return new;
 end;$$;
+revoke all on function public.crm_contact_admission_gate() from public,anon,authenticated;
 drop trigger if exists crm_contact_admission_gate on public.crm_customers;
 create trigger crm_contact_admission_gate before insert on public.crm_customers for each row execute function public.crm_contact_admission_gate();
 create index if not exists crm_customers_reconciliation_idx on public.crm_customers(workspace_id,created_at,id) where archived_at is null and (email is null or identity_review_required);
