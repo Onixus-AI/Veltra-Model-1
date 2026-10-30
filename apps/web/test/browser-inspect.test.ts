@@ -18,7 +18,7 @@ function fixture(fail=''){
 }
 test('browser setup finishes before restricted page loading; results have verified origin and screenshot, and VM is discarded',async()=>{
  const f=fixture(),r=await inspectBrowserPage({user:crypto.randomUUID(),url:'https://example.com/page',worker:'trusted worker',dns:async()=>{},create:f.create,enabled:true});
- assert.equal(f.calls[0][1].persistent,false);assert.equal(f.calls[0][1].timeout,180000);assert.equal(f.calls[0][1].env,undefined);
+ assert.equal(f.calls[0][1].runtime,'node24');assert.equal(f.calls[0][1].image,undefined);assert.equal(f.calls[0][1].persistent,false);assert.equal(f.calls[0][1].timeout,180000);assert.equal(f.calls[0][1].env,undefined);
  const restrict=f.calls.findIndex(c=>c[0]==='policy'),run=f.calls.findIndex(c=>c[0]==='run'&&c[1].cmd==='node');assert.ok(restrict>0&&run>restrict);
  assert.ok(f.calls.some(c=>c[0]==='run'&&c[1].args.includes('playwright@1.64.1')));assert.equal(f.calls.at(-1)[0],'stop');
  assert.match(r.content,/Untrusted browser page data/);assert.equal(r.canvas.kind,'image');assert.match(r.canvas.content,/^data:image\/jpeg;base64,/);

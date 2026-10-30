@@ -21,7 +21,7 @@ export async function inspectBrowserPage(o:{user:string;url:unknown;create?:type
  const snapshot=process.env.VELTRA_BROWSER_SNAPSHOT_ID;
  const release=reserve(o.user);let sandbox:Runner|undefined;
  try{
-  sandbox=await (o.create??Sandbox.create)({persistent:false,timeout:180000,resources:{vcpus:2},tags:{purpose:'veltra-browser',user:o.user},networkPolicy:snapshot?browserNetworkPolicy(url.hostname):'allow-all',...(snapshot?{source:{type:'snapshot',snapshotId:snapshot}}:{image:'vercel/sandbox/node:24'})});
+  sandbox=await (o.create??Sandbox.create)({persistent:false,timeout:180000,resources:{vcpus:2},tags:{purpose:'veltra-browser',user:o.user},networkPolicy:snapshot?browserNetworkPolicy(url.hostname):'allow-all',...(snapshot?{source:{type:'snapshot',snapshotId:snapshot}}:{runtime:'node24' as const})});
   if(!snapshot){
    // Only pinned trusted dependencies run during setup. No page or user code is loaded until egress is restricted.
    const install=await sandbox.runCommand({cmd:'npm',args:['install','--prefix',ROOT,'--ignore-scripts','--no-audit','--no-fund','playwright@'+PLAYWRIGHT_VERSION],cwd:'/vercel/sandbox'});if(install.exitCode!==0)throw Error('503:Browser dependency setup failed.');

@@ -11,7 +11,7 @@ export async function crmUser(request:Request){
  if(error||!data.user||data.user.is_anonymous)throw new Error('401:Sign in again.');
  return {client,user:data.user};
 }
-export function crmError(error:unknown){const message=error instanceof Error?error.message:'Request failed.';const code=/^(400|401|403|404|409|413|503):/.exec(message);return Response.json({error:code?message.slice(4):'CRM could not complete this request. Refresh and try again.'},{status:code?Number(code[1]):502,headers:{'Cache-Control':'no-store'}});}
+export function crmError(error:unknown){const message=error instanceof Error?error.message:'Request failed.';const code=/^(400|401|403|404|409|413|429|502|503|504):/.exec(message);return Response.json({error:code?message.slice(4):'CRM could not complete this request. Refresh and try again.'},{status:code?Number(code[1]):502,headers:{'Cache-Control':'no-store'}});}
 export async function crmContext(request:Request,id:string){
  const {client,user}=await crmUser(request);
  const {data:conversation,error}=await client.from('crm_conversations').select('id,user_id,workspace_id,customer_id').eq('id',id).single();
