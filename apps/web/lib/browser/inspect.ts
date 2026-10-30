@@ -28,6 +28,10 @@ export async function inspectBrowserPage(o:{user:string;url:unknown;create?:type
    const install=await sandbox.runCommand({cmd:'npm',args:['install','--prefix',ROOT,'--ignore-scripts','--no-audit','--no-fund','playwright@'+PLAYWRIGHT_VERSION],cwd:'/vercel'});if(install.exitCode!==0)throw Error('503:Browser dependency setup failed.');
    const browser=await sandbox.runCommand({cmd:ROOT+'/node_modules/.bin/playwright',args:['install','--with-deps','chromium'],env:{PLAYWRIGHT_BROWSERS_PATH:ROOT+'/browsers'},sudo:true});if(browser.exitCode!==0)throw Error('503:Browser runtime setup failed.');
   }
+  // The platform accepts IPv4 CIDRs only. Disable IPv6 in the disposable VM
+  // before loading any untrusted page, rather than dropping its private-network guard.
+  const ipv4Only=await sandbox.runCommand({cmd:'sysctl',args:['-w','net.ipv6.conf.all.disable_ipv6=1','net.ipv6.conf.default.disable_ipv6=1'],sudo:true});
+  if(ipv4Only.exitCode!==0)throw Error('503:Browser network isolation could not be verified.');
   await sandbox.updateNetworkPolicy(browserNetworkPolicy(url.hostname));
   await sandbox.writeFiles([{path:ROOT+'/inspect-page.mjs',content:Buffer.from(worker)},{path:ROOT+'/job.json',content:Buffer.from(JSON.stringify({url:url.href}))}]);
   const run=await sandbox.runCommand({cmd:'node',args:[ROOT+'/inspect-page.mjs',ROOT+'/job.json'],cwd:ROOT,env:{PLAYWRIGHT_BROWSERS_PATH:ROOT+'/browsers'}});if(run.exitCode!==0)throw Error('503:The browser could not verify this page. It may require another origin, a login, or access blocked by the inspection policy.');
