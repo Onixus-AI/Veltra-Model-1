@@ -1,7 +1,6 @@
-import type {Metadata} from 'next';
-import RevenueApp from '@/components/revenue/revenue-app';
-import './revenue.css';
-
-export const metadata: Metadata = {title: 'Sales & operations | Onixus Workspace'};
-
-export default function Page() { return <RevenueApp/>; }
+import {redirect} from 'next/navigation';
+export default async function Page({searchParams}:{searchParams:Promise<Record<string,string|string[]|undefined>>}){
+ const input=await searchParams,params=new URLSearchParams({view:'Revenue'});
+ for(const [key,value] of Object.entries(input)){if(typeof value!=='string')continue;params.set(key==='view'?'revenue_view':key==='w'?'workspace':key,value);}
+ redirect('/crm?'+params.toString());
+}
