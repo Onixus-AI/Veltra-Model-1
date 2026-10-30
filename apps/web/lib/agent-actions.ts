@@ -109,8 +109,8 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   const allowed=o.name==='mail_send'?['to','subject','body']:['thread_id','message_ids'];
   if(Object.keys(args).some(key=>!allowed.includes(key)))throw Error('400:Invalid Mail action fields.');
   const identity=await mail('mail_identity',{});
-  const prepared=await mail('prepare_mail_action',{input:{action:o.name==='mail_send'?'send':'trash',...args},expected_identity:identity});
-  if(!validId(prepared.review_id)||prepared.status!=='awaiting_review'||!Number.isFinite(prepared.expires_at))throw Error('502:Mail returned no valid action review. Nothing was sent or moved.');
+  const prepared:any=await mail('prepare_mail_action',{input:{action:o.name==='mail_send'?'send':'trash',...args},expected_identity:identity});
+  if(!prepared||!validId(prepared.review_id)||prepared.status!=='awaiting_review'||!Number.isFinite(prepared.expires_at))throw Error('502:Mail returned no valid action review. Nothing was sent or moved.');
   const id=crypto.randomUUID(),r=await client.from('crm_conversations').insert({id,user_id:user,workspace_id:scope.workspace_id??null,customer_id:scope.customer_id??null,title:'Mail tool review',messages:[{role:'assistant',content:JSON.stringify({type:'mail_action',identity,mail_review_id:prepared.review_id,expires_at:prepared.expires_at})}]}).select('id').single();if(r.error)throw r.error;
   return {content:'Nothing sent or moved. Review the exact Mail action.',proposal:{id,summary:JSON.stringify(prepared,null,2),agent_review:{target:'mail' as const,id}}};
  }
