@@ -1,6 +1,6 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
 import {browserUrl,browserNetworkPolicy,checkBrowserDns} from '../lib/browser/policy';
-import {inspectBrowserPage} from '../lib/browser/inspect';
+import {inspectBrowserPage,BROWSER_IMAGE} from '../lib/browser/inspect';
 test('public browser URLs reject network and credential targets, including encoded IPs',async()=>{
  for(const url of ['http://example.com','file:///etc/passwd','https://localhost','https://127.0.0.1','https://2130706433','https://[::1]','https://user:password@example.com','https://example.com:8443','https://service.internal','https://example.com/?access_token=secret'])assert.throws(()=>browserUrl(url));
  assert.equal(browserUrl('https://example.com/page#heading').href,'https://example.com/page');
@@ -18,7 +18,7 @@ function fixture(fail=''){
 }
 test('browser setup finishes before restricted page loading; results have verified origin and screenshot, and VM is discarded',async()=>{
  const f=fixture(),r=await inspectBrowserPage({user:crypto.randomUUID(),url:'https://example.com/page',worker:'trusted worker',dns:async()=>{},create:f.create,enabled:true});
- assert.equal(f.calls[0][1].persistent,false);assert.equal(f.calls[0][1].timeout,180000);assert.equal(f.calls[0][1].env,undefined);
+ assert.equal(f.calls[0][1].image,BROWSER_IMAGE);assert.equal(f.calls[0][1].runtime,undefined);assert.equal(f.calls[0][1].persistent,false);assert.equal(f.calls[0][1].timeout,180000);assert.equal(f.calls[0][1].env,undefined);
  const restrict=f.calls.findIndex(c=>c[0]==='policy'),run=f.calls.findIndex(c=>c[0]==='run'&&c[1].cmd==='node');assert.ok(restrict>0&&run>restrict);
  assert.ok(f.calls.some(c=>c[0]==='run'&&c[1].args.includes('playwright@1.64.1')));assert.equal(f.calls.at(-1)[0],'stop');
  assert.match(r.content,/Untrusted browser page data/);assert.equal(r.canvas.kind,'image');assert.match(r.canvas.content,/^data:image\/jpeg;base64,/);
