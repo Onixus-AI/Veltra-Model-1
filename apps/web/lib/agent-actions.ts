@@ -36,12 +36,12 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   const quota=await client.rpc('workspace_claim_web_search');if(quota.error)throw Error('503:Search allowance could not be verified.');if(!quota.data)throw Error('409:Daily web-search allowance reached (20 searches per user, UTC).');
   return {content:JSON.stringify(await webSearch(query,process.env.FIRECRAWL_API_KEY))};
  }
- if(o.name==='business_team'&&!o.confirm)return businessTeamAction({client,user,workspace:scope.workspace_id,args});
+ if(o.name==='business_team'&&!o.confirm)return businessTeamAction({client,user,workspace:scope.workspace_id??undefined,args});
  if(o.name==='crm_bulk_import'&&!o.confirm){if(scope.customer_id)throw Error('400:Choose the business conversation, not a single customer, before importing.');if(args.rows&&args.csv)throw Error('400:Choose rows or CSV, not both.');return prepareImport(client,user,scope.workspace_id,args.csv?csvImportRows(args.csv,args.source_name):args.rows);}
  if(o.confirm?.target==='crm'){
   const review=await client.from('crm_conversations').select('workspace_id,customer_id,messages').eq('id',o.confirm.id).eq('user_id',user).maybeSingle();
   let kind='';try{kind=JSON.parse(review.data?.messages?.[0]?.content??'{}').type;}catch{}
-  if(kind==='business_team_schedule')return businessTeamAction({client,user,workspace:scope.workspace_id,args:{},review:o.confirm.id});
+  if(kind==='business_team_schedule')return businessTeamAction({client,user,workspace:scope.workspace_id??undefined,args:{},review:o.confirm.id});
   if(kind==='crm_bulk_import_review'){
    if(review.data?.workspace_id!==scope.workspace_id||scope.customer_id)throw Error('409:Return to the business context used for this import.');
    const r=await client.rpc('crm_confirm_bulk_import',{p_review:o.confirm.id});if(r.error)throw Error('409:Import could not complete. Check the review, role and returned receipt before retrying.');if(r.data?.status!=='completed'||r.data.review_id!==o.confirm.id||r.data.workspace_id!==scope.workspace_id||!Number.isSafeInteger(r.data.imported)||!Number.isSafeInteger(r.data.skipped))throw Error('503:Import returned no verified receipt.');return {content:JSON.stringify({status:'completed',approval:'confirmed',action:'crm_bulk_import',review_id:o.confirm.id,receipt:r.data})};
