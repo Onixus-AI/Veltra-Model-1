@@ -41,8 +41,8 @@ export function toolsForMessages(messages:{role:string;content?:unknown;tool_cal
  const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
  const called=new Set(messages.flatMap(m=>m.tool_calls?.map(c=>c.function.name)??[]));
  const wanted=[
-  ...(/\b(?:mail|email|inbox|send|trash|delete)\b/i.test(userText)||called.has('mail_send')||called.has('mail_trash')?['mail_send','mail_trash']:[]),
-  ...(/\b(?:signal|brand|artwork|creative|campaign images?|generate (?:an? |six )?images?)\b/i.test(userText)||called.has('signal_creative')?['signal_creative']:[]),
+  'mail_send','mail_trash',
+  'signal_creative',
   ...(/\b(?:web|search|research|find|look up|latest|current)\b/i.test(userText)||called.has('web_search')?['web_search']:[]),
   ...(/\b(?:bulk|import|upload|csv)\b/i.test(userText)||called.has('crm_bulk_import')?['crm_bulk_import']:[]),
  ];

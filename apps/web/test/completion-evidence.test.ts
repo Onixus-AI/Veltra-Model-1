@@ -34,3 +34,9 @@ test('Mail receipts prove provider acceptance or completed recoverable Trash onl
  assert.match(verifiedAnswer('I deleted the emails.',[{tool:'mail_trash',content:JSON.stringify(trash)}]),/moved_to_trash/);
  for(const e of [{tool:'mail_read_thread',content:JSON.stringify(send)},{tool:'mail_send',content:JSON.stringify({...send,status:'uncertain'})},{tool:'mail_trash',content:JSON.stringify({...trash,status:'partial'})},{tool:'mail_trash',content:JSON.stringify({...trash,items:[]})},{tool:'mail_send',content:JSON.stringify(send),failed:true}])assert.match(verifiedAnswer('I sent the email.',[e]),/cannot verify/);
 });
+
+test('unverified results preserve the specific failed tool instead of a generic warning',()=>{
+ const answer=verifiedAnswer('I sent the email.',[{tool:'mail_send',failed:true,content:'Mailbox paused or unavailable'}]);
+ assert.match(answer,/mail_send/);assert.match(answer,/Mailbox paused or unavailable/);
+ assert.match(verifiedAnswer('I sent the email.',[]),/No action tool ran/);
+});

@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {runAgentTurn,CHAT_TOOLS} from '../lib/chat-tools';
+import {runAgentTurn,CHAT_TOOLS,toolsForMessages} from '../lib/chat-tools';
 test('advertised tools fit the deployed gateway’s 32-tool limit',()=>{assert.ok(CHAT_TOOLS.length<=32);});
 const W='00000000-0000-4000-8000-000000000001',R='00000000-0000-4000-8000-000000000002';
 test('the model tool loop waits for review, carries selected context and uses the actual action receipt',async t=>{
@@ -81,4 +81,11 @@ test('mentioning a write tool in a capability question never forces its executio
  await runAgentTurn([{role:'user',content:text}],'fixture',{},async()=>{throw Error('No write review requested');},()=>{},()=>{});
  assert.deepEqual(ran,['onyx_capabilities']);mock.mock.restore();
  }}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
+
+test('Mail CRM and Signal remain discoverable during short follow-up requests',()=>{
+ for(const text of ['yes','do it','clear inbox and send mail','continue']){
+ const tools=toolsForMessages([{role:'user',content:text}]);assert.ok(tools.length<=32);
+ for(const name of ['mail_send','mail_trash','mail_search','mail_read_thread','crm_read','crm_change','signal_creative'])assert.ok(tools.some(t=>t.function.name===name),name+' missing for '+text);
+ }
 });
