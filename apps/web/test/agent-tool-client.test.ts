@@ -89,3 +89,9 @@ test('Mail CRM and Signal remain discoverable during short follow-up requests',(
  for(const name of ['mail_send','mail_trash','mail_reply','mail_archive','mail_search','mail_read_thread','crm_read','crm_change','signal_creative'])assert.ok(tools.some(t=>t.function.name===name),name+' missing for '+text);
  }
 });
+
+test('requested business work gets a real tool opportunity instead of prose-only success',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};let turns=0;
+ t.mock.method(globalThis,'fetch',async(input:any,init:any)=>{const b=JSON.parse(init.body);assert.equal(input,'/api/chat');if(turns++===0)return Response.json({choices:[{message:{content:'I sent the email.'}}]});assert.match(b.messages.at(-1).content,/No host tool/);return Response.json({choices:[{message:{content:'Who should receive it, and what should the email say?'}}]});});
+ try{const answer=await runAgentTurn([{role:'user',content:'Send an email'}],'fixture',{},async()=>{throw Error('No action prepared');},()=>{},()=>{});assert.match(answer,/Who should receive/);assert.equal(turns,2);}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});

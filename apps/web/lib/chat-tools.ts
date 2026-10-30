@@ -221,6 +221,7 @@ export async function runAgentTurn(
   const actionEvidence:{tool:string;content:string;failed?:boolean}[]=[];
   const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
   const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
+  const businessWriteRequested=/^(?:please\s+)?(?:send|reply|follow[ -]?up|clear|archive|delete|trash|create|update|repair|improve|build)\b[\s\S]{0,300}\b(?:mail|email|inbox|crm|customer|signal|campaign|website|repository)\b/i.test(userText);
   const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
   // Conditional/optional follow-on tools remain the model's decision; never force
   // "if missing, create" or "after approval, read" before that condition holds.
@@ -244,7 +245,7 @@ export async function runAgentTurn(
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) {
       const answer=typeof message.content==='string'?message.content:'';
-      if((googleWriteRequested&&toolCalls===0||nextRequested)&&!retriedMissingAction){
+      if(((googleWriteRequested||businessWriteRequested)&&toolCalls===0||nextRequested)&&!retriedMissingAction){
         retriedMissingAction=true;
         convo.push({role:'assistant',content:answer},{role:'system',content:'No host tool has executed all the requested steps. A result or review exists only when an actual tool returns it. '+(nextRequested?'The next explicitly requested tool is '+nextRequested+'. ':'')+'Follow the user’s restrictions. If the request supplies enough information, call the appropriate available tool now. Otherwise ask only for the missing information. Do not invent connection status, file counts or pending reviews.'});
         continue;
