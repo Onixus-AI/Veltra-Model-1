@@ -19,6 +19,6 @@ test('usage proxy forwards selected month/day and signed-in authorization, not a
  try{
   const result=await GET(new NextRequest('https://workspace.example/api/usage?month=2024-02&day=2024-02-29&organization_id=other-account',{headers:{Authorization:'Bearer fixture-user'}}));
   assert.equal(result.status,200);
-  assert.deepEqual(await result.json(),{month:'2024-02',selected_day:'2024-02-29'});
+  const body=await result.json();assert.equal(body.month,'2024-02');assert.equal(body.selected_day,'2024-02-29');assert.ok(body.activity);assert.ok(Array.isArray(body.activity_warnings));
  }finally{mock.mock.restore();if(previous===undefined)delete process.env.AI_GATEWAY_URL;else process.env.AI_GATEWAY_URL=previous;}
 });

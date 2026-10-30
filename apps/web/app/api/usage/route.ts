@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     cache: "no-store",
   });
 
-  if(!upstream.ok||!process.env.VELTRA_MAIL_URL)return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':upstream.headers.get('content-type')??'application/json','Cache-Control':'no-store'}});
+  if(!upstream.ok)return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':upstream.headers.get('content-type')??'application/json','Cache-Control':'no-store'}});
   const body=await upstream.json();
   const observed=await usageActivity(request,body);
   return Response.json({...body,...observed},{headers:{'Cache-Control':'no-store'}});
