@@ -36,8 +36,13 @@ export async function inspectPage(job,chromium){
  }finally{await browser.close();}
 }
 
+export async function saveInspectionResult(result){
+ await writeFile(new URL('./result.json',import.meta.url),JSON.stringify(result.snapshot));
+ await writeFile(new URL('./screen.jpg',import.meta.url),result.screenshot);
+}
+
 if(process.argv[1]===fileURLToPath(import.meta.url)){
  try{const {chromium}=await import('playwright'),job=JSON.parse(await readFile(process.argv[2],'utf8')),result=await inspectPage(job,chromium);
-  await writeFile('/vercel/sandbox/browser-runtime/result.json',JSON.stringify(result.snapshot));await writeFile('/vercel/sandbox/browser-runtime/screen.jpg',result.screenshot);
+  await saveInspectionResult(result);
  }catch{console.error('Browser inspection failed. No page result was verified.');process.exitCode=1;}
 }
