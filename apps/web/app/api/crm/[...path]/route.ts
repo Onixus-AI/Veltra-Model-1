@@ -1,3 +1,4 @@
+import {prepareImport} from '@/lib/crm/bulk-import';
 import {contactWorker} from '@/lib/crm/contact-worker';
 import {runDiscovery} from "@/lib/crm/discovery";
 import {crmUser,crmError,crmContext} from '@/lib/crm/server';
@@ -15,6 +16,25 @@ async function handle(request:Request,context:Context){try{
  if(path[0]==='contact-research'&&path.length===1){
   if(method==='POST'){const b=await body();if(!uuid(b.workspace_id)||!uuid(b.customer_id)||typeof b.website!=='string')throw Error('400:Choose a customer and its company website.');const {data,error}=await client.rpc('crm_request_contact_research',{p_workspace:b.workspace_id,p_customer:b.customer_id,p_website:b.website});if(error)throw Error('409:Research could not be queued. Check ownership, company website and the daily limit.');return ok({job_id:data,status:'queued'});}
   if(method==='GET'){const w=url.searchParams.get('workspace'),c=url.searchParams.get('customer');if(!uuid(w)||!uuid(c))throw Error('400:Choose a customer.');const [evidence,jobs]=await Promise.all([client.from('crm_contact_evidence').select('email,source_url,source_kind,observed_at,verification').eq('workspace_id',w).eq('customer_id',c).order('observed_at',{ascending:false}).limit(30),client.from('crm_contact_research').select('id,status,last_error,created_at,completed_at').eq('workspace_id',w).eq('customer_id',c).order('created_at',{ascending:false}).limit(5)]);if(evidence.error||jobs.error)throw Error('503:Contact enrichment is not available yet.');return ok({evidence:evidence.data,jobs:jobs.data});}
+ }
+ if(path[0]==='business-search'&&path.length===1&&method==='POST'){
+  const b=await body();if(!uuid(b.workspace))throw Error('400:Choose a business workspace.');
+  const text=(key:string,max:number)=>{if(typeof b[key]!=='string'||!b[key].trim()||b[key].length>max)throw Error('400:Choose an industry and country.');return b[key].trim();};
+  const industry=text('industry',200),country=text('country',100),city=typeof b.city==='string'?b.city.trim():'';if(city.length>200)throw Error('400:Location is too long.');
+  if(!process.env.FIRECRAWL_API_KEY)throw Error('503:Business search is not configured. Connect the research provider first.');
+  const {data:owner}=await client.from('crm_workspaces').select('owner_id').eq('id',b.workspace).single();if(owner?.owner_id!==user.id)throw Error('403:Only this business owner can run provider-backed research.');
+  const {data:created,error}=await client.from('crm_discovery_requests').insert({workspace_id:b.workspace,source_type:'directories',query:industry,location:[city,country].filter(Boolean).join(', ')}).select('id').single();if(error||!created)throw Error('503:Search request could not be saved.');
+  return ok({request_id:created.id,...await runDiscovery(client,user.id,created.id,10,process.env.FIRECRAWL_API_KEY)});
+ }
+ if(path[0]==='business-import'&&path.length===1&&method==='POST'){
+  const b=await body();if(!uuid(b.workspace))throw Error('400:Choose a business workspace.');
+  if(b.action==='prepare')return ok(await prepareImport(client,user.id,b.workspace,b.rows));
+  if(b.action==='confirm'&&uuid(b.review_id)){
+   const {data:review,error}=await client.from('crm_conversations').select('workspace_id').eq('id',b.review_id).eq('user_id',user.id).eq('title','CRM bulk import review').single();if(error||review?.workspace_id!==b.workspace)throw Error('409:Import review belongs to a different business or user.');
+   const result=await client.rpc('crm_confirm_bulk_import',{p_review:b.review_id});if(result.error)throw Error('409:Import could not complete. Check the review and your business role.');
+   if(result.data?.status!=='completed'||result.data.review_id!==b.review_id||result.data.workspace_id!==b.workspace)throw Error('503:Import returned no verified receipt.');return ok(result.data);
+  }
+  throw Error('400:Choose a valid import action.');
  }
  if(path[0]==='discovery'&&path.length===1){
   if(method==='GET')return ok({configured:Boolean(process.env.FIRECRAWL_API_KEY),daily_limit:5});
