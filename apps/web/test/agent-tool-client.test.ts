@@ -86,6 +86,6 @@ test('mentioning a write tool in a capability question never forces its executio
 test('Mail CRM and Signal remain discoverable during short follow-up requests',()=>{
  for(const text of ['yes','do it','clear inbox and send mail','continue']){
  const tools=toolsForMessages([{role:'user',content:text}]);assert.ok(tools.length<=32);
- for(const name of ['mail_send','mail_trash','mail_search','mail_read_thread','crm_read','crm_change','signal_creative'])assert.ok(tools.some(t=>t.function.name===name),name+' missing for '+text);
+ for(const name of ['mail_send','mail_trash','mail_reply','mail_archive','mail_search','mail_read_thread','crm_read','crm_change','signal_creative'])assert.ok(tools.some(t=>t.function.name===name),name+' missing for '+text);
  }
 });

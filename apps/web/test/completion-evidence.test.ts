@@ -40,3 +40,11 @@ test('unverified results preserve the specific failed tool instead of a generic 
  assert.match(answer,/mail_send/);assert.match(answer,/Mailbox paused or unavailable/);
  assert.match(verifiedAnswer('I sent the email.',[]),/No action tool ran/);
 });
+
+test('threaded reply and archive receipts remain distinct from send and Trash',()=>{
+ const reply={review_id:'r',action:'reply',status:'provider_accepted',to:'client@example.test',mailbox:{email:'owner@example.test'}};
+ assert.match(verifiedAnswer('I sent the email.',[{tool:'mail_reply',content:JSON.stringify(reply)}]),/Verified action receipts/);
+ const archive={review_id:'r',action:'archive',status:'completed',mailbox:{email:'owner@example.test'},items:[{id:'m',status:'archived'}]};
+ assert.match(verifiedAnswer('I cleared the messages.',[{tool:'mail_archive',content:JSON.stringify(archive)}]),/Verified action receipts/);
+ assert.match(verifiedAnswer('I deleted the messages.',[{tool:'mail_trash',content:JSON.stringify(archive)}]),/cannot verify/);
+});
