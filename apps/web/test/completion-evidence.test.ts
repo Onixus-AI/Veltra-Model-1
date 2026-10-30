@@ -26,3 +26,11 @@ test('reviewed CRM and memory saves keep authoritative receipts without promotin
  const preview=reviewedActionReceipt('brain','review-id',{kind:'preview',reply:'Review this memory'});
  assert.equal(preview.status,'unverified');assert.match(verifiedAnswer('I saved the memory.',[{tool:'brain_change',content:JSON.stringify(preview)}]),/cannot verify/);
 });
+
+test('Mail receipts prove provider acceptance or completed recoverable Trash only',()=>{
+ const send={review_id:'review',action:'send',status:'provider_accepted',to:'client@example.test',mailbox:{email:'owner@example.test'},provider_message_id:null};
+ assert.match(verifiedAnswer('I sent the email.',[{tool:'mail_send',content:JSON.stringify(send)}]),/Verified action receipts/);
+ const trash={review_id:'review',action:'trash',status:'completed',mailbox:{email:'owner@example.test'},items:[{id:'message',status:'moved_to_trash'}]};
+ assert.match(verifiedAnswer('I deleted the emails.',[{tool:'mail_trash',content:JSON.stringify(trash)}]),/moved_to_trash/);
+ for(const e of [{tool:'mail_read_thread',content:JSON.stringify(send)},{tool:'mail_send',content:JSON.stringify({...send,status:'uncertain'})},{tool:'mail_trash',content:JSON.stringify({...trash,status:'partial'})},{tool:'mail_trash',content:JSON.stringify({...trash,items:[]})},{tool:'mail_send',content:JSON.stringify(send),failed:true}])assert.match(verifiedAnswer('I sent the email.',[e]),/cannot verify/);
+});
