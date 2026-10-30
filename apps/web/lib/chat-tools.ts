@@ -36,7 +36,7 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
-export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import','business_team','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
 
 export function toolsForMessages(messages:{role:string;content?:unknown;tool_calls?:ToolCall[]}[]){
  const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
@@ -44,6 +44,7 @@ export function toolsForMessages(messages:{role:string;content?:unknown;tool_cal
  const wanted=[
   'mail_send','mail_trash','mail_reply','mail_archive',
   'signal_creative',
+  ...(/\b(?:team|report|schedule|daily|standup|meeting)\b/i.test(userText)||called.has('business_team')?['business_team']:[]),
   ...(/\b(?:web|search|research|find|look up|latest|current)\b/i.test(userText)||called.has('web_search')?['web_search']:[]),
   ...(/\b(?:bulk|import|upload|csv)\b/i.test(userText)||called.has('crm_bulk_import')?['crm_bulk_import']:[]),
  ];

@@ -2,6 +2,7 @@ export const ACCESS_APPS=['mail','crm','brain','github','vercel','supabase','rai
 export type AccessApp=typeof ACCESS_APPS[number];
 export const APP_NAMES:Record<AccessApp,string>={mail:'Onixus Mail',crm:'Onixus CRM',brain:'Shared brain',github:'GitHub',vercel:'Vercel',supabase:'Supabase',railway:'Railway',n8n:'n8n',bee:'LiveAskew / Bee',browser:'Browser',connections:'Connected app status',shopify:'Shopify',tms:'Onixus TMS',google:'Google Drive, Docs and Sheets',calendar:'Google Calendar',brand:'Private brand files',signal:'Signal creative production'};
 export function appsForTool(name:string,args:Record<string,unknown>={},confirm?:{target?:string}):AccessApp[]{
+ if(name==='business_team')return ['crm'];
  if(name==='signal_creative'||confirm?.target==='signal')return ['signal'];
  if(confirm?.target==='google'||confirm?.target==='calendar')return [confirm.target];
  if(name.startsWith('brand_'))return ['brand'];
