@@ -41,6 +41,7 @@ jobs:
           python test/browser-operations/task-center.py
           python test/browser-operations/brain-manager.py
           python test/browser-operations/crm-intake.py
+          python test/browser-operations/industry-search.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
