@@ -1,4 +1,5 @@
 "use client";
+import {needsCapabilityCheck} from './capability-check';
 import {verifiedAnswer} from './completion-evidence';
 import {toolPresentation,type TaskObserver} from './task-progress';
 import type {TaskAccessClient} from './task-access-client';
@@ -206,14 +207,16 @@ export async function runAgentTurn(
   const attemptedTools=new Set<string>();
   let explicitSequenceStopped=false;
   let retriedMissingAction=false;
+  let capabilityCheckRequested=false;
   const confirmedGoogleReceipts:string[]=[];
   for (let step = 0; step < maxRounds && toolCalls < maxCalls; step += 1) {
     if(observer?.cancelled())throw Error('Pending task work was stopped.');
     const nextRequested=explicitSequenceStopped?undefined:requestedTools.find(name=>!attemptedTools.has(name));
+    const forcedTool=nextRequested??(capabilityCheckRequested&&!attemptedTools.has('onyx_capabilities')?'onyx_capabilities':undefined);
     const response = await (access?access.fetch.bind(access):fetch)("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...await gatewayAuthorizationHeaders() },
-      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:extraBody.usage_app??"chat", messages: convo, tools: turnTools,...(nextRequested?{tool_choice:{type:'function',function:{name:nextRequested}}}:{}), stream: false }),
+      body: JSON.stringify({ time_zone:deviceTimeZone(), ...extraBody,...(access?{task_id:access.id}:{}), model, usage_app:extraBody.usage_app??"chat", messages: convo, tools: turnTools,...(forcedTool?{tool_choice:{type:'function',function:{name:forcedTool}}}:{}), stream: false }),
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(errorText(data.detail) || errorText(data.error) || `Request failed (${response.status}).`);
@@ -221,6 +224,12 @@ export async function runAgentTurn(
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) {
       const answer=typeof message.content==='string'?message.content:'';
+      if(needsCapabilityCheck(answer,actionEvidence,userText)){
+        if(capabilityCheckRequested||explicitSequenceStopped||/\b(?:no tools|do not (?:use|call|run) tools|don't (?:use|call|run) tools)\b/i.test(userText))return 'Live capabilities were not verified in this turn. I cannot confirm that capability claim. '+(actionEvidence.length?'Tool results:\n'+actionEvidence.map(e=>e.tool+': '+e.content).join('\n'):'No capability-check tool ran.');
+        capabilityCheckRequested=true;
+        convo.push({role:'assistant',content:answer},{role:'system',content:'Before making capability or access claims, run onyx_capabilities now. A promise to check is not a check. This is a read only; it does not authorize writes. Then use the relevant connected tool for the requested task, requesting exact-action approval as needed. If the check fails, report that failure and do not repeat an unsupported capability claim.'});
+        continue;
+      }
       if(((googleWriteRequested||businessWriteRequested)&&toolCalls===0||nextRequested)&&!retriedMissingAction){
         retriedMissingAction=true;
         convo.push({role:'assistant',content:answer},{role:'system',content:'No host tool has executed all the requested steps. A result or review exists only when an actual tool returns it. '+(nextRequested?'The next explicitly requested tool is '+nextRequested+'. ':'')+'Follow the user’s restrictions. If the request supplies enough information, call the appropriate available tool now. Otherwise ask only for the missing information. Do not invent connection status, file counts or pending reviews.'});
