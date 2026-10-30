@@ -31,12 +31,12 @@ const since = (iso: string | null | undefined) => {
 };
 const label = (s: string) => s.replace(/[_.]/g, ' ');
 
-function readUrl() {
+function readUrl(embedded=false) {
   const p = new URLSearchParams(window.location.search);
-  return {view: (p.get('view') as View) || 'overview', customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? '', w: p.get('w') ?? ''};
+  return {view: (p.get(embedded?'revenue_view':'view') as View) || 'overview', customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? '', w: p.get('w') ?? ''};
 }
 
-export default function RevenueApp({preview = false}: {preview?: boolean}) {
+export default function RevenueApp({preview = false,embedded=false,workspace:businessWorkspace=''}: {preview?: boolean;embedded?:boolean;workspace?:string}) {
   const [theme, setTheme] = useState<Theme>('system');
   const [ready, setReady] = useState(false);
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -53,11 +53,11 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
   useEffect(() => {
     const stored = localStorage.getItem('onixus-revenue-theme') as Theme | null;
     if (stored === 'light' || stored === 'dark') setTheme(stored);
-    const u = readUrl();
+    const u = readUrl(embedded);
     setView(u.view);
     setFocus({customer: u.customer, thread: u.thread, message: u.message, job: u.job});
     setReady(true);
-    const onPop = () => { const x = readUrl(); setView(x.view); setFocus({customer: x.customer, thread: x.thread, message: x.message, job: x.job}); };
+    const onPop = () => { const x = readUrl(embedded); setView(x.view); setFocus({customer: x.customer, thread: x.thread, message: x.message, job: x.job}); };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, []);
@@ -112,25 +112,25 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         if (!r.ok) throw new Error(body.error);
         const list = body.workspaces as Workspace[];
         setWorkspaces(list);
-        const wanted = readUrl().w || localStorage.getItem('veltra-home-business') || localStorage.getItem('onixus-revenue-workspace') || '';
-        setW(list.find(x => x.id === wanted)?.id ?? list[0]?.id ?? '');
+        const wanted = businessWorkspace || readUrl(embedded).w || localStorage.getItem('veltra-home-business') || localStorage.getItem('onixus-revenue-workspace') || '';
+        setW(list.find(x => x.id === wanted)?.id ?? (businessWorkspace?'':list[0]?.id) ?? '');
       } catch (e) { setError(e instanceof Error ? e.message : 'Could not load workspaces.'); }
     });
     return () => { live = false; };
-  }, [ready, preview]);
+  }, [ready, preview,businessWorkspace,embedded]);
 
   const go = useCallback((next: View, f: Partial<typeof focus> = {}) => {
     const nf = {customer: '', thread: '', message: '', job: '', ...f};
     setView(next); setFocus(nf); setError(''); setNotice('');
-    const p = new URLSearchParams({view: next, ...Object.fromEntries(Object.entries(nf).filter(([, v]) => v))});
-    window.history.pushState(null, '', `${preview ? '/revenue/preview' : '/revenue'}?${p}`);
+    const p = new URLSearchParams({[embedded?'revenue_view':'view']: next, ...(embedded?{view:'Revenue',workspace:w}:w?{w}:{}), ...Object.fromEntries(Object.entries(nf).filter(([, v]) => v))});
+    window.history.pushState(null, '', `${embedded?'/crm':preview ? '/revenue/preview' : '/revenue'}?${p}`);
     main.current?.focus();
-  }, [preview]);
+  }, [preview,embedded,w]);
 
   const follow = useCallback((href: string) => {
     const u = new URL(href, window.location.origin);
     const p = u.searchParams;
-    go((p.get('view') as View) || 'overview', {customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? ''});
+    go(((p.get('revenue_view')||p.get('view')) as View) || 'overview', {customer: p.get('customer') ?? '', thread: p.get('thread') ?? '', message: p.get('message') ?? '', job: p.get('job') ?? ''});
   }, [go]);
 
   const role = workspaces.find(x => x.id === w)?.role ?? 'viewer';
@@ -147,16 +147,16 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
   };
 
   return (
-    <div className="rev" data-theme={theme === 'system' ? undefined : theme}>
+    <div className={"rev"+(embedded?" rev-embedded":"")} data-theme={embedded?undefined:theme === 'system' ? undefined : theme}>
       <a className="rev-skip" href="#rev-main">Skip to content</a>
       <aside className="rev-side">
-        <a className="rev-brand" href={"/workspace?workspace="+encodeURIComponent(w)}><img src="/veltra-logo.png" alt="Onixus logo" width={32} height={32}/><span>Onixus</span> <small>Sales &amp; operations</small></a>
+        <a className="rev-brand" href={"/workspace?workspace="+encodeURIComponent(w)}><img src="/veltra-logo.png" alt="Onixus logo" width={32} height={32}/><span>Onixus</span> <small>CRM · Sales &amp; Revenue</small></a>
         <label className="rev-field"><span>Workspace</span>
           <select value={w} disabled={!workspaces.length || preview} onChange={e => { setW(e.target.value); localStorage.setItem('onixus-revenue-workspace', e.target.value); localStorage.setItem('veltra-home-business',e.target.value); setTick(t => t + 1); }}>
             {workspaces.length ? workspaces.map(x => <option key={x.id} value={x.id}>{x.name}{x.environment !== 'production' ? ` (${x.environment})` : ''}</option>) : <option value="">No workspace</option>}
           </select>
         </label>
-        <nav aria-label="Revenue sections" onKeyDown={onNavKey}>
+        <nav aria-label="Sales and revenue sections" onKeyDown={onNavKey}>
           {views.map(v => <button key={v.key} type="button" aria-current={view === v.key || (v.key === 'customers' && view === 'customer') ? 'page' : undefined} onClick={() => go(v.key)}><v.icon size={17} aria-hidden/>{v.label}</button>)}
         </nav>
         <div className="rev-suite">
@@ -174,7 +174,7 @@ export default function RevenueApp({preview = false}: {preview?: boolean}) {
         {preview && <div className="rev-banner" role="note"><strong>Preview with sample data.</strong> Nothing on this page is from a real workspace, and changes are disabled.</div>}
         {error && <div className="rev-alert" role="alert">{error}</div>}
         {notice && <div className="rev-ok" role="status">{notice}</div>}
-        {signedIn === false && <section className="rev-panel"><h1>Sign in to sales & operations</h1><p>Use your Onixus Workspace account. Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue/preview">View a preview with sample data</a></section>}
+        {signedIn === false && <section className="rev-panel"><h1>Sign in to CRM</h1><p>Use your Onixus Workspace account. Sales & Revenue shows the CRM, Mail and payment records of workspaces you belong to.</p><a className="rev-button primary" href="/crm">Go to sign-in</a> <a className="rev-button" href="/revenue/preview">View a preview with sample data</a></section>}
         {signedIn && !w && !error && <section className="rev-panel"><h1>No workspace yet</h1><p>Create a workspace in Onixus CRM first.</p><a className="rev-button primary" href="/crm">Open CRM</a></section>}
         {signedIn && w && <>
           {view === 'overview' && <Overview {...shared}/>}
