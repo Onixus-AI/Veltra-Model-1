@@ -34,3 +34,17 @@ test('Mail receipts prove provider acceptance or completed recoverable Trash onl
  assert.match(verifiedAnswer('I deleted the emails.',[{tool:'mail_trash',content:JSON.stringify(trash)}]),/moved_to_trash/);
  for(const e of [{tool:'mail_read_thread',content:JSON.stringify(send)},{tool:'mail_send',content:JSON.stringify({...send,status:'uncertain'})},{tool:'mail_trash',content:JSON.stringify({...trash,status:'partial'})},{tool:'mail_trash',content:JSON.stringify({...trash,items:[]})},{tool:'mail_send',content:JSON.stringify(send),failed:true}])assert.match(verifiedAnswer('I sent the email.',[e]),/cannot verify/);
 });
+
+test('unverified results preserve the specific failed tool instead of a generic warning',()=>{
+ const answer=verifiedAnswer('I sent the email.',[{tool:'mail_send',failed:true,content:'Mailbox paused or unavailable'}]);
+ assert.match(answer,/mail_send/);assert.match(answer,/Mailbox paused or unavailable/);
+ assert.match(verifiedAnswer('I sent the email.',[]),/No action tool ran/);
+});
+
+test('threaded reply and archive receipts remain distinct from send and Trash',()=>{
+ const reply={review_id:'r',action:'reply',status:'provider_accepted',to:'client@example.test',mailbox:{email:'owner@example.test'}};
+ assert.match(verifiedAnswer('I sent the email.',[{tool:'mail_reply',content:JSON.stringify(reply)}]),/Verified action receipts/);
+ const archive={review_id:'r',action:'archive',status:'completed',mailbox:{email:'owner@example.test'},items:[{id:'m',status:'archived'}]};
+ assert.match(verifiedAnswer('I cleared the messages.',[{tool:'mail_archive',content:JSON.stringify(archive)}]),/Verified action receipts/);
+ assert.match(verifiedAnswer('I deleted the messages.',[{tool:'mail_trash',content:JSON.stringify(archive)}]),/cannot verify/);
+});

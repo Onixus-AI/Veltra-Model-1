@@ -1,6 +1,6 @@
 /** Supported actions, not connection state or permission to execute a write. */
 export const ONYX_ACTION_CAPABILITIES = {
-  mail:{tools:['mail_send','mail_trash'],review_required:true,sending:'One plain-text email with exact recipient, subject and body',deletion:'Recoverable Trash for selected returned messages only',permanent_deletion:false,receipt:'Provider acceptance is not delivery; uncertain sends must not be retried automatically'},
+  mail:{tools:['mail_send','mail_trash','mail_reply','mail_archive'],review_required:true,sending:'New email or threaded reply/follow-up with exact reviewed recipient and body; archive selected messages to keep them searchable',deletion:'Recoverable Trash for selected returned messages only',permanent_deletion:false,receipt:'Provider acceptance is not delivery; uncertain sends must not be retried automatically'},
   research:{tool:'web_search',reads:['up to five public HTTPS search results'],configured:'Check tool response',daily_limit:20},
   importing:{tool:'crm_bulk_import',review_required:true,batch_limit:500,policy:'Business contacts only; skip existing company/email matches; no sending or consent inference'},
   memory: {tool:'brain_change',actions:['propose','approve','correct','forget'],approval_arguments:['action','id'],review_required:true},

@@ -5,7 +5,7 @@ import type {TaskAccessClient} from './task-access-client';
 
 import { connectionRequest } from "@/lib/connections-client";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
-import {AGENT_TOOLS,SIGNAL_CREATIVE_TOOL} from './agent-tool-catalog';
+import {AGENT_TOOLS} from './agent-tool-catalog';
 import {checkedFiles} from './build-artifacts';
 import type {RepositoryChangeSet,RepositoryFileReview} from './repository-changes';
 import {deviceTimeZone} from './runtime-context';
@@ -35,14 +35,14 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
-export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import','mail_send','mail_trash'].includes(tool.function.name));
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
 
 export function toolsForMessages(messages:{role:string;content?:unknown;tool_calls?:ToolCall[]}[]){
  const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
  const called=new Set(messages.flatMap(m=>m.tool_calls?.map(c=>c.function.name)??[]));
  const wanted=[
-  ...(/\b(?:mail|email|inbox|send|trash|delete)\b/i.test(userText)||called.has('mail_send')||called.has('mail_trash')?['mail_send','mail_trash']:[]),
-  ...(/\b(?:signal|brand|artwork|creative|campaign images?|generate (?:an? |six )?images?)\b/i.test(userText)||called.has('signal_creative')?['signal_creative']:[]),
+  'mail_send','mail_trash','mail_reply','mail_archive',
+  'signal_creative',
   ...(/\b(?:web|search|research|find|look up|latest|current)\b/i.test(userText)||called.has('web_search')?['web_search']:[]),
   ...(/\b(?:bulk|import|upload|csv)\b/i.test(userText)||called.has('crm_bulk_import')?['crm_bulk_import']:[]),
  ];
@@ -127,13 +127,6 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
       const route=action==='checks'?'github/checks?pull_request='+args.pull_request:'github/diagnostics?pull_request='+args.pull_request+'&action='+action+(action==='annotations'?'&check_run='+args.check_run:action==='jobs'?'&run_id='+args.run_id:action==='logs'?'&job_id='+args.job_id:'');
       return {content:JSON.stringify(await connectionRequest(route,'GET',undefined,{id:access.id,fetch:access.fetch.bind(access)}))};
     }
-    if(name==='github_propose_changes'){
-      const files=checkedFiles(args.files),title=String(args.title??'').trim();if(!title||title.length>150)throw Error('Provide a short change-set title.');
-      const review=await connectionRequest<Omit<RepositoryChangeSet,'operation'>&{before:{path:string;content:string|null}[]}>('github/change-set','POST',{files,title},{id:access.id,fetch:access.fetch.bind(access)});
-      const operation=crypto.randomUUID();
-      const change:RepositoryChangeSet={repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation};
-      return {content:'The change set is waiting for user review. No branch or pull request has been created.',proposal:{id:operation,summary:`${review.repository} · ${review.branch} · base ${review.base_sha}\n${title}\n\n${files.map(f=>f.path).join('\n')}\n\nCreates one commit and a draft PR. Existing CI may run. No production deployment.`,change,repository_review:files.map(f=>({path:f.path,before:review.before.find(b=>b.path===f.path)?.content??null,after:f.content}))}};
-    }
     if (name === "github_read_file") {
       const path = String(args.path ?? "");
       if (!path || path.includes("..")) return { failed:true, content: "Invalid file path." };
@@ -142,23 +135,6 @@ export async function runToolCall(call: ToolCall,context:Record<string,unknown>=
       return {
         content: JSON.stringify({ repository: file.repository, path: file.path, branch: file.branch, content: file.content }),
         canvas: { title: file.path, content: `${file.repository} · ${file.branch}\n\n${codeBlock(file.content, languageFor(file.path))}` },
-      };
-    }
-    if (name === "github_propose_commit") {
-      const path = String(args.path ?? "");
-      const content = String(args.content ?? "");
-      const title = String(args.title ?? "").trim();
-      if (!path || !content || !title) return { failed:true, content: "Commit needs a path, content, and title." };
-      const file = await connectionRequest<FileResult>(`github/file?path=${encodeURIComponent(path)}`,"GET",undefined,access?{id:access.id,fetch:access.fetch.bind(access)}:undefined);
-      const operation = crypto.randomUUID();
-      return {
-        content: "Waiting for the user to confirm this commit and pull request. Do not claim it was made.",
-        canvas: { title: `Proposed: ${file.path}`, content: `${file.repository} · ${file.branch} → new branch\n\n${title}\n\n${codeBlock(content, languageFor(file.path))}` },
-        proposal: {
-          id: operation,
-          summary: `${file.repository} · ${file.path}\n${title}`,
-          change: { repository: file.repository, branch: file.branch, connection_version: file.connection_version, path: file.path, sha: file.sha, content, title, operation },
-        },
       };
     }
     if (name === "github_list_files") {
@@ -221,6 +197,7 @@ export async function runAgentTurn(
   const actionEvidence:{tool:string;content:string;failed?:boolean}[]=[];
   const userText=String([...messages].reverse().find(m=>m.role==='user')?.content??'');
   const googleWriteRequested=/^(?:please\s+)?(?:use\s+(?:google_create_file|google_edit_file|calendar_change)\b|(?:prepare\s+(?:a\s+)?review\s+to\s+)?(?:create|make|edit|update|save|cancel|reschedule)\b[\s\S]{0,250}\b(?:google\s+(?:doc|sheet|document|spreadsheet)|calendar\s+event)\b)/i.test(userText);
+  const businessWriteRequested=/^(?:please\s+)?(?:send|reply|follow[ -]?up|clear|archive|delete|trash|create|update|repair|improve|build)\b[\s\S]{0,300}\b(?:mail|email|inbox|crm|customer|signal|campaign|website|repository)\b/i.test(userText);
   const namedToolRequest=/^(?:please\s+)?(?:(?:production\s+)?verification(?:\s+only)?:\s*)?(?:use|run|call)\b/i.test(userText)&&!/\b(?:do not|don't|without)\s+(?:call|run|execute|use)\b/i.test(userText);
   // Conditional/optional follow-on tools remain the model's decision; never force
   // "if missing, create" or "after approval, read" before that condition holds.
@@ -244,7 +221,7 @@ export async function runAgentTurn(
     const calls: ToolCall[] = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) {
       const answer=typeof message.content==='string'?message.content:'';
-      if((googleWriteRequested&&toolCalls===0||nextRequested)&&!retriedMissingAction){
+      if(((googleWriteRequested||businessWriteRequested)&&toolCalls===0||nextRequested)&&!retriedMissingAction){
         retriedMissingAction=true;
         convo.push({role:'assistant',content:answer},{role:'system',content:'No host tool has executed all the requested steps. A result or review exists only when an actual tool returns it. '+(nextRequested?'The next explicitly requested tool is '+nextRequested+'. ':'')+'Follow the user’s restrictions. If the request supplies enough information, call the appropriate available tool now. Otherwise ask only for the missing information. Do not invent connection status, file counts or pending reviews.'});
         continue;
