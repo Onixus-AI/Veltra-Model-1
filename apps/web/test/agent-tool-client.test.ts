@@ -95,3 +95,21 @@ test('requested business work gets a real tool opportunity instead of prose-only
  t.mock.method(globalThis,'fetch',async(input:any,init:any)=>{const b=JSON.parse(init.body);assert.equal(input,'/api/chat');if(turns++===0)return Response.json({choices:[{message:{content:'I sent the email.'}}]});assert.match(b.messages.at(-1).content,/No host tool/);return Response.json({choices:[{message:{content:'Who should receive it, and what should the email say?'}}]});});
  try{const answer=await runAgentTurn([{role:'user',content:'Send an email'}],'fixture',{},async()=>{throw Error('No action prepared');},()=>{},()=>{});assert.match(answer,/Who should receive/);assert.equal(turns,2);}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
 });
+
+test('a promise to check capabilities forces the actual read before answering',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};let turns=0,checks=0;
+ t.mock.method(globalThis,'fetch',async(input:any,init:any)=>{const b=JSON.parse(init.body);
+  if(input==='/api/chat'){
+   if(turns++===0)return Response.json({choices:[{message:{content:'Let me actually check the live capabilities now.'}}]});
+   if(turns===2){assert.equal(b.tool_choice.function.name,'onyx_capabilities');return Response.json({choices:[{message:{tool_calls:[{id:'cap',type:'function',function:{name:'onyx_capabilities',arguments:'{}'}}]}}]});}
+   assert.equal(b.tool_choice,undefined);return Response.json({choices:[{message:{content:'Mail actions require your review before execution.'}}]});
+  }
+  assert.equal(b.name,'onyx_capabilities');checks++;return Response.json({content:'{"mail":{"review_required":true}}'});
+ });
+ try{const a=await runAgentTurn([{role:'user',content:'Stop making claims without checking'}],'fixture',{},async()=>{throw Error('Read cannot request action review');},()=>{},()=>{});assert.equal(checks,1);assert.match(a,/review before execution/);}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
+test('a model ignoring the capability check cannot end with an empty promise',async t=>{
+ const previous=(globalThis as any).window;(globalThis as any).window={sessionStorage:{getItem:()=> 'fixture-user'}};let turns=0;
+ t.mock.method(globalThis,'fetch',async()=>{turns++;return Response.json({choices:[{message:{content:'Let me check my Mail tools now.'}}]});});
+ try{const a=await runAgentTurn([{role:'user',content:'Check before responding'}],'fixture',{},async()=>false,()=>{},()=>{});assert.equal(turns,2);assert.match(a,/not verified/);assert.doesNotMatch(a,/Let me check/);}finally{if(previous===undefined)delete (globalThis as any).window;else (globalThis as any).window=previous;}
+});
