@@ -3,7 +3,8 @@ import path from 'node:path';
 import {Sandbox} from '@vercel/sandbox';
 import {browserUrl,checkBrowserDns,browserNetworkPolicy} from './policy';
 
-const ROOT='/vercel/sandbox/browser-runtime';
+const ROOT='/vercel/browser-runtime';
+export const BROWSER_IMAGE='vercel/sandbox/universal@sha256:885933da7cb4b819a597514420a824c432ff1f4e76b580898c8833044d0d0db0';
 export const PLAYWRIGHT_VERSION='1.64.1';
 export function browserEnabled(){return process.env.VELTRA_BROWSER_ENABLED==='true';}
 type Runner=Pick<Sandbox,'writeFiles'|'runCommand'|'updateNetworkPolicy'|'readFileToBuffer'|'stop'>;
@@ -21,10 +22,10 @@ export async function inspectBrowserPage(o:{user:string;url:unknown;create?:type
  const snapshot=process.env.VELTRA_BROWSER_SNAPSHOT_ID;
  const release=reserve(o.user);let sandbox:Runner|undefined;
  try{
-  sandbox=await (o.create??Sandbox.create)({persistent:false,timeout:180000,resources:{vcpus:2},tags:{purpose:'veltra-browser',user:o.user},networkPolicy:snapshot?browserNetworkPolicy(url.hostname):'allow-all',...(snapshot?{source:{type:'snapshot',snapshotId:snapshot}}:{runtime:'node24' as const})});
+  sandbox=await (o.create??Sandbox.create)({persistent:false,timeout:180000,resources:{vcpus:2},tags:{purpose:'veltra-browser',user:o.user},networkPolicy:snapshot?browserNetworkPolicy(url.hostname):'allow-all',...(snapshot?{source:{type:'snapshot',snapshotId:snapshot}}:{image:BROWSER_IMAGE})});
   if(!snapshot){
    // Only pinned trusted dependencies run during setup. No page or user code is loaded until egress is restricted.
-   const install=await sandbox.runCommand({cmd:'npm',args:['install','--prefix',ROOT,'--ignore-scripts','--no-audit','--no-fund','playwright@'+PLAYWRIGHT_VERSION],cwd:'/vercel/sandbox'});if(install.exitCode!==0)throw Error('503:Browser dependency setup failed.');
+   const install=await sandbox.runCommand({cmd:'npm',args:['install','--prefix',ROOT,'--ignore-scripts','--no-audit','--no-fund','playwright@'+PLAYWRIGHT_VERSION],cwd:'/vercel'});if(install.exitCode!==0)throw Error('503:Browser dependency setup failed.');
    const browser=await sandbox.runCommand({cmd:ROOT+'/node_modules/.bin/playwright',args:['install','--with-deps','chromium'],env:{PLAYWRIGHT_BROWSERS_PATH:ROOT+'/browsers'},sudo:true});if(browser.exitCode!==0)throw Error('503:Browser runtime setup failed.');
   }
   await sandbox.updateNetworkPolicy(browserNetworkPolicy(url.hostname));
