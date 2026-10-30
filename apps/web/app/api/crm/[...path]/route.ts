@@ -1,3 +1,4 @@
+import {webSearch} from '@/lib/web-search';
 import {prepareImport} from '@/lib/crm/bulk-import';
 import {contactWorker} from '@/lib/crm/contact-worker';
 import {runDiscovery} from "@/lib/crm/discovery";
@@ -16,6 +17,29 @@ async function handle(request:Request,context:Context){try{
  if(path[0]==='contact-research'&&path.length===1){
   if(method==='POST'){const b=await body();if(!uuid(b.workspace_id)||!uuid(b.customer_id)||typeof b.website!=='string')throw Error('400:Choose a customer and its company website.');const {data,error}=await client.rpc('crm_request_contact_research',{p_workspace:b.workspace_id,p_customer:b.customer_id,p_website:b.website});if(error)throw Error('409:Research could not be queued. Check ownership, company website and the daily limit.');return ok({job_id:data,status:'queued'});}
   if(method==='GET'){const w=url.searchParams.get('workspace'),c=url.searchParams.get('customer');if(!uuid(w)||!uuid(c))throw Error('400:Choose a customer.');const [evidence,jobs]=await Promise.all([client.from('crm_contact_evidence').select('email,source_url,source_kind,observed_at,verification').eq('workspace_id',w).eq('customer_id',c).order('observed_at',{ascending:false}).limit(30),client.from('crm_contact_research').select('id,status,last_error,created_at,completed_at').eq('workspace_id',w).eq('customer_id',c).order('created_at',{ascending:false}).limit(5)]);if(evidence.error||jobs.error)throw Error('503:Contact enrichment is not available yet.');return ok({evidence:evidence.data,jobs:jobs.data});}
+ }
+ if(path[0]==='reconciliation-batch'&&path.length===1&&method==='POST'){
+  const b=await body();if(!uuid(b.workspace))throw Error('400:Choose a business.');const owner=await client.from('crm_workspaces').select('owner_id').eq('id',b.workspace).single();if(owner.data?.owner_id!==user.id)throw Error('403:Business owner required.');
+  const candidates=await client.from('crm_customers').select('id,website').eq('workspace_id',b.workspace).is('archived_at',null).is('email',null).not('website','is',null).neq('website','').order('created_at').limit(10);if(candidates.error)throw Error('503:Research candidates unavailable.');
+  const items=[];for(const c of candidates.data??[]){const recent=await client.from('crm_contact_research').select('id').eq('workspace_id',b.workspace).eq('customer_id',c.id).gte('created_at',new Date(Date.now()-86400000).toISOString()).limit(1);if(recent.error)throw Error('503:Existing research could not be checked.');if(recent.data?.length){items.push({customer_id:c.id,status:'already_requested'});continue;}
+   const queued=await client.rpc('crm_request_contact_research',{p_workspace:b.workspace,p_customer:c.id,p_website:c.website});items.push({customer_id:c.id,status:queued.error?'not_queued':'queued',job_id:queued.error?null:queued.data});
+  }
+  return ok({owner:'onixa',status:'queued_requests',items,queued:items.filter(i=>i.status==='queued').length,notice:'Existing official-website research worker; results still require identity review. No contact was approved or message sent.'});
+ }
+ if(path[0]==='reconciliation-sources'&&path.length===1&&method==='POST'){
+  const b=await body();if(!uuid(b.workspace)||!uuid(b.customer))throw Error('400:Choose a company.');
+  const {data:company,error}=await client.from('crm_customers').select('company,location').eq('workspace_id',b.workspace).eq('id',b.customer).is('archived_at',null).single();if(error||!company)throw Error('404:Company unavailable.');
+  if(!process.env.FIRECRAWL_API_KEY)throw Error('503:Web research is not configured.');const quota=await client.rpc('workspace_claim_web_search');if(quota.error||!quota.data)throw Error('409:Daily web-search allowance unavailable or reached.');
+  return ok(await webSearch([company.company,company.location,'official company website contact'].filter(Boolean).join(' ').slice(0,600),process.env.FIRECRAWL_API_KEY));
+ }
+ if(path[0]==='reconciliation'&&path.length===1){
+  if(method==='GET'){
+   const w=url.searchParams.get('workspace'),page=Number(url.searchParams.get('page')||0),archived=url.searchParams.get('archived')==='true';if(!uuid(w)||!Number.isInteger(page)||page<0||page>100000)throw Error('400:Choose a valid business and page.');
+   let q=client.from('crm_customers').select('id,company,email,website,location,identity_review_required,archived_at',{count:'exact'}).eq('workspace_id',w);
+   q=archived?q.not('archived_at','is',null):q.is('archived_at',null).or('email.is.null,email.eq.,identity_review_required.eq.true');
+   const {data,error,count}=await q.order('created_at').order('id').range(page*50,page*50+49);if(error)throw Error('503:Reconciliation queue is unavailable.');return ok({rows:data??[],total:count??0});
+  }
+  if(method==='POST'){const b=await body();if(!uuid(b.workspace)||!uuid(b.customer)||typeof b.reason!=='string')throw Error('400:Choose a company and research conclusion.');if(b.action==='restore'){const restored=await client.rpc('crm_restore_archived',{p_workspace:b.workspace,p_customer:b.customer});if(restored.error)throw Error('409:Archived company could not be restored.');return ok(restored.data);}const {data,error}=await client.rpc('crm_archive_unresolved',{p_workspace:b.workspace,p_customer:b.customer,p_reason:b.reason});if(error)throw Error('409:Archive refused. Complete successful source research, review evidence and resolve open work first.');return ok(data);}
  }
  if(path[0]==='business-search'&&path.length===1&&method==='POST'){
   const b=await body();if(!uuid(b.workspace))throw Error('400:Choose a business workspace.');

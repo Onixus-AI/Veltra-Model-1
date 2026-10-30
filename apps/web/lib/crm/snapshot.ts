@@ -8,7 +8,8 @@ export async function readSnapshot(client:SupabaseClient,workspace:string,signal
  await Promise.all(Object.entries(tables).map(async([key,table])=>{
   const read=async(offset:number,count=false)=>{
    const timeout=AbortSignal.timeout(20000),requestSignal=signal?AbortSignal.any([signal,timeout]):timeout;
-   const response=await crmDeadline(client.from(table).select('*',count?{count:'exact'}:{}).eq('workspace_id',workspace).order('created_at',{ascending:false}).order('id').range(offset,offset+499).abortSignal(requestSignal),requestSignal);
+   let query=client.from(table).select('*',count?{count:'exact'}:{}).eq('workspace_id',workspace);if(key==='customers')query=query.is('archived_at',null);
+   const response=await crmDeadline(query.order('created_at',{ascending:false}).order('id').range(offset,offset+499).abortSignal(requestSignal),requestSignal);
    if(response.error)throw Error('CRM records could not finish loading. Refresh to try again.');
    return response;
   };

@@ -22,7 +22,7 @@ with sync_playwright() as p:
  assert len(calls)==1,'Search must not import automatically'
  page.get_by_label('Add this business',exact=True).check()
  expect(page.get_by_role('button',name='Review 1 selected',exact=True)).to_be_disabled()
- page.get_by_label('Confirmed company name',exact=True).fill('Example Transport');page.get_by_role('button',name='Review 1 selected',exact=True).click()
+ page.get_by_label('Confirmed company name',exact=True).fill('Example Transport');page.get_by_label('Published company email',exact=True).fill('contact@example.test');page.get_by_role('button',name='Review 1 selected',exact=True).click()
  expect(page.get_by_role('dialog',name='Review CRM import',exact=True)).to_be_visible();assert len(calls)==2
  page.get_by_role('button',name='Add to CRM',exact=True).click();expect(page.get_by_role('status')).to_have_text('1 added to CRM. 0 existing records skipped.');assert len(calls)==3
  page.get_by_label('Country',exact=True).fill('Japan');expect(page.get_by_role('link',name='Example Transport')).to_have_count(0)
