@@ -4,8 +4,8 @@ import {useEffect,useState} from 'react';
 import {LayoutDashboard,Users,MessageSquare,Contact,Mail,Radio,CalendarDays,FolderOpen,Plug,Settings,PanelLeftClose,PanelLeftOpen} from 'lucide-react';
 import './workspace-business-nav.css';
 export default function BusinessNavigation({workspace,current}:{workspace:string;current:'overview'|'team'}){
- const [collapsed,setCollapsed]=useState(false);
- useEffect(()=>{try{setCollapsed(localStorage.getItem('onixus-business-nav-collapsed')==='true');}catch{}},[]);
+ const [collapsed,setCollapsed]=useState(true);
+ useEffect(()=>{try{const saved=localStorage.getItem('onixus-business-nav-collapsed');setCollapsed(saved===null?window.matchMedia('(max-width:760px)').matches:saved==='true');}catch{}},[]);
  const suffix=workspace?'?workspace='+encodeURIComponent(workspace):'',context=workspace?'&crm_workspace='+encodeURIComponent(workspace):'';
  const items=[
   {key:'overview',name:'Business Overview',href:'/workspace'+suffix,icon:LayoutDashboard},
