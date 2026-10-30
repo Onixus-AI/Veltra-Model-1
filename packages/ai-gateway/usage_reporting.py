@@ -59,7 +59,7 @@ async def usage_report(database, organization, now=None, month=None, day=None):
         if pending:reserved+=max(0,int(row.get('credits_reserved') or 0)-used)
         events.append({'id':str(row['id']),'app':'code','task':'Coding task '+str(row['id'])[:8],'status':row.get('status','unknown'),'credits':used,'tokens':None,'model':None,'at':row['created_at']})
     events.sort(key=lambda row:(row['at'],row['id']),reverse=True)
-    apps=[{'id':key,'label':label,'credits':sum(e['credits'] for e in events if e['app']==key),'tasks':sum(1 for e in events if e['app']==key),'legacy_credits':sum(e['credits'] for e in events if e['app']==key and e.get('attribution')=='legacy_shared_endpoint'),'coverage':'recorded' if any(e['app']==key for e in events) else 'no_attributed_records'} for key,label in APPS.items()]
+    apps=[{'id':key,'label':label,'credits':sum(e['credits'] for e in events if e['app']==key),'tokens':sum(e['tokens'] or 0 for e in events if e['app']==key),'tasks':sum(1 for e in events if e['app']==key),'legacy_credits':sum(e['credits'] for e in events if e['app']==key and e.get('attribution')=='legacy_shared_endpoint'),'coverage':'recorded' if any(e['app']==key for e in events) else 'no_attributed_records'} for key,label in APPS.items()]
     daily={(start+timedelta(days=i)).date().isoformat():{'date':(start+timedelta(days=i)).date().isoformat(),'credits':0,'apps':{key:0 for key in APPS},'operations':{key:0 for key in APPS}} for i in range((end-start).days)}
     for event in events:
         day_key=datetime.fromisoformat(event['at'].replace('Z','+00:00')).astimezone(timezone.utc).date().isoformat()

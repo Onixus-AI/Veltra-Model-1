@@ -13,3 +13,5 @@
 .usage-period-content>*{min-width:0;max-width:100%}
 
 .usage-activity-total{display:block;font-size:11px;margin-top:12px;color:#dbe5e8}.usage-activity-total>strong{font-size:19px;font-weight:500}.usage-mode{display:flex;gap:8px;margin-top:14px}.usage-mode button{font-size:12px}.usage-mode button[aria-pressed=true]{border-color:#00e5ef;color:#00e5ef}
+
+.usage-apps button>.usage-activity-total{grid-column:1/-1;margin-top:0;overflow-wrap:anywhere}.usage-app-value{max-width:150px;overflow-wrap:anywhere}
