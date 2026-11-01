@@ -148,3 +148,16 @@ not yet been audited in the inaccessible live projects.
 The navigation cache account-reset notification now restores explicit URL
 context after clearing account-local cached state. This fixes the first-load
 case where the page retained its business but the shared sidebar lost it.
+
+## Account boundary for mounted tools
+
+AuthGate keys the protected application subtree by the signed-in user ID.
+Changing accounts remounts tool state; refreshing the same account's token does
+not discard open work. This boundary depends on session identity, not preference
+metadata or a successful preference save/load.
+
+The initial getSession result is ignored after a newer auth event. Rejected
+initial reads show a sign-in error instead of an indefinite loader. Auth events
+remain observed on public pages so signing out there cannot leave the protected
+workspace using a stale identity when the user returns. Server-side identity
+verification and business membership checks remain the authorization boundary.

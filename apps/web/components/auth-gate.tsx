@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { Fragment, FormEvent, ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { browserSupabase } from "@/lib/supabase";
@@ -10,7 +10,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const publicPage = ["/book", "/eula", "/privacy", "/docs", "/support", "/revenue/paid", "/revenue/preview"].includes(pathname);
   const [googleEnabled, setGoogleEnabled] = useState(false);
   const [ready, setReady] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
+  const [userId, setUserId] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -22,7 +22,6 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (publicPage) return;
     const recoveryPending = window.location.hash.includes("type=recovery") || sessionStorage.getItem("veltra-password-recovery") === "1";
     setRecovering(recoveryPending);
     const supabase = browserSupabase();
@@ -31,25 +30,34 @@ export default function AuthGate({ children }: { children: ReactNode }) {
       setReady(true);
       return;
     }
-    let active = true;
-    void fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" } })
+    let active = true, sessionRevision = 0;
+    const initialRevision = sessionRevision;
+    if (!publicPage) void fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "" } })
       .then(response => response.ok ? response.json() : null)
       .then(settings => { if (active) setGoogleEnabled(settings?.external?.google === true); })
       .catch(() => {});
     void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      setSignedIn(Boolean(data.session));
-      if (error) setError(error.message);
+      if (!active || initialRevision !== sessionRevision) return;
+      setUserId(error ? "" : data.session?.user.id ?? "");
+      if (error) setError("Your session could not be verified. Sign in again.");
+      setReady(true);
+    }).catch(() => {
+      if (!active || initialRevision !== sessionRevision) return;
+      setUserId("");
+      setError("Your session could not be verified. Sign in again.");
       setReady(true);
     });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (active && event === "PASSWORD_RECOVERY") {
+      if (!active) return;
+      sessionRevision++;
+      if (event === "PASSWORD_RECOVERY") {
         sessionStorage.setItem("veltra-password-recovery", "1");
         setRecovering(true);
         setPassword("");
         setError("");
       }
-      if (active) { setSignedIn(Boolean(session)); setReady(true); }
+      setUserId(session?.user.id ?? "");
+      setReady(true);
     });
     return () => { active = false; subscription.unsubscribe(); };
   }, [publicPage]);
@@ -103,7 +111,7 @@ export default function AuthGate({ children }: { children: ReactNode }) {
 
   if (publicPage) return <>{children}</>;
   if (!ready) return <main className="auth-page"><p role="status">Opening your workspace…</p></main>;
-  if (signedIn && !recovering) return <>{children}</>;
+  if (userId && !recovering) return <Fragment key={userId}>{children}</Fragment>;
   return (
     <main className="auth-page">
       <form className="auth-card" onSubmit={signIn}>
