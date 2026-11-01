@@ -34,9 +34,24 @@ its own useful layout. No new decorative effects or component framework.
 - `styles/veltra-theme.css`: canonical tokens with compatibility aliases.
 - `styles/workspace-foundation.css`: shared host, dialogs and native controls.
 
-Workspace tool ordering/name and appearance are browser-local preferences. They
-are not yet account-synced workspace configurations. Existing local keys are
-retained where useful so a UI cleanup does not silently discard preferences.
+Workspace tool ordering/name and appearance now save to the authenticated user's
+Supabase metadata through GET/PUT `/api/workspace/preferences`. The two versioned
+keys are independent; appearance saves cannot overwrite tool layout. These fields
+are preferences only and MUST NOT determine roles, memberships or access.
+
+The route verifies the bearer with Supabase, rejects anonymous/API-key access,
+checks the expected user, limits payload size and updates only the selected key
+using that same request bearer and public key. It never accepts an arbitrary
+account endpoint or uses an admin credential. It verifies the persistence receipt
+before reporting success. GET responses omit unrelated account metadata.
+
+The shared provider serializes saves, ignores stale reads and receipts, clears
+state on account changes and refreshes on focus, visibility and cross-tab signals.
+Different devices use last-write-wins per section; this is not collaborative editing.
+Failures stay visible with retry controls. Old browser layout is imported only
+when the user explicitly requests it. Browser-only fallback applies when Supabase
+is unconfigured. The cached business selection is cleared on account changes;
+services still enforce membership for explicit business URLs.
 
 CRM uses the existing workspace session. Its redundant nested login form has
 been removed; this does not merge the separate client-site authentication system.
@@ -91,3 +106,21 @@ keyboard, and ensure embedded CRM has no nested workspace navigation.
 Authenticated production integrations require a separate live-account walkthrough.
 A fixture-based browser check is not evidence that external accounts or services
 are configured or that the system can support 2,000 clients.
+
+## Account migration audit — next required work
+
+Workspace and client/Signal use different Supabase projects. Existing Signal launch
+and embed routes already implement a gated one-time handoff. Keep that feature
+flag unchanged until both projects can be inspected and the full journey tested.
+The current connector exposes only an unrelated inactive Zeevents project.
+
+The client-site baseline contains a hardcoded identity/client exception in its
+Workspace–Signal bridge. Replace it only after auditing actual auth identities,
+business memberships and connection mappings. Email equality is not proof of
+membership. Preserve current users and data while migrating verified mappings.
+Do not merge the earlier unapproved client-site login draft as part of this work.
+
+Required release proof: sign in once, enter the correct business, follow Build or
+Growth, move Build to Growth without a second identity, deny other businesses,
+expire/revoke a handoff, and sign out across the intended session boundaries.
+No live sign-in migration or capacity claim is established by this checkpoint.

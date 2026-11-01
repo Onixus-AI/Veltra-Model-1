@@ -6,6 +6,7 @@ import "@/styles/spatial-workspace.css";
 import {WorkspaceAppearanceSync} from "@/components/workspace-appearance";
 import WorkspaceFrame from "@/components/workspace-frame";
 import "@/styles/workspace-foundation.css";
+import WorkspaceSettingsProvider from "@/components/workspace-settings-provider";
 import AuthGate from "@/components/auth-gate";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body><WorkspaceAppearanceSync/><AuthGate><WorkspaceFrame>{children}</WorkspaceFrame></AuthGate></body>
+      <body><WorkspaceSettingsProvider><WorkspaceAppearanceSync/><AuthGate><WorkspaceFrame>{children}</WorkspaceFrame></AuthGate></WorkspaceSettingsProvider></body>
     </html>
   );
 }

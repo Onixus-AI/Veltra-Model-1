@@ -3,11 +3,9 @@ import { useEffect, useRef, useState } from "react";
 import { Palette, X } from "lucide-react";
 import {
   defaultAppearance,
-  readAppearance,
   type Appearance,
 } from "@/lib/workspace-appearance";
-const key = "veltra-appearance-v1",
-  changed = "onixus:appearance-changed";
+import {useWorkspaceSettings} from "./workspace-settings-provider";
 function apply(value: Appearance) {
   const root = document.documentElement;
   root.dataset.workspaceAccent = value.accent;
@@ -16,32 +14,8 @@ function apply(value: Appearance) {
 }
 /** Restores appearance even in embedded documents that have no navigation. */
 export function WorkspaceAppearanceSync() {
-  useEffect(() => {
-    const restore = () => {
-      try {
-        const value = JSON.parse(localStorage.getItem(key) || "null");
-        const migrated = value?.theme
-          ? value
-          : {
-              ...value,
-              theme:
-                localStorage.getItem("onixus-overview-theme") === "day"
-                  ? "light"
-                  : "dark",
-            };
-        apply(readAppearance(migrated));
-      } catch {
-        apply(defaultAppearance);
-      }
-    };
-    restore();
-    window.addEventListener("storage", restore);
-    window.addEventListener(changed, restore);
-    return () => {
-      window.removeEventListener("storage", restore);
-      window.removeEventListener(changed, restore);
-    };
-  }, []);
+  const {appearance}=useWorkspaceSettings();
+  useEffect(()=>apply(appearance),[appearance]);
   return null;
 }
 export default function WorkspaceAppearance({
@@ -49,9 +23,10 @@ export default function WorkspaceAppearance({
 }: {
   navigation?: boolean;
 }) {
-  const [value, setValue] = useState<Appearance>(defaultAppearance),
-    [open, setOpen] = useState(false),
-    [error, setError] = useState("");
+  const settings=useWorkspaceSettings(),value=settings.appearance;
+  const [open,setOpen]=useState(false),[error,setError]=useState('');
+  const account=useRef(settings.userId);account.current=settings.userId;
+  useEffect(()=>{setOpen(false);setError('');},[settings.userId]);
   const dialog = useRef<HTMLDialogElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -62,19 +37,7 @@ export default function WorkspaceAppearance({
     setOpen(false);
     trigger.current?.focus();
   }
-  function change(next: Appearance) {
-    setValue(next);
-    apply(next);
-    try {
-      localStorage.setItem(key, JSON.stringify(next));
-      window.dispatchEvent(new Event(changed));
-      setError("");
-    } catch {
-      setError(
-        "Appearance changed for this visit. Your browser could not save it.",
-      );
-    }
-  }
+  function change(next:Appearance){const userId=account.current;setError('');void settings.saveAppearance(next).catch(e=>{if(account.current===userId)setError(e.message);});}
   return (
     <>
       <button
@@ -83,16 +46,8 @@ export default function WorkspaceAppearance({
         className="header-icon"
         aria-label="Customize appearance"
         aria-haspopup="dialog"
-        onClick={() => {
-          try {
-            setValue(
-              readAppearance(JSON.parse(localStorage.getItem(key) || "null")),
-            );
-          } catch {
-            setValue(defaultAppearance);
-          }
-          setOpen(true);
-        }}
+        disabled={!settings.canSave}
+        onClick={()=>{setError('');setOpen(true);}}
       >
         <Palette size={18} />
         {navigation && <span>Appearance</span>}
@@ -114,7 +69,7 @@ export default function WorkspaceAppearance({
             <X size={18} />
           </button>
         </header>
-        <p>One appearance across your workspace. Saved in this browser.</p>
+        <p>{settings.account?'Appearance changes save to your account across devices.':'One appearance across your workspace. Saved in this browser.'}</p>
         <label>
           Theme
           <select
@@ -171,7 +126,8 @@ export default function WorkspaceAppearance({
             <option value="compact">Compact</option>
           </select>
         </label>
-        {error && <p role="status">{error}</p>}
+        {settings.pending&&<p role="status">Saving appearance…</p>}
+        {(error||settings.error)&&<p role="alert">{error||settings.error}<button type="button" onClick={()=>change(value)}>Retry saving appearance</button></p>}
         <footer>
           <button type="button" onClick={() => change(defaultAppearance)}>
             Reset appearance

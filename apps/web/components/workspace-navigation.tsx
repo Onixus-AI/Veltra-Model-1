@@ -24,10 +24,10 @@ import {
   workspaceTools,
   workspaceHref,
   readWorkspacePreferences,
-  defaultWorkspacePreferences,
   type WorkspacePreferences,
   type WorkspaceToolId,
 } from "@/lib/workspace-navigation";
+import {useWorkspaceSettings} from "./workspace-settings-provider";
 import WorkspaceAppearance from "./workspace-appearance";
 const icons = {
   overview: LayoutDashboard,
@@ -45,8 +45,6 @@ const icons = {
   connections: Plug,
   settings: Settings,
 };
-const preferenceKey = "onixus-workspace-tools-v1",
-  preferenceEvent = "onixus:workspace-tools-changed";
 export default function WorkspaceNavigation({
   business = "",
   active,
@@ -56,36 +54,11 @@ export default function WorkspaceNavigation({
   active?: WorkspaceToolId | null;
   onOpen?: (id: WorkspaceToolId) => boolean;
 }) {
-  const [preferences, setPreferences] = useState<WorkspacePreferences>(
-      defaultWorkspacePreferences,
-    ),
-    [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<WorkspacePreferences>(
-      defaultWorkspacePreferences,
-    ),
-    [notice, setNotice] = useState("");
-  const dialog = useRef<HTMLDialogElement>(null),
-    trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    const restore = () => {
-      try {
-        setPreferences(
-          readWorkspacePreferences(
-            JSON.parse(localStorage.getItem(preferenceKey) || "null"),
-          ),
-        );
-      } catch {
-        setPreferences(readWorkspacePreferences(null));
-      }
-    };
-    restore();
-    window.addEventListener(preferenceEvent, restore);
-    window.addEventListener("storage", restore);
-    return () => {
-      window.removeEventListener(preferenceEvent, restore);
-      window.removeEventListener("storage", restore);
-    };
-  }, []);
+  const settings=useWorkspaceSettings(),preferences=settings.layout;
+  const [editing,setEditing]=useState(false),[saving,setSaving]=useState(false),[notice,setNotice]=useState('');
+  const [draft,setDraft]=useState<WorkspacePreferences>(preferences);
+  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null),saveVersion=useRef(0);
+  useEffect(()=>{saveVersion.current++;setEditing(false);setSaving(false);setNotice('');},[settings.userId]);
   useEffect(() => {
     if (editing) dialog.current?.showModal();
     else dialog.current?.close();
@@ -94,19 +67,11 @@ export default function WorkspaceNavigation({
     setEditing(false);
     trigger.current?.focus();
   }
-  function save() {
-    const next = readWorkspacePreferences(draft);
-    try {
-      localStorage.setItem(preferenceKey, JSON.stringify(next));
-      window.dispatchEvent(new Event(preferenceEvent));
-      setPreferences(next);
-      setNotice("Workspace tools saved in this browser.");
-      close();
-    } catch {
-      setNotice(
-        "Your browser could not save these preferences. Allow browser storage and try again.",
-      );
-    }
+  async function save() {
+    const version=++saveVersion.current;setSaving(true);setNotice('');
+    try{await settings.saveLayout(readWorkspacePreferences(draft));if(version===saveVersion.current)close();}
+    catch(e){if(version===saveVersion.current)setNotice(e instanceof Error?e.message:'Workspace could not be saved.');}
+    finally{if(version===saveVersion.current)setSaving(false);}
   }
   function move(id: WorkspaceToolId, direction: number) {
     setDraft((previous) => {
@@ -163,6 +128,7 @@ export default function WorkspaceNavigation({
           <WorkspaceAppearance navigation />
           <button
             ref={trigger}
+            disabled={!settings.canSave}
             type="button"
             aria-haspopup="dialog"
             title="Customize tools"
@@ -177,6 +143,7 @@ export default function WorkspaceNavigation({
             <span>Customize tools</span>
           </button>
         </div>
+        {(settings.error||!settings.ready)&&<p role="status" className="workspace-preference-status">{settings.error||'Loading your workspace…'}{settings.error&&<button type="button" onClick={()=>void settings.refresh()}>Retry loading preferences</button>}</p>}
       </nav>
       <dialog
         ref={dialog}
@@ -199,7 +166,7 @@ export default function WorkspaceNavigation({
           Choose and order your tools. Hiding a tool keeps its data and
           connection.
         </p>
-        <label>
+        <fieldset className="workspace-layout-fields" aria-label="Workspace layout" disabled={saving}><label>
           Workspace name
           <input
             value={draft.name}
@@ -266,22 +233,24 @@ export default function WorkspaceNavigation({
           })}
         </fieldset>
         <p>
-          Preferences are saved in this browser. They do not change business
-          access.
+          {settings.account?'Save your workspace to your account to use it across devices.':'Preferences are saved in this browser.'} Hiding tools does not change business access.
         </p>
-        {notice && <p role="status">{notice}</p>}
+        {settings.account&&!settings.hasLayout&&settings.hasBrowserLayout&&<button type="button" onClick={()=>{setSaving(true);void settings.importBrowserLayout().then(close).catch(e=>setNotice(e.message)).finally(()=>setSaving(false));}}>Import previous browser layout</button>}
+        </fieldset>
+        {notice && <p role="alert">{notice}</p>}
         <footer>
           <button
             type="button"
+            disabled={saving}
             onClick={() => setDraft(readWorkspacePreferences(null))}
           >
             Reset tools
           </button>
-          <button type="button" onClick={close}>
+          <button type="button" disabled={saving} onClick={close}>
             Cancel
           </button>
-          <button type="button" className="primary" onClick={save}>
-            Save workspace
+          <button type="button" className="primary" disabled={saving||!settings.canSave} onClick={()=>void save()}>
+            {saving?"Saving…":"Save workspace"}
           </button>
         </footer>
       </dialog>

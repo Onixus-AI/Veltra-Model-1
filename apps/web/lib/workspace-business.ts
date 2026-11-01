@@ -42,3 +42,14 @@ export function useWorkspaceBusiness() {
   }, [pathname]);
   return business;
 }
+
+/** Scope the navigation cache to the verified account, without treating it as access. */
+export function bindBusinessAccount(userId:string){
+ try{
+  const previous=localStorage.getItem('onixus-business-account');
+  if(previous===userId)return;
+  localStorage.removeItem(key);
+  if(userId)localStorage.setItem('onixus-business-account',userId);else localStorage.removeItem('onixus-business-account');
+ }catch{}
+ window.dispatchEvent(new CustomEvent(eventName,{detail:''}));
+}

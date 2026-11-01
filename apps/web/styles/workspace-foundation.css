@@ -554,3 +554,7 @@ body {
 .workspace.spatial-workspace .workspace-topbar .header-icon {
   color: var(--veltra-accent);
 }
+
+.workspace-preferences-dialog .workspace-layout-fields{border:0;padding:0;margin:0}
+.workspace-layout-fields>label{display:grid;gap:6px;margin:16px 0}
+.workspace-preference-status{font-size:12px;line-height:1.5;padding:8px 12px;color:var(--veltra-muted)}
