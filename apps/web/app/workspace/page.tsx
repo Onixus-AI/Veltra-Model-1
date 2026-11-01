@@ -8,6 +8,7 @@ import {mailHealthSummary,type MailHealth} from '@/lib/mail-health';
 import BusinessSummary from '@/components/business-summary';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 import './workspace.css';
+import {pathwayHref} from '@/lib/workspace-pathways';
 
 type State='loading'|'connected'|'available'|'unavailable';
 type Space={id:string;name:string};
@@ -42,6 +43,7 @@ export default function WorkspaceHome(){
  return <main className="suite-home overview-home">
   <header className="suite-header"><Link href="/workspace" className="suite-brand"><img src="/veltra-logo.png" alt="Onixus Workspace"/><span>Onixus Workspace<small>Your business workspace</small></span></Link></header>
   <section className="suite-intro"><div><h1>Business Overview</h1><p>Your results, priorities and team in one place.</p></div><label className="suite-business">Working in<select aria-label="Business workspace" disabled={loading||!spaces.length} value={workspace} onChange={event=>changeWorkspace(event.target.value)}><option value="">{loading?'Loading businesses…':'Choose a business'}</option>{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><small>{activeSpace?'Your overview follows this business.':'Choose a business to see its activity.'}</small></label></section>
+  <nav aria-label="Client pathways" className="workspace-pathway-tabs"><Link href={pathwayHref('build',workspace)}>Build your foundation</Link><Link href={pathwayHref('growth',workspace)}>Grow your business</Link></nav>
   {workspace?<BusinessSummary key={workspace} workspace={workspace}/>:<section className="suite-empty"><h2>{loading?'Loading your business…':'Choose a business to see its overview.'}</h2><p>{error||'Your customers, pipeline, meetings and priorities will appear here.'}</p><a href="/crm">Open CRM</a></section>}
   {error&&<div className="suite-error" role="alert"><span>{error}</span><button type="button" disabled={loading} onClick={()=>setRefresh(n=>n+1)}><RefreshCw size={14}/>Try again</button></div>}
   <details className="suite-tool-directory"><summary>Open your workspace tools</summary><section className="suite-products" aria-label="Your workspace tools">

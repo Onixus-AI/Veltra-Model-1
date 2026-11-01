@@ -25,8 +25,10 @@ export function useWorkspaceBusiness() {
     pathname = usePathname();
   useEffect(() => {
     const restore = () => setBusiness(currentBusiness());
-    const changed = (event: Event) =>
-      setBusiness((event as CustomEvent<string>).detail);
+    const changed = (event: Event) => {
+      const detail=(event as CustomEvent<unknown>).detail;
+      setBusiness(typeof detail==='string'?detail:currentBusiness());
+    };
     const storage = (event: StorageEvent) => {
       if (event.key === key || event.key === null) restore();
     };
@@ -51,5 +53,5 @@ export function bindBusinessAccount(userId:string){
   localStorage.removeItem(key);
   if(userId)localStorage.setItem('onixus-business-account',userId);else localStorage.removeItem('onixus-business-account');
  }catch{}
- window.dispatchEvent(new CustomEvent(eventName,{detail:''}));
+ window.dispatchEvent(new CustomEvent(eventName));
 }

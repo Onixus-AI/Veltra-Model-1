@@ -124,3 +124,27 @@ Required release proof: sign in once, enter the correct business, follow Build o
 Growth, move Build to Growth without a second identity, deny other businesses,
 expire/revoke a handoff, and sign out across the intended session boundaries.
 No live sign-in migration or capacity claim is established by this checkpoint.
+
+## Build and Growth pathways
+
+`/workspace/build` and `/workspace/growth` are client pathways inside the same
+Workspace shell and authenticated session. They are distinct from Super Coder's
+existing `build` canvas. Overview links to both; the shared navigation exposes
+Build & Growth, and both routes keep the same navigation selection.
+
+A shared component reads the existing authenticated CRM business list. It shows
+actions only for a selected business present in that response, resets on account
+changes, and provides loading, empty and retry states. Pathway switching and all
+tool links carry the selected business. Existing API membership checks remain
+authoritative; route visibility is not a new entitlement or role.
+
+Build points to website, brand, customer intake and connections. Growth points
+to leads, follow-ups, Signal campaigns and Overview. Both provide a direct route
+to the other pathway with the same business. They do not automatically classify
+a client, certify a website, track completed onboarding steps, or change billing.
+Readiness and paid service assignment require verified business data, which has
+not yet been audited in the inaccessible live projects.
+
+The navigation cache account-reset notification now restores explicit URL
+context after clearing account-local cached state. This fixes the first-load
+case where the page retained its business but the shared sidebar lost it.

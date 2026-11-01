@@ -1,6 +1,7 @@
 /** Shared navigation metadata. No React, browser storage, or authorization logic. */
 export const workspaceTools = [
   { id: "overview", label: "Overview", path: "/workspace" },
+  { id: "pathway", label: "Build & Growth", path: "/workspace/build" },
   { id: "team", label: "Business team", path: "/workspace/team" },
   { id: "chat", label: "Onyx", path: "/", view: "chat" },
   { id: "crm", label: "CRM", path: "/", canvas: "crm" },
@@ -41,6 +42,7 @@ export function activeWorkspaceTool(
   pathname: string,
   search = "",
 ): WorkspaceToolId | null {
+  if (pathname === "/workspace/growth") return "pathway";
   if (pathname === "/crm") return "crm";
   if (pathname === "/") {
     const query = new URLSearchParams(search),
@@ -70,6 +72,7 @@ export const defaultWorkspacePreferences: WorkspacePreferences = {
   name: "My workspace",
   tools: [
     "overview",
+    "pathway",
     "team",
     "chat",
     "crm",

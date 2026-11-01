@@ -31,6 +31,7 @@ import {useWorkspaceSettings} from "./workspace-settings-provider";
 import WorkspaceAppearance from "./workspace-appearance";
 const icons = {
   overview: LayoutDashboard,
+  pathway: SlidersHorizontal,
   team: Users,
   chat: MessageSquare,
   crm: Contact,
