@@ -1,9 +1,9 @@
 'use client';
-import BusinessNavigation from '@/components/workspace-business-nav';
 
 import Link from 'next/link';
+import {currentBusiness,rememberBusiness} from '@/lib/workspace-business';
 import {useEffect,useState} from 'react';
-import {ArrowRight,ArrowUpRight,MessageSquare,Mail,Users,Search,CheckCheck,Plug,Settings2,Sparkles,ArrowUp,RefreshCw,CalendarDays,FolderOpen,Palette} from 'lucide-react';
+import {ArrowUpRight,Mail,RefreshCw,CalendarDays,FolderOpen,Palette} from 'lucide-react';
 import {mailHealthSummary,type MailHealth} from '@/lib/mail-health';
 import BusinessSummary from '@/components/business-summary';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
@@ -11,7 +11,6 @@ import './workspace.css';
 
 type State='loading'|'connected'|'available'|'unavailable';
 type Space={id:string;name:string};
-const contextKey='veltra-home-business';
 export default function WorkspaceHome(){
  const [spaces,setSpaces]=useState<Space[]>([]),[workspace,setWorkspace]=useState('');
  const [crm,setCrm]=useState<State>('loading'),[mail,setMail]=useState<State>('loading'),[error,setError]=useState('');
@@ -23,7 +22,7 @@ export default function WorkspaceHome(){
    const results=await Promise.allSettled(['/api/crm/workspaces','/api/crm/connection','/api/mail/link'].map(async url=>{const response=await fetch(url,{headers,cache:'no-store',signal:controller.signal});if(!response.ok)throw new Error('Connection unavailable');return response.json();}));
    if(!active)return;
    const [memberships,crmResult,mailResult]=results;
-   if(memberships.status==='fulfilled'){const owned:Space[]=memberships.value.workspaces??[];setSpaces(owned);let saved='';try{saved=localStorage.getItem(contextKey)??'';}catch{}const requested=new URLSearchParams(location.search).get('workspace')||saved;setWorkspace(current=>owned.some(s=>s.id===current)?current:owned.find(s=>s.id===requested)?.id??owned[0]?.id??'');}else{setSpaces([]);setWorkspace('');setError('Business workspaces could not load. You can still open Chat or check Connections.');}
+   if(memberships.status==='fulfilled'){const owned:Space[]=memberships.value.workspaces??[];setSpaces(owned);const requested=currentBusiness();setWorkspace(current=>owned.some(s=>s.id===current)?current:owned.find(s=>s.id===requested)?.id??owned[0]?.id??'');}else{setSpaces([]);setWorkspace('');setError('Business workspaces could not load. You can still open Chat or check Connections.');}
    setCrm(crmResult.status==='fulfilled'?(crmResult.value.connected?'connected':'available'):'unavailable');
    setMailRuntime(mailResult.status==='fulfilled'?mailResult.value:null);
    setMail(mailResult.status==='fulfilled'?(mailResult.value.connected?'connected':'available'):'unavailable');
@@ -31,7 +30,7 @@ export default function WorkspaceHome(){
   finally{clearTimeout(timeout);if(active)setLoading(false);}
  }void load();return()=>{active=false;clearTimeout(timeout);controller.abort();};},[refresh]);
  useEffect(()=>{let active=true;const poll=setInterval(()=>{void gatewayAuthorizationHeaders().then(headers=>fetch('/api/mail/link',{headers,cache:'no-store',signal:AbortSignal.timeout(10000)})).then(async response=>{if(!response.ok)throw Error('Unavailable');const data=await response.json();if(active){setMail(data.connected?'connected':'available');setMailRuntime(data);}}).catch(()=>{if(active){setMail('unavailable');setMailRuntime(null);}});},30000);return()=>{active=false;clearInterval(poll);};},[]);
- function changeWorkspace(value:string){setWorkspace(value);try{localStorage.setItem(contextKey,value);}catch{}}
+ function changeWorkspace(value:string){setWorkspace(value);}
  const context=workspace?'&crm_workspace='+encodeURIComponent(workspace):'';
  const chat='/?view=chat&mode=work'+context;
  const crmUrl=(view='Overview')=>'/crm?view='+encodeURIComponent(view)+(workspace?'&workspace='+encodeURIComponent(workspace):'');
@@ -39,8 +38,9 @@ export default function WorkspaceHome(){
  const label=(state:State)=>({loading:'Checking…',connected:'Connected',available:'Ready to connect',unavailable:'Connection needs attention'}[state]);
  const mailHealth=mailHealthSummary(mailRuntime);
  const activeSpace=spaces.find(s=>s.id===workspace);
+ useEffect(()=>{if(workspace)rememberBusiness(workspace);},[workspace]);
  return <main className="suite-home overview-home">
-  <header className="suite-header"><Link href="/workspace" className="suite-brand"><img src="/veltra-logo.png" alt="Onixus Workspace"/><span>Onixus Workspace<small>Your business workspace</small></span></Link><BusinessNavigation workspace={workspace} current="overview"/></header>
+  <header className="suite-header"><Link href="/workspace" className="suite-brand"><img src="/veltra-logo.png" alt="Onixus Workspace"/><span>Onixus Workspace<small>Your business workspace</small></span></Link></header>
   <section className="suite-intro"><div><h1>Business Overview</h1><p>Your results, priorities and team in one place.</p></div><label className="suite-business">Working in<select aria-label="Business workspace" disabled={loading||!spaces.length} value={workspace} onChange={event=>changeWorkspace(event.target.value)}><option value="">{loading?'Loading businesses…':'Choose a business'}</option>{spaces.map(space=><option key={space.id} value={space.id}>{space.name}</option>)}</select><small>{activeSpace?'Your overview follows this business.':'Choose a business to see its activity.'}</small></label></section>
   {workspace?<BusinessSummary key={workspace} workspace={workspace}/>:<section className="suite-empty"><h2>{loading?'Loading your business…':'Choose a business to see its overview.'}</h2><p>{error||'Your customers, pipeline, meetings and priorities will appear here.'}</p><a href="/crm">Open CRM</a></section>}
   {error&&<div className="suite-error" role="alert"><span>{error}</span><button type="button" disabled={loading} onClick={()=>setRefresh(n=>n+1)}><RefreshCw size={14}/>Try again</button></div>}

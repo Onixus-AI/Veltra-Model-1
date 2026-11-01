@@ -1,9 +1,77 @@
-/* Veltra: jet-black clear coat with opaque, high-contrast accents. */
-:root{--veltra-bg:#000000;--veltra-sidebar:#000000;--veltra-panel:#000000;--veltra-line:#343434;--veltra-text:#f4f4f5;--veltra-muted:#b8b8bf;--veltra-cyan:#00e5ef;--veltra-magenta:#ff4bda;--veltra-lemon:#f5ff3d;--veltra-purple:#be80ff;--veltra-lime:#baff32;--veltra-orange:#ff8a1f;--veltra-red:#ff365a;--veltra-accent:var(--veltra-cyan);--veltra-tint:#000000;--veltra-font:"DM Sans",sans-serif;--veltra-heading:"Manrope",sans-serif;--veltra-radius:8px;--veltra-gloss:inset 0 1px 0 #ffffff30,inset 1px 0 0 #ffffff0d,0 14px 28px #000b}
-html[data-workspace-accent=magenta]{--veltra-accent:var(--veltra-magenta)}
-html[data-workspace-accent=lemon]{--veltra-accent:var(--veltra-lemon)}
-html[data-workspace-accent=purple],html[data-workspace-accent=violet]{--veltra-accent:var(--veltra-purple)}
-html[data-workspace-accent=lime],html[data-workspace-accent=emerald]{--veltra-accent:var(--veltra-lime)}
-
-html[data-workspace-accent=orange]{--veltra-accent:var(--veltra-orange)}
-html[data-workspace-accent=red]{--veltra-accent:var(--veltra-red)}
+/* Canonical workspace palette; legacy aliases keep existing tools compatible. */
+:root {
+  color-scheme: dark;
+  --veltra-bg: #000;
+  --veltra-sidebar: #111214;
+  --veltra-panel: #111214;
+  --veltra-line: #343434;
+  --veltra-text: #f4f4f5;
+  --veltra-muted: #b8b8bf;
+  --veltra-cyan: #00e5ef;
+  --veltra-magenta: #ff4bda;
+  --veltra-lemon: #f5ff3d;
+  --veltra-purple: #be80ff;
+  --veltra-lime: #baff32;
+  --veltra-orange: #ff8a1f;
+  --veltra-red: #ff718a;
+  --veltra-accent: var(--veltra-cyan);
+  --veltra-tint: color-mix(
+    in srgb,
+    var(--veltra-accent) 12%,
+    var(--veltra-panel)
+  );
+  --veltra-font: "DM Sans", sans-serif;
+  --veltra-heading: var(--veltra-font);
+  --veltra-radius: 8px;
+  --veltra-gloss: none;
+  --workspace-control-height: 40px;
+  --ink: var(--veltra-text);
+  --muted: var(--veltra-muted);
+  --line: var(--veltra-line);
+  --panel: var(--veltra-panel);
+  --surface: var(--veltra-panel);
+  --accent: var(--veltra-accent);
+  --accent-bright: var(--veltra-accent);
+}
+html[data-workspace-theme="light"] {
+  color-scheme: light;
+  --veltra-bg: #f4f5f6;
+  --veltra-sidebar: #fff;
+  --veltra-panel: #fff;
+  --veltra-line: #c6cbd1;
+  --veltra-text: #191b20;
+  --veltra-muted: #565d68;
+  --veltra-cyan: #006a73;
+  --veltra-magenta: #a01184;
+  --veltra-lemon: #756000;
+  --veltra-purple: #7240b1;
+  --veltra-lime: #396617;
+  --veltra-orange: #9d4700;
+  --veltra-red: #af2343;
+}
+html[data-workspace-accent="magenta"] {
+  --veltra-accent: var(--veltra-magenta);
+}
+html[data-workspace-accent="lemon"] {
+  --veltra-accent: var(--veltra-lemon);
+}
+html[data-workspace-accent="purple"] {
+  --veltra-accent: var(--veltra-purple);
+}
+html[data-workspace-accent="lime"] {
+  --veltra-accent: var(--veltra-lime);
+}
+html[data-workspace-accent="orange"] {
+  --veltra-accent: var(--veltra-orange);
+}
+html[data-workspace-accent="red"] {
+  --veltra-accent: var(--veltra-red);
+}
+html[data-workspace-density="compact"] {
+  --workspace-control-height: 36px;
+}
+@media (pointer: coarse) {
+  :root {
+    --workspace-control-height: 44px;
+  }
+}
