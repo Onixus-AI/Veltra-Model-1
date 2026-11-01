@@ -161,3 +161,20 @@ initial reads show a sign-in error instead of an indefinite loader. Auth events
 remain observed on public pages so signing out there cannot leave the protected
 workspace using a stale identity when the user returns. Server-side identity
 verification and business membership checks remain the authorization boundary.
+
+## Tool journey consistency
+
+Overview tool cards now use the same workspaceHref builder as the shared sidebar
+and Build/Growth pathways. Connected tools and connection-setup destinations keep
+the selected business explicitly in their URLs, including after business changes.
+Brand files links back to Overview/Docs and the website editor's return link use
+the same builder. Brand files remain account-private; carrying a navigation
+business ID does not change their storage scope or authorization.
+
+Brand files now distinguishes loading, failure and successfully loaded empty
+results. A retry control and 15-second list deadline prevent a failed/stalled
+request from presenting an empty folder. File operations are disabled while the
+list is loading, and navigation/filter controls wrap at narrow widths.
+
+The website editor still requires export/download to keep edits; these navigation
+repairs do not add publishing, automatic save or business-scoped website storage.
