@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dom} from './helpers/dom-global';
 import './helpers/react-global';
+import './helpers/css-global';
 import {act,createElement} from 'react';
 import {createRoot} from 'react-dom/client';
 import Overview from '../app/workspace/page';
