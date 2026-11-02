@@ -16,7 +16,7 @@ function setup(t:TestContext){
  const client=browserSupabase()!;
  t.mock.method(globalThis,'fetch',async()=>Response.json({external:{google:false}}));
  const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
- t.after(()=>{act(()=>root.unmount());host.remove();void client.auth.stopAutoRefresh();});
+ t.after(async()=>{act(()=>root.unmount());host.remove();await client.auth.dispose();});
  return {client,host,root,text:()=>host.textContent??''};
 }
 test('account changes reset private tool state; token refresh preserves it; late initial sessions cannot revive it',async t=>{

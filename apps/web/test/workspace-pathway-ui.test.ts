@@ -23,7 +23,7 @@ test('pathways wait for authorized businesses, retain context, reset on account 
  let response=deferred<Response>();let calls=0;
  t.mock.method(globalThis,'fetch',async(input:unknown)=>{assert.equal(input,'/api/crm/workspaces');calls++;return response.promise;});
  const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
- t.after(()=>{act(()=>root.unmount());host.remove();void client.auth.stopAutoRefresh();});
+ t.after(async()=>{act(()=>root.unmount());host.remove();await client.auth.dispose();});
  function BusinessContext(){const business=useWorkspaceBusiness();return createElement('span',{'data-test-business':business});}
  const render=(pathway:'build'|'growth')=>root.render(createElement(Provider,null,createElement(Fragment,null,createElement(BusinessContext),createElement(Pathway,{pathway}))));
  await act(async()=>render('build'));assert.match(host.textContent!,/Loading your businesses/);assert.equal(host.querySelector('.workspace-pathway-steps'),null);

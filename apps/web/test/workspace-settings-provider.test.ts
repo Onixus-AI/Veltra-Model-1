@@ -28,7 +28,7 @@ test('account settings serialize saves, reject stale account work and expose fai
  let state!:ReturnType<typeof useWorkspaceSettings>;
  function Probe(){state=useWorkspaceSettings();return null;}
  const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
- t.after(()=>{act(()=>root.unmount());host.remove();void client.auth.stopAutoRefresh();});
+ t.after(async()=>{act(()=>root.unmount());host.remove();await client.auth.dispose();});
  await act(async()=>{root.render(createElement(Provider,null,createElement(Fragment,null,createElement(Probe),createElement(Appearance),createElement(WorkspaceAppearanceSync))));});
  assert.equal(state.userId,'alice');
  const appearanceButton=host.querySelector('[aria-label="Customize appearance"]') as HTMLButtonElement;

@@ -7,7 +7,7 @@ with sync_playwright() as p:
  errors=[];page.on('pageerror',lambda error:errors.append(str(error)))
  page.route('**/api/**',lambda route:route.fulfill(json={'connected':False,'items':[],'campaigns':[],'messages':[]}))
  page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
- nav=page.get_by_role('navigation',name='Main navigation')
+ nav=page.get_by_role('navigation',name='CRM views')
  nav.get_by_role('button',name='Customers',exact=True).click()
  search=page.get_by_role('textbox',name='Search customers')
  search.fill('Northstar')
@@ -57,7 +57,7 @@ with sync_playwright() as p:
  frame=page.frame_locator('iframe')
  expect(frame.locator('.crm-shell-embedded')).to_be_visible()
  expect(frame.locator('.crm-brand')).not_to_be_visible()
- expect(frame.get_by_role('navigation',name='Main navigation')).to_be_visible()
+ expect(frame.get_by_role('navigation',name='CRM views')).to_be_visible()
  frame.get_by_role('button',name='Customers',exact=True).click()
  expect(frame.get_by_role('textbox',name='Search customers')).to_be_visible()
  for width in [1440,390]:

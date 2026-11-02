@@ -1,10 +1,13 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
+import WorkspaceSettingsProvider from '../../components/workspace-settings-provider';
+import {WorkspaceAppearanceSync} from '../../components/workspace-appearance';
 import WebsiteEditor from '../../components/website-editor';
 import PlanPackages from '../../components/plan-packages';
 import ConnectionsPage from '../../app/settings/connections/page';
 import '../../app/globals.css';
 import '../../styles/workspace.css';
 import '../../styles/veltra-theme.css';
+import '../../styles/workspace-foundation.css';
 const plans=new URLSearchParams(location.search).has('plans');
-createRoot(document.getElementById('root')!).render(new URLSearchParams(location.search).has('connectors')?<ConnectionsPage/>:plans?<div style={{padding:32,background:'#05090c',color:'#eee',minHeight:'100vh'}}><PlanPackages/></div>:<WebsiteEditor/>);
+createRoot(document.getElementById('root')!).render(<WorkspaceSettingsProvider><WorkspaceAppearanceSync/>{new URLSearchParams(location.search).has('connectors')?<ConnectionsPage/>:plans?<div style={{padding:32,background:'#05090c',color:'#eee',minHeight:'100vh'}}><PlanPackages/></div>:<WebsiteEditor/>}</WorkspaceSettingsProvider>);
