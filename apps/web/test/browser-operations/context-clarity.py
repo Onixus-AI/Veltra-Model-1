@@ -19,7 +19,7 @@ with sync_playwright() as p:
  state.select_option('all');page.get_by_role('textbox',name='Search memory').fill('Northstar');expect(page.locator('.crm-memory-card')).to_have_count(3)
  page.get_by_role('textbox',name='Search memory').fill('No matching fact');expect(page.get_by_text('No facts match these filters.')).to_be_visible()
  page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
- nav=page.get_by_role('navigation',name='Main navigation')
+ nav=page.get_by_role('navigation',name='CRM views')
  nav.get_by_role('button',name='Memory',exact=True).click();page.screenshot(path=str(out/'crm-memory-library.png'),full_page=True)
  nav.get_by_role('button',name='Connections',exact=True).click()
  expect(page.get_by_text('Preview · not checked',exact=True)).to_be_visible()
@@ -50,7 +50,7 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Switch test business').click()
  expect(page.get_by_text('Connected to this workspace',exact=True)).to_have_count(0)
  page.set_viewport_size({'width':390,'height':844});page.goto('http://127.0.0.1:3188/?shell&embedded=1');page.wait_for_load_state('networkidle')
- page.get_by_role('navigation',name='Main navigation').get_by_role('button',name='Memory',exact=True).click()
+ page.get_by_role('navigation',name='CRM views').get_by_role('button',name='Memory',exact=True).click()
  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert not errors,errors
  browser.close()

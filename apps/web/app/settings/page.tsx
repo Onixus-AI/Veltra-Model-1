@@ -5,10 +5,7 @@ import LogoutButton from "@/components/logout-button";
 import UsageDashboard from "@/components/usage-dashboard";
 import PlanPackages from "@/components/plan-packages";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import {
-  AlertTriangle, ArrowLeft, Check, Copy, CreditCard, KeyRound, LoaderCircle,
-  Sparkles, TrendingDown, Wallet, X,
-} from "lucide-react";
+import {AlertTriangle,Check,Copy,CreditCard,KeyRound,LoaderCircle,Sparkles,TrendingDown,Wallet,X} from "lucide-react";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 
 type SettingsTab = "usage" | "keys" | "subscription" | "account";
@@ -145,11 +142,7 @@ export default function SettingsPage() {
 
   return (
     <main className="settings-page">
-      <header className="settings-header">
-        <Link href="/" className="back-link"><ArrowLeft size={16} /> Back to workspace</Link>
-        <div className="brand-lockup"><span className="brand-mark"><img src="/veltra-logo.png" alt="Onixus Workspace logo" /></span> Onixus Workspace</div>
-        <LogoutButton/>
-      </header>
+      <div className="settings-account-actions"><LogoutButton/></div>
 
       <section className="settings-content settings-dashboard">
         <div className="settings-heading">

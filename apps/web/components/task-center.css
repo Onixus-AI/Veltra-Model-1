@@ -1,11 +1,11 @@
 /* Details are opt-in. The status and stop control stay visible when collapsed. */
-.task-center.task-center-compact{flex-shrink:0;margin:0 18px 6px;border:0;border-bottom:1px solid #ffffff12;border-radius:0;background:#000;font-size:12px}
+.task-center.task-center-compact{flex-shrink:0;margin:0 18px 6px;border:0;border-bottom:1px solid var(--veltra-line);border-radius:0;background:var(--veltra-bg);font-size:12px}
 .task-center-compact>.task-center-bar{min-height:42px;padding:4px 0;border:0;gap:8px}
-.task-center-compact .task-center-heading{display:flex;align-items:center;gap:9px;min-width:0;color:#a9b9bf}
-.task-center-compact .task-center-heading h2{font-size:12px;color:#b7c7cd;font-weight:500;white-space:nowrap}
+.task-center-compact .task-center-heading{display:flex;align-items:center;gap:9px;min-width:0;color:var(--veltra-muted)}
+.task-center-compact .task-center-heading h2{font-size:12px;color:var(--veltra-muted);font-weight:500;white-space:nowrap}
 .task-center-compact .task-state{font-size:11px;padding:2px 7px;border-radius:4px;background:#ffffff05}
 .task-center-compact .task-center-controls{display:flex;align-items:center;gap:6px;flex-shrink:0}
-.task-center-compact button.task-expand{min-height:32px;padding:4px 7px;border:0;color:#b7c7cd;font-size:12px;background:transparent}
+.task-center-compact button.task-expand{min-height:32px;padding:4px 7px;border:0;color:var(--veltra-muted);font-size:12px;background:transparent}
 .task-center-compact button.task-expand:hover{background:#ffffff09;color:#fff}
 .task-center-compact .task-expand svg{transition:transform .15s ease}.task-center-compact .task-expand svg.is-expanded{transform:rotate(180deg)}
 .task-center-compact button.task-stop{min-height:30px;padding:4px 7px;font-size:11px;border-color:#534047;color:#ffb4bd}

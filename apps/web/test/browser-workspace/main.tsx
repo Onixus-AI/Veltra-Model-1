@@ -1,8 +1,11 @@
 import React from 'react';
 import {createRoot} from 'react-dom/client';
+import WorkspaceSettingsProvider from '../../components/workspace-settings-provider';
+import {WorkspaceAppearanceSync} from '../../components/workspace-appearance';
 import VeltraWorkspace from '../../components/veltra-workspace';
 import '../../app/globals.css';
 import '../../styles/workspace.css';
 import '../../styles/veltra-theme.css';
 import '../../styles/spatial-workspace.css';
-createRoot(document.getElementById('root')!).render(<VeltraWorkspace/>);
+import '../../styles/workspace-foundation.css';
+createRoot(document.getElementById('root')!).render(<WorkspaceSettingsProvider><WorkspaceAppearanceSync/><VeltraWorkspace/></WorkspaceSettingsProvider>);

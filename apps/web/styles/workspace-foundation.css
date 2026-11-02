@@ -1,0 +1,573 @@
+/* The shared host owns navigation and controls; tools own their content layouts. */
+body {
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+}
+.workspace-frame {
+  min-height: 100dvh;
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+  font: 14px/1.5 var(--veltra-font);
+  --workspace-navigation-width: 220px;
+}
+.workspace-frame-header {
+  height: 64px;
+  position: sticky;
+  top: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--veltra-bg);
+  border-bottom: 1px solid var(--veltra-line);
+}
+.workspace-frame-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  font-weight: 600;
+}
+.workspace-frame-brand img {
+  object-fit: contain;
+}
+.workspace-frame-header > button {
+  display: none;
+}
+.workspace-frame-navigation {
+  position: fixed;
+  top: 64px;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  width: var(--workspace-navigation-width);
+  padding: 16px 10px;
+  overflow-y: auto;
+  background: var(--veltra-sidebar);
+  border-right: 1px solid var(--veltra-line);
+}
+.workspace-frame-content {
+  margin-left: var(--workspace-navigation-width);
+  min-width: 0;
+  outline: none;
+}
+.workspace-tool-navigation {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+.workspace-navigation-name {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--veltra-muted);
+  overflow-wrap: anywhere;
+}
+.workspace-navigation-settings {
+  display: grid;
+  gap: 4px;
+  border-top: 1px solid var(--veltra-line);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.workspace-tool-navigation a,
+.workspace-tool-navigation button,
+.workspace.spatial-workspace .workspace-tool-navigation a,
+.workspace.spatial-workspace .workspace-tool-navigation button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: var(--workspace-control-height);
+  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--veltra-radius);
+  background: transparent;
+  color: var(--veltra-muted);
+  font: inherit;
+  text-align: left;
+  line-height: 1.4;
+}
+.workspace-tool-navigation svg {
+  flex-shrink: 0;
+}
+.workspace-tool-navigation a:hover,
+.workspace-tool-navigation button:hover,
+.workspace.spatial-workspace .workspace-tool-navigation a:hover,
+.workspace.spatial-workspace .workspace-tool-navigation button:hover {
+  background: var(--veltra-tint);
+  color: var(--veltra-text);
+}
+.workspace-tool-navigation a[aria-current="page"],
+.workspace.spatial-workspace .workspace-tool-navigation a[aria-current="page"] {
+  background: var(--veltra-tint);
+  color: var(--veltra-accent);
+  border-color: var(--veltra-line);
+  font-weight: 600;
+}
+.workspace.spatial-workspace .workspace-sidebar {
+  background: var(--veltra-sidebar);
+  gap: 16px;
+}
+.sidebar-collapsed .workspace-navigation-name,
+.sidebar-collapsed .workspace-tool-navigation span {
+  display: none;
+}
+.workspace.spatial-workspace.sidebar-collapsed .workspace-tool-navigation a,
+.workspace.spatial-workspace.sidebar-collapsed
+  .workspace-tool-navigation
+  button {
+  justify-content: center;
+  padding: 9px;
+}
+.workspace-skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  transform: translateY(-200%);
+  padding: 12px 16px;
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border: 2px solid var(--veltra-accent);
+  border-radius: var(--veltra-radius);
+}
+.workspace-skip-link:focus {
+  transform: none;
+}
+.workspace-frame :focus-visible,
+.workspace.spatial-workspace :focus-visible,
+.workspace-preferences-dialog :focus-visible,
+.appearance-dialog :focus-visible {
+  outline: 2px solid var(--veltra-accent);
+  outline-offset: 3px;
+}
+.workspace-preset-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--veltra-muted);
+}
+.workspace-preset-picker select {
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border: 1px solid var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  min-height: var(--workspace-control-height);
+  padding: 6px 10px;
+  font: inherit;
+}
+.workspace-preferences-dialog,
+.appearance-dialog,
+.workspace-command-dialog {
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border: 1px solid var(--veltra-line);
+  border-radius: 12px;
+  font: 14px/1.5 var(--veltra-font);
+  max-height: 85dvh;
+  overflow: auto;
+  padding: 24px;
+  width: min(520px, calc(100vw - 32px));
+}
+.workspace-preferences-dialog::backdrop,
+.appearance-dialog::backdrop,
+.workspace-command-dialog::backdrop {
+  background: #0009;
+}
+.workspace-preferences-dialog header,
+.workspace-preferences-dialog footer,
+.appearance-dialog footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: space-between;
+}
+.workspace-preferences-dialog h2,
+.appearance-dialog h2 {
+  font-size: 20px;
+  margin: 0;
+}
+.workspace-preferences-dialog p,
+.appearance-dialog p {
+  color: var(--veltra-muted);
+}
+.workspace-preferences-dialog > label,
+.appearance-dialog > label {
+  display: grid;
+  gap: 6px;
+  margin: 16px 0;
+}
+.workspace-preferences-dialog fieldset,
+.appearance-dialog fieldset {
+  border: 1px solid var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  padding: 12px;
+  margin: 16px 0;
+}
+.workspace-preference-tool {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.workspace-preference-tool label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.workspace-preference-tool > div {
+  display: flex;
+  gap: 4px;
+}
+.workspace-preference-tool input {
+  accent-color: var(--veltra-accent);
+  width: 18px;
+  height: 18px;
+}
+.workspace-preferences-dialog input:not([type="checkbox"]),
+.appearance-dialog select {
+  width: 100%;
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+  border: 1px solid var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  padding: 10px;
+  font: inherit;
+}
+.workspace-preferences-dialog button,
+.appearance-dialog button,
+.workspace-frame-header > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--workspace-control-height);
+  min-width: var(--workspace-control-height);
+  padding: 8px 12px;
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+  border: 1px solid var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  font: inherit;
+}
+.workspace-preferences-dialog .primary,
+.appearance-dialog .primary {
+  background: var(--veltra-accent);
+  color: var(--veltra-bg);
+  border-color: var(--veltra-accent);
+  font-weight: 600;
+}
+.workspace-preferences-dialog button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.workspace-preferences-dialog footer {
+  flex-wrap: wrap;
+}
+.workspace-navigation-backdrop {
+  display: none;
+}
+.workspace-frame .suite-home,
+.workspace-frame .settings-page,
+.workspace-frame .google-files-panel {
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+  font-family: var(--veltra-font);
+  min-height: calc(100dvh - 64px);
+}
+.workspace-frame .suite-home {
+  padding: 28px;
+  max-width: none;
+}
+.workspace-frame .suite-header {
+  display: none;
+}
+.workspace-frame .suite-intro {
+  margin-top: 0;
+}
+.workspace-frame .suite-home h1,
+.workspace-frame .suite-home h2,
+.workspace-frame .settings-page h1,
+.workspace-frame .settings-page h2,
+.workspace-frame .crm-shell h1,
+.workspace-frame .crm-shell h2,
+.workspace-frame .crm-shell h3 {
+  font-family: var(--veltra-font);
+}
+.workspace-frame .suite-home h1,
+.workspace-frame .settings-page h1 {
+  font-size: 28px;
+  line-height: 1.2;
+  letter-spacing: -0.6px;
+}
+.workspace-frame .suite-home p,
+.workspace-frame .suite-home small {
+  color: var(--veltra-muted);
+}
+.workspace-frame .suite-home button,
+.workspace-frame .suite-home select,
+.workspace-frame .settings-page button,
+.workspace-frame .settings-page input,
+.workspace-frame .settings-page select,
+.workspace-frame .google-files-panel button,
+.workspace-frame .google-files-panel input,
+.workspace-frame .google-files-panel select,
+.workspace-frame .google-files-panel textarea {
+  min-height: var(--workspace-control-height);
+  border-color: var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  font: inherit;
+}
+.workspace-frame .suite-home button[aria-pressed="true"],
+.workspace-frame .settings-page button[aria-pressed="true"] {
+  background: var(--veltra-tint);
+  color: var(--veltra-accent);
+}
+.workspace-frame .settings-card,
+.workspace-frame .suite-product,
+.workspace-frame .overview-metrics > a,
+.workspace-frame .overview-decisions,
+.workspace-frame .overview-departments,
+.workspace-frame .overview-work,
+.workspace-frame .overview-team,
+.workspace-frame .overview-chart {
+  border-color: var(--veltra-line);
+  border-radius: var(--veltra-radius);
+  background: var(--veltra-panel);
+  box-shadow: none;
+}
+.workspace-frame .crm-shell .crm-brand {
+  font-size: 18px;
+  color: var(--veltra-text);
+}
+.workspace-frame .crm-shell,
+.workspace-frame .crm-sidebar {
+  min-height: calc(100dvh - 64px);
+}
+.workspace-frame .crm-refined .crm-panel,
+.workspace-frame .crm-refined .crm-setup,
+.workspace-frame .crm-refined .crm-modal,
+.workspace-frame .crm-refined .crm-stage,
+.workspace-frame .crm-refined .crm-pipeline-stage,
+.workspace-frame .crm-refined .crm-pipeline-deal {
+  border-radius: var(--veltra-radius);
+  box-shadow: none;
+}
+.workspace-frame .crm-refined .primary {
+  background: var(--veltra-accent);
+  color: var(--veltra-bg);
+  border-color: var(--veltra-accent);
+}
+@media (max-width: 1100px) {
+  .workspace-frame {
+    --workspace-navigation-width: 190px;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-frame-header {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+  .workspace-frame-header > button {
+    display: inline-flex;
+    padding: 8px;
+  }
+  .workspace-frame-brand {
+    font-size: 14px;
+    min-width: 0;
+  }
+  .workspace-frame-brand img {
+    width: 24px;
+    height: 24px;
+  }
+  .workspace-frame-content {
+    margin-left: 0;
+  }
+  .workspace-frame-navigation {
+    display: none;
+    width: min(280px, calc(100vw - 48px));
+    z-index: 55;
+  }
+  .workspace-frame[data-navigation-open="true"] .workspace-frame-navigation {
+    display: block;
+  }
+  .workspace-navigation-backdrop {
+    display: block;
+    position: fixed;
+    inset: 64px 0 0;
+    z-index: 50;
+    background: #0008;
+    border: 0;
+  }
+  .workspace-frame .suite-home {
+    padding: 20px 16px;
+  }
+  .workspace-preferences-dialog,
+  .appearance-dialog {
+    padding: 18px;
+  }
+  .workspace.spatial-workspace .workspace-preset-picker {
+    font-size: 0;
+  }
+  .workspace.spatial-workspace .workspace-preset-picker select {
+    font-size: 12px;
+    max-width: 100px;
+  }
+  .workspace.spatial-workspace.sidebar-expanded .workspace-sidebar {
+    position: fixed;
+    inset: 58px auto 0 0;
+    z-index: 55;
+    width: min(280px, calc(100vw - 48px));
+    display: flex !important;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .workspace.spatial-workspace.sidebar-expanded .workspace-tool-navigation {
+    display: grid;
+  }
+  .workspace.spatial-workspace.sidebar-expanded
+    .workspace-tool-navigation
+    span {
+    display: inline;
+  }
+  .workspace.spatial-workspace.sidebar-expanded .workspace-tool-navigation a,
+  .workspace.spatial-workspace.sidebar-expanded
+    .workspace-tool-navigation
+    button {
+    justify-content: flex-start;
+  }
+  .workspace.spatial-workspace.sidebar-collapsed .workspace-sidebar {
+    display: none !important;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .workspace-frame *,
+  .workspace-preferences-dialog *,
+  .appearance-dialog * {
+    scroll-behavior: auto !important;
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Shared appearance also applies in embedded documents. */
+.workspace-frame-header > button {
+  display: inline-flex;
+}
+.workspace-frame .settings-account-actions {
+  display: flex;
+  justify-content: flex-end;
+  padding: 16px 28px 0;
+}
+.workspace-command-trigger {
+  color: var(--veltra-muted);
+  background: var(--veltra-panel);
+  border-color: var(--veltra-line);
+}
+.workspace.spatial-workspace .workspace-area-picker select,
+.workspace.spatial-workspace .canvas-head-actions button,
+.workspace.spatial-workspace .model-selector,
+.workspace.spatial-workspace .model-menu,
+.workspace.spatial-workspace .composer,
+.workspace.spatial-workspace .sidebar-history select {
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border-color: var(--veltra-line);
+}
+.workspace.spatial-workspace .sidebar-history,
+.workspace.spatial-workspace .sidebar-footer,
+.workspace.spatial-workspace .workspace-repository,
+.workspace.spatial-workspace .workspace-area-picker,
+.workspace.spatial-workspace .canvas-heading,
+.workspace.spatial-workspace .settings-note {
+  color: var(--veltra-muted);
+}
+.workspace.spatial-workspace .sidebar-history h2 {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--veltra-muted);
+  font-size: 12px;
+}
+.workspace.spatial-workspace .message.user {
+  background: var(--veltra-tint);
+  border-color: var(--veltra-line);
+  box-shadow: none;
+}
+.workspace.spatial-workspace .welcome h1,
+.workspace.spatial-workspace .message-body,
+.workspace.spatial-workspace .composer textarea,
+.workspace.spatial-workspace .chat-product-name {
+  color: var(--veltra-text);
+}
+.workspace.spatial-workspace .suggestion-grid button {
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border-color: var(--veltra-line);
+}
+.workspace.spatial-workspace .suggestion-grid small {
+  color: var(--veltra-muted);
+}
+.crm-shell .crm-workspace-dialog {
+  background: var(--veltra-panel);
+  color: var(--veltra-text);
+  border-color: var(--veltra-line);
+}
+.crm-shell .crm-workspace-dialog input {
+  background: var(--veltra-bg);
+  color: var(--veltra-text);
+  border-color: var(--veltra-line);
+}
+@media (max-width: 760px) {
+  .workspace-frame-header > button {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 760px) {
+  .workspace.spatial-workspace .workspace-area-picker {
+    display: none;
+  }
+}
+
+.workspace-tool-state {
+  background: var(--veltra-bg);
+  color: var(--veltra-muted);
+}
+.workspace-tool-state h2 {
+  color: var(--veltra-text);
+}
+
+.workspace-frame.sidebar-collapsed {
+  --workspace-navigation-width: 64px;
+}
+.workspace-frame.sidebar-collapsed .workspace-tool-navigation a,
+.workspace-frame.sidebar-collapsed .workspace-tool-navigation button {
+  justify-content: center;
+  padding: 9px;
+}
+
+.workspace.spatial-workspace .workspace-topbar .header-icon {
+  color: var(--veltra-accent);
+}
+
+.workspace-preferences-dialog .workspace-layout-fields{border:0;padding:0;margin:0}
+.workspace-layout-fields>label{display:grid;gap:6px;margin:16px 0}
+.workspace-preference-status{font-size:12px;line-height:1.5;padding:8px 12px;color:var(--veltra-muted)}
+
+.workspace-pathway-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:20px 0}
+.workspace-pathway-tabs a,.workspace-pathway-transition>a,.workspace-pathway-steps li>a{display:inline-flex;align-items:center;min-height:40px;padding:8px 14px;border:1px solid var(--veltra-line);border-radius:8px;color:var(--veltra-text);font-size:14px}
+.workspace-pathway-tabs a[aria-current="page"]{border-color:var(--veltra-accent);color:var(--veltra-accent)}
+.workspace-pathway .suite-intro{margin-top:24px}
+.workspace-pathway-steps{padding:0;list-style:none;border-top:1px solid var(--veltra-line)}
+.workspace-pathway-steps li{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 0;border-bottom:1px solid var(--veltra-line)}
+.workspace-pathway-steps h2,.workspace-pathway-transition h2{font-size:18px;margin:0 0 8px;color:var(--veltra-text)}
+.workspace-pathway-steps p,.workspace-pathway-transition p{font-size:14px;line-height:1.6;margin:0;max-width:65ch;color:var(--veltra-muted)}
+.workspace-pathway-steps li>a{white-space:nowrap;flex-shrink:0}
+.workspace-pathway-transition{margin-top:32px}
+.workspace-pathway-transition>a{margin-top:16px}
+@media(max-width:600px){.workspace-pathway-steps li{align-items:flex-start;flex-direction:column;gap:14px}}

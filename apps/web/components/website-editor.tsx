@@ -2,6 +2,8 @@
 import {Puck,Render,type Config,type Data} from '@puckeditor/core';
 import '@puckeditor/core/puck.css';
 import Link from 'next/link';
+import {useWorkspaceBusiness} from '@/lib/workspace-business';
+import {workspaceHref} from '@/lib/workspace-navigation';
 import WorkspaceAppearance from '@/components/workspace-appearance';
 import {useMemo,useRef,useState} from 'react';
 import WebsiteOnyx from '@/components/website-onyx';
@@ -23,6 +25,7 @@ const config:Config<Components,{title:string}>={
 };
 function download(name:string,content:string,type:string){const url=URL.createObjectURL(new Blob([content],{type}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 export default function WebsiteEditor(){
+ const business=useWorkspaceBusiness();
  const [data,setData]=useState<Data>(starterWebsite),[preview,setPreview]=useState(false),[notice,setNotice]=useState(''),[error,setError]=useState(''),[revision,setRevision]=useState(0);
  const input=useRef<HTMLInputElement>(null),htmlInput=useRef<HTMLInputElement>(null);
  const [htmlSource,setHtmlSource]=useState<string|null>(null),[htmlName,setHtmlName]=useState('website.html'),[onyxBusy,setOnyxBusy]=useState(false),[previousSource,setPreviousSource]=useState<string|null>(null);
@@ -39,7 +42,7 @@ export default function WebsiteEditor(){
   try{if(file.size>250000)throw Error('Choose a project smaller than 250 KB.');const next=readWebsiteData(JSON.parse(await file.text()));setData(next);setHtmlSource(null);setPreviousSource(null);setRevision(n=>n+1);setError('');setNotice('Project opened in this editor. Download your project to keep your changes.');}catch(e){setError(e instanceof Error?e.message:'Project could not be opened.');}finally{if(input.current)input.current.value='';}
  }
  return <main className="website-studio">
-  <header className="website-toolbar"><Link href="/">Onixus Workspace</Link><h1><img src="/brands/onixus-websites-icon-v1.png" alt="" width={32} height={32}/>Website builder</h1><nav aria-label="Website actions"><button onClick={()=>setPreview(v=>!v)}>{preview?(htmlSource!==null?'Edit HTML':'Edit website'):'Preview'}</button><button disabled={onyxBusy} onClick={()=>input.current?.click()}>Open project</button><button disabled={onyxBusy} onClick={()=>htmlInput.current?.click()}>Import HTML</button><button disabled={htmlSource!==null} onClick={()=>exportFile('json')}>Download project</button><WorkspaceAppearance/><button aria-expanded={onyxOpen} aria-controls="website-onyx-panel" onClick={()=>setOnyxOpen(v=>!v)}>{onyxOpen?'Hide Onyx':'Show Onyx'}</button><button onClick={()=>exportFile('html')}>Export HTML</button></nav></header>
+  <header className="website-toolbar"><Link href={workspaceHref('overview',business)}>Onixus Workspace</Link><h1><img src="/brands/onixus-websites-icon-v1.png" alt="" width={32} height={32}/>Website builder</h1><nav aria-label="Website actions"><button onClick={()=>setPreview(v=>!v)}>{preview?(htmlSource!==null?'Edit HTML':'Edit website'):'Preview'}</button><button disabled={onyxBusy} onClick={()=>input.current?.click()}>Open project</button><button disabled={onyxBusy} onClick={()=>htmlInput.current?.click()}>Import HTML</button><button disabled={htmlSource!==null} onClick={()=>exportFile('json')}>Download project</button><WorkspaceAppearance/><button aria-expanded={onyxOpen} aria-controls="website-onyx-panel" onClick={()=>setOnyxOpen(v=>!v)}>{onyxOpen?'Hide Onyx':'Show Onyx'}</button><button onClick={()=>exportFile('html')}>Export HTML</button></nav></header>
   <input ref={input} type="file" accept="application/json,.json" hidden onChange={e=>void importFile(e.target.files?.[0])}/>
   <input ref={htmlInput} type="file" accept=".html,.htm,text/html" hidden onChange={e=>void importHtml(e.target.files?.[0])}/>
   <details className="website-notice"><summary>Draft stays in this browser · Download to keep your work</summary><p>Available in all plans. AI generation uses wallet credits. Hosting, custom domains and cloud saving are not connected here yet.</p></details>
