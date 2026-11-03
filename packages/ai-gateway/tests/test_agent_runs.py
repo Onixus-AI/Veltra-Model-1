@@ -73,7 +73,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         await build_graph(call,AsyncMock(),{'task':'Build a studio site','context':reference,'mode':'design'}).ainvoke({})
         self.assertEqual(len(seen['planner'][0]['reference']),2500)
         self.assertIn(reference,seen['coder'][0])
-        self.assertEqual(seen['coder'][1],4000)
+        self.assertEqual(seen['coder'][1],6000)
 
     async def test_design_finishes_a_truncated_document_once_and_keeps_both_receipts(self):
         builders=0
@@ -89,6 +89,65 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(builders,2)
         self.assertTrue(result['artifacts']['files'][0]['content'].endswith('</body></html>'))
         self.assertEqual(len(result['receipts']),4)
+
+    async def test_design_can_complete_two_truncated_chunks_without_restarting(self):
+        outputs=iter(['<html><body><h1>Business', '</h1><section>Services', '</section></body></html>'])
+        calls=[]
+        async def call(role, system, content, limit):
+            calls.append(role)
+            text='Plan' if role=='planner' else next(outputs) if role=='coder' else json.dumps({'approved':True,'issues':[]})
+            return text,{'role':role,'credits':1}
+        result=await build_graph(call,AsyncMock(),{'task':'Build a business site','mode':'design'}).ainvoke({})
+        self.assertEqual(calls,['planner','coder','coder','coder','reviewer'])
+        self.assertEqual(result['artifacts']['files'][0]['content'],'<html><body><h1>Business</h1><section>Services</section></body></html>')
+        self.assertEqual(len(result['receipts']),5)
+
+    async def test_design_accepts_complete_replacement_instead_of_duplicating_html(self):
+        outputs=iter(['<html><body>unfinished', '<!doctype html><html><body>Complete replacement</body></html>'])
+        async def call(role, *_):
+            text='Plan' if role=='planner' else next(outputs) if role=='coder' else json.dumps({'approved':True,'issues':[]})
+            return text,{'role':role,'credits':1}
+        result=await build_graph(call,AsyncMock(),{'task':'Build a site','mode':'design'}).ainvoke({})
+        self.assertEqual(result['artifacts']['files'][0]['content'].count('<html>'),1)
+        self.assertNotIn('unfinished',result['artifacts']['files'][0]['content'])
+
+    async def test_incomplete_website_settles_actual_usage_with_every_step_receipt(self):
+        from types import SimpleNamespace
+        calls=[]
+        responses=iter(['Plan','<html><body>unfinished','more unfinished HTML','still unfinished'])
+        async def completion(**_):
+            text=next(responses)
+            return SimpleNamespace(model_dump=lambda:{'id':'test-request','model':'served-model','usage':{'total_tokens':100,'prompt_tokens':60,'completion_tokens':40},'choices':[{'message':{'content':text}}]})
+        async def db(table,**kwargs):
+            calls.append((table,kwargs))
+            return True if table.startswith('rpc/') else [{'cancel_requested':False}]
+        with patch.dict(os.environ,{'OPENROUTER_API_KEY':'test-only'}), patch('agent_runs.litellm.token_counter',return_value=10), patch('agent_runs.litellm.acompletion',new=completion):
+            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'model','coder':'model','reviewer':'model'})
+        settlement=next(kwargs['payload'] for table,kwargs in calls if table=='rpc/finish_agent_run')
+        self.assertFalse(settlement['p_success'])
+        self.assertEqual(settlement['p_used'],400)
+        receipts=settlement['p_state']['receipts']
+        self.assertEqual(sum(receipt['credits'] for receipt in receipts),400)
+        self.assertEqual([receipt['role'] for receipt in receipts],['planner','coder','coder','coder'])
+        self.assertEqual(receipts[-1]['prompt_tokens'],60)
+        self.assertNotIn('artifacts',settlement['p_state'])
+
+    async def test_rejected_website_review_is_failed_not_installable_success(self):
+        from types import SimpleNamespace
+        calls=[]
+        responses=iter(['Plan','<html><body>Website</body></html>',json.dumps({'approved':False,'issues':['Missing requested contact information']})])
+        async def completion(**_):
+            text=next(responses)
+            return SimpleNamespace(model_dump=lambda:{'usage':{'total_tokens':100},'choices':[{'message':{'content':text}}]})
+        async def db(table,**kwargs):
+            calls.append((table,kwargs))
+            return True if table.startswith('rpc/') else [{'cancel_requested':False}]
+        with patch.dict(os.environ,{'OPENROUTER_API_KEY':'test-only'}), patch('agent_runs.litellm.token_counter',return_value=10), patch('agent_runs.litellm.acompletion',new=completion):
+            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'model','coder':'model','reviewer':'model'})
+        settlement=next(kwargs['payload'] for table,kwargs in calls if table=='rpc/finish_agent_run')
+        self.assertFalse(settlement['p_success'])
+        self.assertEqual(settlement['p_used'],300)
+        self.assertIn('did not pass review',settlement['p_error'])
 
     async def test_confirmed_rate_limit_retries_once_but_unknown_failure_does_not(self):
         class Limited(Exception):

@@ -59,3 +59,16 @@ test('Brand file loading has a deadline and a usable timeout error',async t=>{
  await act(async()=>root.render(createElement(BrandFolder)));
  assert.match(host.querySelector('[role=alert]')!.textContent!,/took too long to load/);assert.equal(host.querySelector('[role=status]'),null);assert.equal(host.textContent!.includes('Upload your first'),false);
 });
+
+test('Overview shows one actionable business-loading failure instead of a duplicate empty state',async t=>{
+ globals();
+ t.mock.method(globalThis,'fetch',async()=>Response.json({error:'Unavailable'},{status:503}));
+ const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
+ t.after(()=>{act(()=>root.unmount());host.remove();});
+ await act(async()=>root.render(createElement(Overview)));
+ assert.equal(host.querySelectorAll('[role=alert]').length,1);
+ assert.equal(host.querySelector('.suite-empty'),null);
+ assert.match(host.querySelector('[role=alert]')!.textContent!,/Check Connections/);
+ assert.match(host.querySelector('[role=alert]')!.textContent!,/Open Onyx/);
+ assert.equal((host.querySelector('[role=alert] button') as HTMLButtonElement).disabled,false);
+});

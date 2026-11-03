@@ -38,7 +38,7 @@ with sync_playwright() as p:
  expect(page.get_by_text('HTML revision received',exact=True)).to_be_visible(timeout=15000)
  expect(frame.get_by_role('heading',name='Revised by Onyx fixture')).to_be_visible()
  assert len(requests)==1
- expect(page.get_by_text('321 credits recorded',exact=False)).to_be_visible()
+ expect(page.get_by_text('321 credits used',exact=False)).to_be_visible()
  page.get_by_role('button',name='Undo Onyx revision',exact=True).click()
  expect(frame.get_by_role('heading',name='Imported customer site')).to_be_visible()
  with page.expect_download() as download:page.get_by_role('button',name='Export HTML',exact=True).click()
