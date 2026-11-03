@@ -122,7 +122,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             calls.append((table,kwargs))
             return True if table.startswith('rpc/') else [{'cancel_requested':False}]
         with patch.dict(os.environ,{'OPENROUTER_API_KEY':'test-only'}), patch('agent_runs.litellm.token_counter',return_value=10), patch('agent_runs.litellm.acompletion',new=completion):
-            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'model','coder':'model','reviewer':'model'})
+            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'inclusionai/ling-3.0-flash','coder':'inclusionai/ling-3.0-flash','reviewer':'inclusionai/ling-3.0-flash'})
         settlement=next(kwargs['payload'] for table,kwargs in calls if table=='rpc/finish_agent_run')
         self.assertFalse(settlement['p_success'])
         self.assertEqual(settlement['p_used'],400)
@@ -143,7 +143,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
             calls.append((table,kwargs))
             return True if table.startswith('rpc/') else [{'cancel_requested':False}]
         with patch.dict(os.environ,{'OPENROUTER_API_KEY':'test-only'}), patch('agent_runs.litellm.token_counter',return_value=10), patch('agent_runs.litellm.acompletion',new=completion):
-            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'model','coder':'model','reviewer':'model'})
+            await execute_run({'id':str(uuid4()),'payload':{'task':'Build','mode':'design'},'credits_reserved':20000},str(uuid4()),db,{'planner':'inclusionai/ling-3.0-flash','coder':'inclusionai/ling-3.0-flash','reviewer':'inclusionai/ling-3.0-flash'})
         settlement=next(kwargs['payload'] for table,kwargs in calls if table=='rpc/finish_agent_run')
         self.assertFalse(settlement['p_success'])
         self.assertEqual(settlement['p_used'],300)
