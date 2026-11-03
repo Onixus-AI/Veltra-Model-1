@@ -7,7 +7,7 @@ receipt='00000000-0000-4000-8000-000000000099'
 with sync_playwright() as p:
  browser=p.chromium.launch()
  page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True)
- requests=[];balance=[0];saved={};publishing=[False];deployed=[False];merges=[]
+ requests=[];balance=[0];saved={};publishing=[False];deployed=[False];merges=[];website_limit=[60000]
  def api(route):
   request=route.request
   if '/api/account' in request.url:return route.fulfill(json={'credits_remaining':balance[0]})
@@ -18,7 +18,7 @@ with sync_playwright() as p:
   if '/api/brand/files' in request.url:return route.fulfill(json={'files':[saved['file']] if saved else []})
   if '/api/brand/download' in request.url:return route.fulfill(body=saved['text'],content_type='application/json')
   if '/api/connections/status' in request.url:return route.fulfill(json={'connections':[{'provider':'github','connected':True,'selection':{'id':'owner/site','name':'owner/site','branch':'main'}},{'provider':'vercel','connected':True,'selection':{'id':'project','name':'Booking site'}}]})
-  if '/api/connections/github/development-policy' in request.url:return route.fulfill(json={'publishing_enabled':publishing[0]})
+  if '/api/connections/github/development-policy' in request.url:return route.fulfill(json={'publishing_enabled':publishing[0],'website_artifact_max_bytes':website_limit[0]})
   if '/api/connections/github/change-set' in request.url:
    payload=request.post_data_json
    return route.fulfill(json={'repository':'owner/site','branch':'main','connection_version':1,'base_sha':'a'*40,'title':payload['title'],'files':payload['files'],'before':[{'path':'index.html','content':None}]})
@@ -128,5 +128,14 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Verify live deployment',exact=True).click()
  expect(page.get_by_role('link',name='Open deployed website',exact=True)).to_have_attribute('href','https://booking-preview.vercel.app/')
  page.screenshot(path=str(out/'website-project-launch.png'),full_page=True)
+ large_site='<html><body>'+('x'*203000)+'</body></html>'
+ with page.expect_file_chooser() as chooser:page.get_by_role('button',name='Import HTML',exact=True).click()
+ chooser.value.set_files({'name':'large-site.html','mimeType':'text/html','buffer':large_site.encode()})
+ page.get_by_role('button',name='Check launch connections',exact=True).click()
+ expect(page.get_by_text('must be updated before reviewing this file.',exact=False)).to_be_visible()
+ expect(page.get_by_role('button',name='Review website files for GitHub',exact=True)).to_be_disabled()
+ website_limit[0]=250000
+ page.get_by_role('button',name='Check launch connections',exact=True).click()
+ expect(page.get_by_role('button',name='Review website files for GitHub',exact=True)).to_be_enabled()
  browser.close()
 print('HTML import, safe preview, prompt, low-credit rejection, receipt, undo and export passed.')
