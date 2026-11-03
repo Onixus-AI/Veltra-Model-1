@@ -18,3 +18,21 @@ test('preview removes active markup and navigation while preserving text and inl
  for(const rule of ["script-src 'none'","connect-src 'none'","form-action 'none'","frame-src 'none'"])assert.ok(result.includes(rule));
  assert.ok(source.includes('<script>bad()</script>'),'Preview must not mutate the source used for export.');
 });
+test('preview preserves document styling, language and layout attributes',()=>{
+ const window=new Window();const parser=new window.DOMParser() as unknown as DOMParser;
+ const result=importedHtmlPreview('<html lang="en" class="dark"><body class="page" style="background:#101010;color:white" onload="bad()"><h1>Visible page</h1></body></html>',parser);
+ const doc=parser.parseFromString(result,'text/html');
+ assert.equal(doc.documentElement.lang,'en');assert.equal(doc.documentElement.className,'dark');
+ assert.equal(doc.body.className,'page');assert.match(doc.body.getAttribute('style')!,/background:#101010/);
+ assert.equal(doc.body.hasAttribute('onload'),false);
+ assert.equal(doc.head.firstElementChild?.getAttribute('http-equiv'),'Content-Security-Policy');
+});
+test('interactive preview retains inline app code but blocks remote scripts',()=>{
+ const window=new Window();const parser=new window.DOMParser() as unknown as DOMParser;
+ const source='<html><body><div id="root"></div><script type="module">document.querySelector("#root").textContent="Booking app"</script><script src="https://outside.test/app.js"></script><iframe src="https://outside.test"></iframe></body></html>';
+ const result=importedHtmlPreview(source,parser,true),doc=parser.parseFromString(result,'text/html');
+ assert.equal(doc.querySelectorAll('script').length,1);assert.equal(doc.querySelector('script')?.type,'module');
+ assert.equal(doc.querySelectorAll('iframe,script[src]').length,0);
+ for(const rule of ["script-src 'unsafe-inline'","connect-src 'none'","form-action 'none'","frame-src 'none'","default-src 'none'"])assert.ok(result.includes(rule));
+ assert.equal(parser.parseFromString(importedHtmlPreview(source,parser),'text/html').querySelectorAll('script').length,0,'Static preview stays the default');
+});

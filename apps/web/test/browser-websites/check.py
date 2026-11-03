@@ -47,5 +47,28 @@ with sync_playwright() as p:
  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
  assert page.locator('.website-onyx-sidebar').bounding_box()['y'] < page.locator('.website-workbench-canvas').bounding_box()['y'], 'Mobile prompt must precede the tall website preview'
  page.screenshot(path=str(out/'html-import-mobile.png'),full_page=True)
+ # Script-rendered .htm imports stay inert until isolated preview is enabled.
+ app_source='<!doctype html><html lang="en" class="dark"><body style="background:#101010;color:white"><div id="root"></div><script type="module">document.getElementById(\'root\').innerHTML=\'<h1>Booking app fixture</h1><button id="count">Bookings: 0</button>\';let count=0;document.getElementById(\'count\').onclick=()=>document.getElementById(\'count\').textContent=\'Bookings: \'+(++count);try{window.parent.document.body.setAttribute(\'data-preview-escaped\',\'yes\')}catch{};fetch(\'http://127.0.0.1:3190/blocked-preview-probe\').catch(()=>{});</script></body></html>'
+ probes=[]
+ page.route('**/blocked-preview-probe',lambda route:(probes.append(route.request.url),route.fulfill(status=200,body='blocked probe unexpectedly reached server')))
+ before=len(requests)
+ with page.expect_file_chooser() as chooser:page.get_by_role('button',name='Import HTML',exact=True).click()
+ chooser.value.set_files({'name':'booking-app.htm','mimeType':'text/html','buffer':app_source.encode()})
+ expect(page.get_by_text('This file contains scripts.',exact=False)).to_be_visible()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_have_count(0)
+ page.get_by_role('button',name='Enable interactive preview',exact=True).click()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_be_visible()
+ frame.get_by_role('button',name='Bookings: 0',exact=True).click()
+ expect(frame.get_by_role('button',name='Bookings: 1',exact=True)).to_be_visible()
+ assert page.locator('iframe[title="Imported HTML preview"]').get_attribute('sandbox')=='allow-scripts'
+ assert page.locator('body').get_attribute('data-preview-escaped') is None
+ assert not probes, 'Imported scripts cannot make network requests'
+ assert len(requests)==before, 'Previewing an imported app must not start an AI task'
+ assert frame.locator('body').evaluate('(body)=>getComputedStyle(body).backgroundColor')=='rgb(16, 16, 16)'
+ page.get_by_role('button',name='View website',exact=True).click()
+ assert page.locator('#website-preview').evaluate('(node)=>node===document.activeElement')
+ page.screenshot(path=str(out/'interactive-htm-mobile.png'),full_page=True)
+ page.get_by_role('button',name='Use static preview',exact=True).click()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_have_count(0)
  browser.close()
 print('HTML import, safe preview, prompt, low-credit rejection, receipt, undo and export passed.')
