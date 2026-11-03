@@ -45,6 +45,7 @@ with sync_playwright() as p:
  assert Path(download.value.path()).read_text()==source, 'Export preserves original HTML, including original scripts'
  page.set_viewport_size({'width':390,'height':844})
  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth')
+ assert page.locator('.website-onyx-sidebar').bounding_box()['y'] < page.locator('.website-workbench-canvas').bounding_box()['y'], 'Mobile prompt must precede the tall website preview'
  page.screenshot(path=str(out/'html-import-mobile.png'),full_page=True)
  browser.close()
 print('HTML import, safe preview, prompt, low-credit rejection, receipt, undo and export passed.')
