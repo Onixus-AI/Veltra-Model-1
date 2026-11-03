@@ -91,3 +91,12 @@
  .website-workbench-canvas { grid-row: 2; }
  .website-workbench-wide .website-workbench-canvas { grid-row: 1; }
 }
+.website-projects { padding: 14px 20px; border-bottom: 1px solid #344248; background: var(--veltra-panel, #0b1012); }
+.website-projects summary { cursor: pointer; font-weight: 600; }
+.website-projects p,.website-projects dd { font-size: 13px; line-height: 1.6; color: #b8c5cb; overflow-wrap: anywhere; }
+.website-projects button,.website-projects input { margin: 6px 12px 6px 0; padding: 10px 14px; border: 1px solid #344248; border-radius: 10px; background: #050809; color: #f4f4f5; font: inherit; font-size: 13px; }
+.website-projects a { color: var(--veltra-accent, #00e5ef); margin-right: 12px; }
+.website-projects li { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; overflow-wrap: anywhere; }
+.website-projects label { display: block; font-size: 13px; }
+.website-projects dt { font-weight: 600; font-size: 13px; }.website-projects dd { margin: 4px 0 12px; }
+.website-projects :is(button,input,summary,a):focus-visible { outline: 2px solid var(--veltra-lemon, #f5ff3d); outline-offset: 3px; }
