@@ -37,3 +37,35 @@ test('Connections retains business context, returns to Overview and shows Signal
  await act(async()=>rememberBusiness('business-b'));
  check('business-b');assert.equal(host.textContent!.includes('Business linked'),false,'another business link must not count for the selected business');
 });
+
+test('Gmail card starts authorization directly and remains usable after status failure',async t=>{
+ dom.reconfigure({url:'https://workspace.test/settings/connections?mode=business'});
+ Object.assign(globalThis,{location:dom.window.location,history:dom.window.history,CustomEvent:dom.window.CustomEvent,self:dom.window});
+ const storage=new Map<string,string>();
+ Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:()=>null,setItem:()=>{}}});
+ Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:(key:string)=>storage.get(key)??null,setItem:(key:string,value:string)=>storage.set(key,value),removeItem:(key:string)=>storage.delete(key)}});
+ process.env.NEXT_PUBLIC_SUPABASE_URL='';process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='';
+ let healthy=false;const authorizations:Record<string,unknown>[]=[];
+ t.mock.method(globalThis,'fetch',async(input:unknown,init?:RequestInit)=>{
+  if(input==='/api/mail/link'){
+   if(init?.method==='POST'){authorizations.push(JSON.parse(String(init.body)));assert.ok(init.signal,'authorization request must have a timeout');return Response.json({error:'Mail service unavailable. Please retry.'},{status:503});}
+   return healthy?Response.json({connected:false,mailbox:null}):Response.json({error:'Mail status unavailable.'},{status:502});
+  }
+  if(input==='/api/crm/connection')return Response.json({connected:false});
+  if(input==='/api/bee/status')return Response.json({connected:false,tools:[]});
+  return Response.json({connections:[]});
+ });
+ const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
+ t.after(()=>{act(()=>root.unmount());host.remove();});
+ await act(async()=>root.render(createElement(Connections)));
+ const gmail=Array.from(host.querySelectorAll('article')).find(card=>card.querySelector('h3')?.textContent==='Gmail')!;
+ const button=gmail.querySelector('button') as HTMLButtonElement;
+ assert.ok(button,'Gmail needs an actual authorization action, not a same-page anchor');assert.equal(button.disabled,false);
+ await act(async()=>button.click());
+ assert.equal(authorizations.length,1);assert.equal(authorizations[0].browser,storage.get('veltra-mail-link-state'));assert.match(String(authorizations[0].browser),/^[\w-]{36}$/);
+ assert.match(host.querySelector('[role="alert"]')?.textContent??'',/Mail service unavailable/);assert.equal(button.disabled,false);
+ const bottom=host.querySelector('#google-connector button') as HTMLButtonElement;assert.equal(bottom.disabled,false,'failed status must not lock out retry');
+ healthy=true;const refresh=Array.from(host.querySelectorAll('button')).find(item=>item.textContent==='Refresh Mail status')!;
+ await act(async()=>refresh.click());assert.equal(host.querySelector('.connections-error'),null,'successful status retry clears stale error');
+ await act(async()=>button.click());assert.equal(authorizations.length,2,'authorization can be retried after a recoverable error');
+});
