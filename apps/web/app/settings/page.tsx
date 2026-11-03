@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import {useWorkspaceBusiness} from "@/lib/workspace-business";
+import {workspaceHref} from "@/lib/workspace-navigation";
 import LogoutButton from "@/components/logout-button";
 import UsageDashboard from "@/components/usage-dashboard";
 import PlanPackages from "@/components/plan-packages";
@@ -54,6 +56,7 @@ async function responseData<T>(response: Response): Promise<T> {
 }
 
 export default function SettingsPage() {
+  const business=useWorkspaceBusiness();
   const [activeTab, setActiveTab] = useState<SettingsTab>("usage");
   const [account, setAccount] = useState<Account | null>(null);
   const [keys, setKeys] = useState<ApiKey[]>([]);
@@ -148,7 +151,7 @@ export default function SettingsPage() {
         <div className="settings-heading">
           <span className="eyebrow">WORKSPACE SETTINGS</span>
           <h1>Settings &amp; analytics</h1>
-          <Link href="/settings/connections" className="back-link">Workspace connections →</Link>
+          <Link href={workspaceHref("connections",business)} className="back-link">Workspace connections →</Link>
           <p>Your credits, developer access, and subscription in one place.</p>
         </div>
 
@@ -176,8 +179,8 @@ export default function SettingsPage() {
           <>
             {activeTab === "account" && <section id="settings-panel-account" className="settings-tab-panel settings-card" role="tabpanel" aria-labelledby="settings-tab-account">
               <h2>Account, security & privacy</h2><p>Manage access and request help with your account data.</p>
-              <p><Link href="/settings/connections">Manage and disconnect connected apps →</Link></p>
-              <p><Link href="/settings/keys">Manage developer access →</Link></p>
+              <p><Link href={workspaceHref("connections",business)}>Manage and disconnect connected apps →</Link></p>
+              <p><Link href={"/settings/keys"+(business?"?workspace="+encodeURIComponent(business):"")}>Manage developer access →</Link></p>
               <h3>Export your data</h3><p>Request an export of your account and server records from your account email.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20data%20export%20request">Request data export</a>
               <h3>Delete or close your account</h3><p>Request deletion from your account email. Support verifies ownership, confirms affected records and explains any required retention before closing the account. Separate provider subscriptions must be cancelled with those providers.</p><a className="button button-secondary" href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20account%20deletion%20request">Request account deletion</a>
               <p><Link href="/privacy">Privacy policy</Link> · <Link href="/eula">Terms</Link> · <a href="mailto:info@onixus.xyz?subject=Onixus%20Workspace%20support">Contact support</a></p>
