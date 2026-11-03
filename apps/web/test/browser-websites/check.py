@@ -7,10 +7,26 @@ receipt='00000000-0000-4000-8000-000000000099'
 with sync_playwright() as p:
  browser=p.chromium.launch()
  page=browser.new_page(viewport={'width':1440,'height':1000},accept_downloads=True)
- requests=[];balance=[0]
+ requests=[];balance=[0];saved={};publishing=[False];deployed=[False];merges=[]
  def api(route):
   request=route.request
   if '/api/account' in request.url:return route.fulfill(json={'credits_remaining':balance[0]})
+  if '/api/brand/upload' in request.url:
+   import base64
+   payload=request.post_data_json;text=base64.b64decode(payload['data']).decode();saved.update(text=text,file={'id':receipt,'name':payload['name'],'size':len(text.encode()),'created_at':'2026-11-03','deleted_at':None})
+   return route.fulfill(json={'file':saved['file']})
+  if '/api/brand/files' in request.url:return route.fulfill(json={'files':[saved['file']] if saved else []})
+  if '/api/brand/download' in request.url:return route.fulfill(body=saved['text'],content_type='application/json')
+  if '/api/connections/status' in request.url:return route.fulfill(json={'connections':[{'provider':'github','connected':True,'selection':{'id':'owner/site','name':'owner/site','branch':'main'}},{'provider':'vercel','connected':True,'selection':{'id':'project','name':'Booking site'}}]})
+  if '/api/connections/github/development-policy' in request.url:return route.fulfill(json={'publishing_enabled':publishing[0]})
+  if '/api/connections/github/change-set' in request.url:
+   payload=request.post_data_json
+   return route.fulfill(json={'repository':'owner/site','branch':'main','connection_version':1,'base_sha':'a'*40,'title':payload['title'],'files':payload['files'],'before':[{'path':'index.html','content':None}]})
+  if '/api/connections/github/pull-request-set' in request.url:return route.fulfill(json={'url':'https://github.com/owner/site/pull/7'})
+  if '/api/connections/github/release-review' in request.url:return route.fulfill(json={'ticket':'fixture-ticket','repository':'owner/site','pull_request':7,'commit_sha':'a'*40,'summary':'Merge this exact reviewed head after approval.'})
+  if '/api/connections/github/release-status' in request.url:return route.fulfill(json={'status':'completed' if deployed[0] else 'unverified','receipt':{'repository':'owner/site','pull_request':7,'commit_sha':'b'*40,'target':'production','state':'READY','url':'https://booking-preview.vercel.app'} if deployed[0] else None})
+  if '/api/connections/github/release' in request.url:
+   merges.append(request.post_data_json);return route.fulfill(json={'status':'completed','receipt':{'repository':'owner/site','pull_request':7,'reviewed_head':'a'*40,'merge_sha':'b'*40}})
   if '/api/agent-runs' in request.url:
    if request.method=='POST':
     payload=request.post_data_json;requests.append(payload)
@@ -26,7 +42,7 @@ with sync_playwright() as p:
  frame=page.frame_locator('iframe[title="Imported HTML preview"]')
  expect(frame.get_by_role('heading',name='Imported customer site')).to_be_visible()
  assert frame.locator('script').count()==0
- expect(page.get_by_role('button',name='Download project',exact=True)).to_be_disabled()
+ expect(page.get_by_role('button',name='Download project',exact=True)).to_be_enabled()
  page.get_by_role('button',name='Edit HTML',exact=True).click()
  expect(page.get_by_label('Website HTML source')).to_have_value(source)
  page.get_by_label('What should Onyx do?',exact=True).fill('Make the heading more clear.')
@@ -68,7 +84,49 @@ with sync_playwright() as p:
  page.get_by_role('button',name='View website',exact=True).click()
  assert page.locator('#website-preview').evaluate('(node)=>node===document.activeElement')
  page.screenshot(path=str(out/'interactive-htm-mobile.png'),full_page=True)
+ with page.expect_download() as project_download:page.get_by_role('button',name='Download project',exact=True).click()
+ project_text=Path(project_download.value.path()).read_text()
+ assert json.loads(project_text)['document']['source']==app_source
+ with page.expect_file_chooser() as chooser:page.get_by_role('button',name='Open project',exact=True).click()
+ chooser.value.set_files({'name':'website.onixus.json','mimeType':'application/json','buffer':project_text.encode()})
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_have_count(0)
+ page.get_by_role('button',name='Enable interactive preview',exact=True).click()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_be_visible()
  page.get_by_role('button',name='Use static preview',exact=True).click()
  expect(frame.get_by_role('heading',name='Booking app fixture')).to_have_count(0)
+ page.get_by_text('Saved website projects',exact=True).click()
+ page.get_by_role('button',name='Save to Workspace',exact=True).click()
+ expect(page.get_by_text('Saved and verified:',exact=False)).to_be_visible()
+ page.get_by_role('button',name='Open saved project',exact=True).click()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_have_count(0)
+ page.get_by_role('button',name='Enable interactive preview',exact=True).click()
+ expect(frame.get_by_role('heading',name='Booking app fixture')).to_be_visible()
+ assert json.loads(saved['text'])['document']['source']==app_source
+ page.get_by_text('Launch from Workspace',exact=True).click()
+ page.get_by_role('button',name='Check launch connections',exact=True).click()
+ expect(page.get_by_role('button',name='Review launch',exact=True)).to_be_disabled()
+ page.get_by_role('button',name='Review website files for GitHub',exact=True).click()
+ dialog=page.get_by_role('dialog',name='Review all repository files')
+ expect(dialog.get_by_role('button',name='Create draft pull request',exact=True)).to_be_disabled()
+ dialog.get_by_role('button',name='Cancel',exact=True).click()
+ publishing[0]=True
+ page.get_by_role('button',name='Check launch connections',exact=True).click()
+ page.get_by_role('button',name='Review website files for GitHub',exact=True).click()
+ dialog.get_by_role('button',name='Create draft pull request',exact=True).click()
+ expect(dialog.get_by_text('Draft pull request created.',exact=False)).to_be_visible()
+ dialog.get_by_role('button',name='Done',exact=True).click()
+ expect(page.get_by_label('Website pull request number')).to_have_value('7')
+ page.get_by_role('button',name='Review launch',exact=True).click()
+ expect(page.get_by_role('region',name='Website release approval')).to_be_visible()
+ assert not merges
+ page.get_by_role('button',name='Approve merge of reviewed code',exact=True).click()
+ expect(page.get_by_text('Deployment is not yet verified.',exact=False)).to_be_visible()
+ assert len(merges)==1
+ page.get_by_role('button',name='Verify live deployment',exact=True).click()
+ expect(page.get_by_text('No production deployment has been verified',exact=False)).to_be_visible()
+ deployed[0]=True
+ page.get_by_role('button',name='Verify live deployment',exact=True).click()
+ expect(page.get_by_role('link',name='Open deployed website',exact=True)).to_have_attribute('href','https://booking-preview.vercel.app/')
+ page.screenshot(path=str(out/'website-project-launch.png'),full_page=True)
  browser.close()
 print('HTML import, safe preview, prompt, low-credit rejection, receipt, undo and export passed.')

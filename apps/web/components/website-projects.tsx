@@ -1,0 +1,9 @@
+'use client';
+import {useState} from 'react';
+import {savedWebsites,saveWebsite,openSavedWebsite,type SavedWebsite} from '@/lib/website-project-store';
+import type {WebsiteProject} from '@/lib/website-project';
+export default function WebsiteProjects({project,onOpen,disabled}:{project:()=>WebsiteProject;onOpen:(project:WebsiteProject)=>void;disabled:boolean}){
+ const [files,setFiles]=useState<SavedWebsite[]>([]),[busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ async function act(work:()=>Promise<void>){setBusy(true);setError('');setNotice('');try{await work();}catch(cause){setError(cause instanceof Error?cause.message:'Website storage is unavailable.');}finally{setBusy(false);}}
+ return <details className="website-projects"><summary>Saved website projects</summary><p>Private copies in your Workspace account. Saving creates a new copy. Opening replaces the current editor; download your project first to keep unsaved changes.</p><div><button disabled={disabled||busy} onClick={()=>void act(async()=>{const file=await saveWebsite(project());setNotice('Saved and verified: '+file.name);setFiles(await savedWebsites());setLoaded(true);})}>{busy?'Working…':'Save to Workspace'}</button><button disabled={disabled||busy} onClick={()=>void act(async()=>{setFiles(await savedWebsites());setLoaded(true);})}>Load saved websites</button></div>{error&&<p role="alert">{error} Check saved websites before retrying an uncertain save. You can still download your project.</p>}{notice&&<p role="status">{notice}</p>}{loaded&&!files.length&&<p>No saved website projects.</p>}<ul>{files.map(file=><li key={file.id}><span>{file.name}</span><button disabled={disabled||busy} onClick={()=>void act(async()=>{onOpen(await openSavedWebsite(file.id));setNotice('Saved project opened. Interactive preview stays off until you enable it.');})}>Open saved project</button></li>)}</ul></details>;
+}

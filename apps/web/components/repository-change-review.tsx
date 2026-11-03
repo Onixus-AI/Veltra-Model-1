@@ -5,13 +5,13 @@ import {connectionRequest} from '@/lib/connections-client';
 import {checkedFiles,type ProjectFile} from '@/lib/build-artifacts';
 import type {RepositoryChangeSet} from '@/lib/repository-changes';
 type Review=Omit<RepositoryChangeSet,'operation'>&{before:{path:string;content:string|null}[]};
-export default function RepositoryChangeReview({files,onClose}:{files:ProjectFile[];onClose:()=>void}){
+export default function RepositoryChangeReview({files,onClose,title="Apply Onixus Workspace coding task",onCreated}:{files:ProjectFile[];onClose:()=>void;title?:string;onCreated?:(url:string)=>void}){
  const dialog=useRef<HTMLDialogElement>(null),lock=useRef(false),operation=useRef(crypto.randomUUID());
  const [publishing,setPublishing]=useState(false),[review,setReview]=useState<Review|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[url,setUrl]=useState('');
- useEffect(()=>{dialog.current?.showModal();let live=true;try{void Promise.all([connectionRequest<Review>('github/change-set','POST',{files:checkedFiles(files),title:'Apply Onixus Workspace coding task'}),connectionRequest<{publishing_enabled:boolean}>('github/development-policy')]).then(([data,policy])=>{if(live){setReview(data);setPublishing(policy.publishing_enabled===true);}}).catch(cause=>{if(live)setError(cause.message);});}catch(cause){setError(cause instanceof Error?cause.message:'Invalid project files.');}return()=>{live=false;dialog.current?.close();};},[files]);
+ useEffect(()=>{dialog.current?.showModal();let live=true;try{void Promise.all([connectionRequest<Review>('github/change-set','POST',{files:checkedFiles(files),title}),connectionRequest<{publishing_enabled:boolean}>('github/development-policy')]).then(([data,policy])=>{if(live){setReview(data);setPublishing(policy.publishing_enabled===true);}}).catch(cause=>{if(live)setError(cause.message);});}catch(cause){setError(cause instanceof Error?cause.message:'Invalid project files.');}return()=>{live=false;dialog.current?.close();};},[files,title]);
  async function publish(){
   if(!review||!publishing||lock.current)return;lock.current=true;setBusy(true);setError('');
-  try{const result=await connectionRequest<{url:string}>('github/pull-request-set','POST',{repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation:operation.current});const receipt=new URL(result.url);if(receipt.origin!=='https://github.com'||!/^\/[^/]+\/[^/]+\/pull\/\d+$/.test(receipt.pathname))throw Error('No valid pull-request receipt returned.');setUrl(receipt.href);}
+  try{const result=await connectionRequest<{url:string}>('github/pull-request-set','POST',{repository:review.repository,branch:review.branch,connection_version:review.connection_version,base_sha:review.base_sha,title:review.title,files:review.files,operation:operation.current});const receipt=new URL(result.url);if(receipt.origin!=='https://github.com'||!/^\/[^/]+\/[^/]+\/pull\/\d+$/.test(receipt.pathname))throw Error('No valid pull-request receipt returned.');setUrl(receipt.href);onCreated?.(receipt.href);}
   catch(cause){setError(cause instanceof Error?cause.message:'Pull request could not be created.');}
   finally{lock.current=false;setBusy(false);}
  }
