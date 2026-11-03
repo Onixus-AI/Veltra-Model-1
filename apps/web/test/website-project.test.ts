@@ -12,6 +12,7 @@ test('large imported apps round-trip as projects and preserve the repository lim
  const project=readWebsiteProject({format:'onixus-website',version:1,name:'Booking app.htm',document:{type:'html',source}});
  assert.equal(projectSource(readWebsiteProject(JSON.parse(serializeWebsiteProject(project)))),source);
  assert.equal(readWebsiteProject(starterWebsite).document.type,'blocks');
+ assert.equal(checkedFiles([{path:'app.js',content:'é'.repeat(60000)}]).length,1,'Existing text character limit and total byte bound stay compatible');
  assert.throws(()=>readWebsiteProject({...project,version:2}));assert.throws(()=>readWebsiteProject({...project,name:'../unsafe'}));
  assert.equal(checkedFiles([{path:'index.html',content:source}])[0].content,source);
  for(const files of [[{path:'app.js',content:source}],[{path:'index.html',content:source},{path:'extra.txt',content:'x'}],[{path:'index.html',content:'<html>'+ 'é'.repeat(130000)+'</html>'}]])assert.throws(()=>checkedFiles(files));
