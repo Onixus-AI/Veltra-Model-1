@@ -60,3 +60,44 @@ test('the code exchange refuses a grant without a refresh token or without Gmail
   assert.deepEqual(await exchangeCode(google, 'https://app.test', 'code', fake({refresh_token: 'r'.repeat(30), scope: GMAIL_SCOPES.join(' ')})),
     {refreshToken: 'r'.repeat(30), mailbox: 'info@onixus-unit.test'});
 });
+
+test('a catch-up interrupted by a Gmail slow-down keeps the position of every finished page', async () => {
+  const {syncMailbox} = await import('../lib/revenue/mail-sync');
+  const {MailProviderError} = await import('../lib/revenue/mail-provider');
+  const msg = (id: string) => ({providerMessageId: id, threadId: 't' + id, direction: 'inbound' as const, from: 'a@b.test', fromName: 'A', to: MAILBOX, subject: 's', text: 'hi',
+    occurredAt: new Date().toISOString(), messageIdHeader: null, inReplyTo: null, references: null, automated: false, attachments: []});
+  let page = 0;
+  const provider = {name: 'Gmail', address: async () => MAILBOX, send: async () => ({providerMessageId: 'x', providerThreadId: 'x'}),
+    changes: async (cursor: string | null) => {
+      page++;
+      if (page === 1) return {messages: [msg('1'), msg('2')], cursor: '200', more: true};
+      if (page === 2) return {messages: [msg('3')], cursor: '300', more: true};
+      throw new MailProviderError('rate_limited', 'Gmail rate limit reached; retrying later.', true);
+    }};
+  const events: Record<string, unknown>[] = [];
+  const r = await syncMailbox({provider, cursor: '100', ingest: async e => { events.push(e); }, checkpoint: true});
+  assert.equal(r.status, 'error');
+  assert.equal(r.cursor, '300', 'the next pass starts after the last finished page, not from the beginning');
+  const saved = events.filter(e => e.type === 'sync.status' && e.status === 'healthy').map(e => e.cursor);
+  assert.deepEqual(saved, ['200', '300']);
+  const counted = events.filter(e => e.type === 'sync.status').reduce((n, e) => n + Number(e.messages_synced ?? 0), 0);
+  assert.equal(counted, 3, 'each message is counted once across saves');
+});
+
+test('Gmail slow-downs on reads are retried after a wait; sends are never retried', async () => {
+  const {gmailProvider} = await import('../lib/revenue/gmail-provider');
+  let profileCalls = 0, sendCalls = 0;
+  const waits: number[] = [];
+  const fetcher = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const u = String(input);
+    if (u.includes('oauth')) return Response.json({access_token: 'at', expires_in: 3600});
+    if (u.endsWith('/profile')) return ++profileCalls < 3 ? new Response(JSON.stringify({error: {message: 'Too many requests'}}), {status: 429, headers: {'retry-after': '1'}}) : Response.json({emailAddress: MAILBOX, historyId: '1'});
+    if (u.endsWith('/messages/send') && init?.method === 'POST') { sendCalls++; return new Response(JSON.stringify({error: {message: 'Rate limit'}}), {status: 429}); }
+    return Response.json({sendAs: []});
+  }) as typeof fetch;
+  const gmail = gmailProvider({clientId: 'c', clientSecret: 's', refreshToken: 'r'}, {fetcher, apiUrl: 'https://gmail.fake/gmail/v1/users/me', tokenUrl: 'https://oauth.fake/token', rateLimitRetries: 3, wait: async ms => { waits.push(ms); }});
+  assert.equal(await gmail.address(), MAILBOX);
+  assert.deepEqual(waits, [1000, 1000], 'waits as long as Gmail asks');
+  await assert.rejects(gmail.send({idempotencyKey: 'k1', from: MAILBOX, to: 'x@y.test', subject: 's', body: 'b'}), /rate limit/);
+  assert.equal(sendCalls, 1, 'a send is attempted once; the database queue decides any retry');
+});

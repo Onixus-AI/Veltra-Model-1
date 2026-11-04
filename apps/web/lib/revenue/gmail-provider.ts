@@ -39,16 +39,26 @@ export function toProviderMessage(m: GmailMessage, mailbox: string): ProviderMes
   };
 }
 
-export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeof fetch; apiUrl?: string; tokenUrl?: string} = {}): MailProvider {
+export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeof fetch; apiUrl?: string; tokenUrl?: string;
+  /** Reads Gmail throttled ("slow down") are retried this many times with a short wait. Sends are never retried here. */
+  rateLimitRetries?: number; wait?: (ms: number) => Promise<void>} = {}): MailProvider {
   const fetcher = o.fetcher ?? fetch;
   const api = (o.apiUrl ?? 'https://gmail.googleapis.com/gmail/v1/users/me').replace(/\/$/, '');
   const token = googleAccessToken(credentials, o);
   let mailbox: string | null = null;
 
+  const wait = o.wait ?? ((ms: number) => new Promise<void>(r => setTimeout(r, ms)));
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const response = await fetcher(api + path, {...init, headers: {...(init.headers ?? {}), Authorization: `Bearer ${await token.get()}`, 'Content-Type': 'application/json'}, signal: AbortSignal.timeout(20000)});
-    if (response.ok) return response.json() as Promise<T>;
-    const detail = await response.json().catch(() => ({})) as {error?: {message?: string; status?: string}};
+    let response: Response, detail: {error?: {message?: string; status?: string}};
+    for (let attempt = 0; ; attempt++) {
+      response = await fetcher(api + path, {...init, headers: {...(init.headers ?? {}), Authorization: `Bearer ${await token.get()}`, 'Content-Type': 'application/json'}, signal: AbortSignal.timeout(20000)});
+      if (response.ok) return response.json() as Promise<T>;
+      detail = await response.json().catch(() => ({})) as typeof detail;
+      const throttled = response.status === 429 || (response.status === 403 && /rate|quota/i.test(detail.error?.message ?? ''));
+      if (!throttled || (init.method ?? 'GET') !== 'GET' || attempt >= (o.rateLimitRetries ?? 0)) break;
+      const after = Number(response.headers.get('retry-after'));
+      await wait(Math.min(Number.isFinite(after) && after > 0 ? after * 1000 : 2000 * 2 ** attempt, 10_000));
+    }
     const message = detail.error?.message?.slice(0, 200) ?? `Gmail returned ${response.status}`;
     if (response.status === 401) { token.reset(); throw new MailProviderError('auth_expired', 'Google connection expired. Reconnect Google in Onixus Mail.', false); }
     if (response.status === 404 && path.startsWith('/history')) throw new MailProviderError('cursor_expired', 'Gmail sync position expired; a recent-mail resync is required.', true);

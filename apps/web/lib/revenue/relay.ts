@@ -1,5 +1,5 @@
 import {MailProviderError, type MailProvider} from './mail-provider';
-import {syncMailbox, type SyncResult} from './mail-sync';
+import {syncMailbox, type SyncOptions, type SyncResult} from './mail-sync';
 import {runWorker, type WorkerDeps, type WorkerReport} from './worker';
 import {syncCalendar, type CalendarProvider, type CalendarState, type CalendarSyncResult} from './calendar';
 
@@ -29,6 +29,7 @@ export type RelayDeps = {
   mail: MailProvider;
   calendar?: CalendarProvider | null;
   sendLimit?: number;
+  sync?: SyncOptions;
 };
 
 export type RelayReport = {
@@ -66,7 +67,7 @@ export function relayWorkerDeps(d: RelayDeps): WorkerDeps {
 
 export async function relayAccount(d: RelayDeps): Promise<RelayReport> {
   const state = await d.rpc<AccountState>('revenue_mail_account_state', args(d));
-  const sync = await syncMailbox({provider: d.mail, cursor: state.mail?.cursor ?? null, ingest: event => d.rpc('revenue_ingest_mail_event', args(d, {p_event: event}))});
+  const sync = await syncMailbox({...d.sync, provider: d.mail, cursor: state.mail?.cursor ?? null, ingest: event => d.rpc('revenue_ingest_mail_event', args(d, {p_event: event}))});
   const expired = sync.status === 'expired';
   const send = expired ? {skipped: 'connection_expired' as const} : await runWorker(relayWorkerDeps(d), d.sendLimit ?? 10);
   let calendar: RelayReport['calendar'] = {skipped: 'disabled'};
