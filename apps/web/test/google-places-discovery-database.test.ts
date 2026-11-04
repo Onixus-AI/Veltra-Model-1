@@ -10,12 +10,13 @@ create table public.crm_customers(id uuid primary key default gen_random_uuid(),
  constraint crm_customers_email_check check(email is null or (email=lower(trim(email)) and email ~ '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$')));
 create table public.crm_discovery_sources(id uuid primary key default gen_random_uuid(),workspace_id uuid not null,provider text not null,category text not null,label text not null,bounds jsonb,enabled boolean default false,phase integer default 0,cursor_id bigint default 0,next_run_at timestamptz default now(),imported integer default 0,duplicates integer default 0,failures integer default 0,last_error text,last_run_at timestamptz,exhausted_at timestamptz,created_at timestamptz default now(),enriched integer default 0,
  constraint crm_discovery_sources_provider_check check(provider = any(array['openstreetmap','fmcsa','fmcsa_contacts','ny_registry'])),
- constraint crm_discovery_sources_category_check check(category = any(array['logistics','warehouses','manufacturers','retailers','offices'])));
+ constraint crm_discovery_sources_category_check check(category = any(array['logistics','warehouses','manufacturers','retailers','offices'])),
+ unique nulls not distinct (workspace_id,provider,category,bounds));
 create table public.crm_discovery_imports(workspace_id uuid,source_key text,customer_id uuid,source_url text,primary key(workspace_id,source_key));
 create table public.crm_contact_evidence(workspace_id uuid,customer_id uuid,email text,source_url text,source_kind text,primary key(workspace_id,customer_id,email,source_url));
 create table crm_private.discovery_runs(id uuid primary key default gen_random_uuid(),source_id uuid not null,token_hash text not null,status text not null,lease_until timestamptz not null,created_at timestamptz default now(),completed_at timestamptz);
 `;
-const migrations=['20261103230000_google_places_discovery.sql','20261104030000_places_monthly_recheck.sql'].map(f=>readFileSync(new URL('../../../supabase/migrations/'+f,import.meta.url),'utf8'));
+const migrations=['20261103230000_google_places_discovery.sql','20261104030000_places_monthly_recheck.sql','20261104031000_places_unique_per_search.sql'].map(f=>readFileSync(new URL('../../../supabase/migrations/'+f,import.meta.url),'utf8'));
 const W='00000000-0000-4000-8000-000000000001';
 const lead=(id:string,extra:Record<string,unknown>={})=>({source_key:'google_places/'+id,source_url:'https://www.google.com/maps/place/?q=place_id:'+id,company:'Biz '+id,email:null,website:'',phone:'(954) 555-0100',location:'Fort Lauderdale, FL',...extra});
 
@@ -90,4 +91,16 @@ test('registry sources that catch up still recheck after 24 hours, not 30 days',
  await db.query(`select public.crm_finish_discovery_job($1,$2,$3)`,[j.job_id,j.token,JSON.stringify({leads:[],next_phase:3,next_cursor:100,exhausted:true})]);
  const s=(await db.query<{ok:boolean}>(`select next_run_at between now()+interval '23 hours' and now()+interval '25 hours' ok from public.crm_discovery_sources where provider='fmcsa'`)).rows[0];
  assert.equal(s.ok,true);
+});
+
+test('a workspace can hold many Places searches, but not the same search twice or a second copy of a map source',async()=>{
+ const {db}=await setup();
+ const add=(text:string)=>db.query(`insert into public.crm_discovery_sources(workspace_id,provider,category,label,search_text,enabled) values($1,'google_places','local_businesses',$2,$2,true)`,[W,text]);
+ await add('barber shops in Chicago, IL');
+ await add('hair salons in Chicago, IL');
+ await assert.rejects(add('Barber Shops in Chicago, IL'));
+ const osm=()=>db.query(`insert into public.crm_discovery_sources(workspace_id,provider,category,label,bounds) values($1,'openstreetmap','retailers','x','[1,1,2,2]')`,[W]);
+ await osm();await assert.rejects(osm());
+ const fmcsa=()=>db.query(`insert into public.crm_discovery_sources(workspace_id,provider,category,label) values($1,'fmcsa','logistics','x')`,[W]);
+ await fmcsa();await assert.rejects(fmcsa());
 });
