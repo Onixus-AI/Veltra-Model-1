@@ -82,7 +82,7 @@ export async function discoverRegistryPage(job:{provider:string;cursor:number},f
 }
 /**
  * Google Places (New) Text Search, Enterprise fields: name, address, phone, website.
- * One run reads at most three pages (60 businesses), then the source rests for 24 hours.
+ * One run reads at most three pages (60 businesses), then the source rests for 30 days.
  * Places never returns email; a listing with no website is kept and flagged by its empty website.
  */
 export const PLACES_ENDPOINT='https://places.googleapis.com/v1/places:searchText';

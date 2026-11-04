@@ -15,12 +15,12 @@ create table public.crm_discovery_imports(workspace_id uuid,source_key text,cust
 create table public.crm_contact_evidence(workspace_id uuid,customer_id uuid,email text,source_url text,source_kind text,primary key(workspace_id,customer_id,email,source_url));
 create table crm_private.discovery_runs(id uuid primary key default gen_random_uuid(),source_id uuid not null,token_hash text not null,status text not null,lease_until timestamptz not null,created_at timestamptz default now(),completed_at timestamptz);
 `;
-const migration=readFileSync(new URL('../../../supabase/migrations/20261103230000_google_places_discovery.sql',import.meta.url),'utf8');
+const migrations=['20261103230000_google_places_discovery.sql','20261104030000_places_monthly_recheck.sql'].map(f=>readFileSync(new URL('../../../supabase/migrations/'+f,import.meta.url),'utf8'));
 const W='00000000-0000-4000-8000-000000000001';
 const lead=(id:string,extra:Record<string,unknown>={})=>({source_key:'google_places/'+id,source_url:'https://www.google.com/maps/place/?q=place_id:'+id,company:'Biz '+id,email:null,website:'',phone:'(954) 555-0100',location:'Fort Lauderdale, FL',...extra});
 
 async function setup(){
- const db=new PGlite();await db.exec(base);await db.exec(migration);
+ const db=new PGlite();await db.exec(base);for(const m of migrations)await db.exec(m);
  const src=(await db.query<{id:string}>(`insert into public.crm_discovery_sources(workspace_id,provider,category,label,search_text,enabled) values($1,'google_places','local_businesses','plumbers in Broward County, FL','plumbers in Broward County, FL',true) returning id`,[W])).rows[0].id;
  return {db,src};
 }
@@ -38,7 +38,7 @@ test('a Places source must carry its search and the worker receives it',async()=
  assert.equal(started?.provider,'google_places');assert.equal(started?.search_text,'plumbers in Broward County, FL');
 });
 
-test('Places businesses are saved once, keep no-website leads, and the source rests 24 hours',async()=>{
+test('Places businesses are saved once, keep no-website leads, and the source rests 30 days',async()=>{
  const {db,src}=await setup();
  const j=await job(db);
  const page={leads:[lead('ChIJAAAAAAAAAAAA',{website:'https://a.example/'}),lead('ChIJBBBBBBBBBBBB')],next_phase:3,next_cursor:0,exhausted:true};
@@ -47,7 +47,7 @@ test('Places businesses are saved once, keep no-website leads, and the source re
  const rows=(await db.query<{company:string;website:string;industry:string;email:string|null}>(`select company,website,industry,email from public.crm_customers order by company`)).rows;
  assert.deepEqual(rows.map(x=>[x.company,x.website,x.email]),[['Biz ChIJAAAAAAAAAAAA','https://a.example/',null],['Biz ChIJBBBBBBBBBBBB','',null]]);
  assert.equal(rows[0].industry,'plumbers in Broward County, FL');
- const s=(await db.query<{phase:number;rested:boolean}>(`select phase,next_run_at>now()+interval '23 hours' rested from public.crm_discovery_sources where id=$1`,[src])).rows[0];
+ const s=(await db.query<{phase:number;rested:boolean}>(`select phase,next_run_at>now()+interval '29 days' and next_run_at<now()+interval '31 days' rested from public.crm_discovery_sources where id=$1`,[src])).rows[0];
  assert.deepEqual([s.phase,s.rested],[3,true]);
  // The next day, the same businesses are duplicates, not new customers.
  await db.exec(`update public.crm_discovery_sources set next_run_at=now()-interval '1 minute'`);
@@ -80,4 +80,14 @@ test('existing registry sources still save (no behavior change for FMCSA)',async
  const page={leads:[{source_key:'fmcsa/101',source_url:'https://data.transportation.gov/resource/az4n-8mr2.json?dot_number=101',company:'Carrier',email:'info@carrier.example',website:'',phone:'',location:'FL'}],next_phase:0,next_cursor:101,exhausted:false};
  const r=(await db.query<{r:Record<string,unknown>}>(`select public.crm_finish_discovery_job($1,$2,$3) r`,[j.job_id,j.token,JSON.stringify(page)])).rows[0].r;
  assert.equal(r.imported,1);
+});
+
+test('registry sources that catch up still recheck after 24 hours, not 30 days',async()=>{
+ const {db}=await setup();
+ await db.exec(`update public.crm_discovery_sources set enabled=false`);
+ await db.query(`insert into public.crm_discovery_sources(workspace_id,provider,category,label,enabled,cursor_id) values($1,'fmcsa','logistics','FMCSA',true,100)`,[W]);
+ const j=await job(db);
+ await db.query(`select public.crm_finish_discovery_job($1,$2,$3)`,[j.job_id,j.token,JSON.stringify({leads:[],next_phase:3,next_cursor:100,exhausted:true})]);
+ const s=(await db.query<{ok:boolean}>(`select next_run_at between now()+interval '23 hours' and now()+interval '25 hours' ok from public.crm_discovery_sources where provider='fmcsa'`)).rows[0];
+ assert.equal(s.ok,true);
 });
