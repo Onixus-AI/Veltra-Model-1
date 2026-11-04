@@ -198,6 +198,6 @@ end $$;
 
 revoke all on function public.mail_google_home(), public.mail_google_begin(uuid,text), public.mail_google_complete(text,text,text), public.mail_google_status(uuid), public.mail_google_disconnect(uuid),
   public.mail_pass_start(uuid,text), public.mail_pass_finish(uuid,text,jsonb),
-  crm_private.prepare_mail_passes(), crm_private.dispatch_mail_passes(), crm_private.token_hash(text), crm_private.new_token() from public;
+  crm_private.prepare_mail_passes(), crm_private.dispatch_mail_passes(), crm_private.token_hash(text), crm_private.new_token() from public, anon, authenticated;
 grant execute on function public.mail_google_home(), public.mail_google_begin(uuid,text), public.mail_google_status(uuid), public.mail_google_disconnect(uuid) to authenticated;
 grant execute on function public.mail_google_complete(text,text,text), public.mail_pass_start(uuid,text), public.mail_pass_finish(uuid,text,jsonb) to anon, authenticated;
