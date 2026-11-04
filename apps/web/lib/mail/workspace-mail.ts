@@ -41,7 +41,7 @@ export async function exchangeCode(client: GoogleClient, origin: string, code: s
 type Pass = {account_id: string; mailbox: string; refresh_token: string; crm_token: string};
 
 /** One mailbox pass: redeem the single-use job, sync Gmail, send approved mail, report back. */
-export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; jobId: string; token: string; workerId: string; fetcher?: typeof fetch; gmailApiUrl?: string; tokenUrl?: string}) {
+export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; jobId: string; token: string; workerId: string; fetcher?: typeof fetch; gmailApiUrl?: string; tokenUrl?: string; budgetMs?: number; wait?: (ms: number) => Promise<void>}) {
   const pass = await o.rpc<Pass>('mail_pass_start', {p_job: o.jobId, p_token: o.token});
   const finish = (report: Record<string, unknown>) => o.rpc('mail_pass_finish', {p_job: o.jobId, p_token: o.token, p_report: report});
   if (!o.client) {
@@ -50,8 +50,11 @@ export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; job
   }
   try {
     const mail = gmailProvider({clientId: o.client.clientId, clientSecret: o.client.clientSecret, refreshToken: pass.refresh_token},
-      {fetcher: o.fetcher, apiUrl: o.gmailApiUrl, tokenUrl: o.tokenUrl});
-    const r = await relayAccount({rpc: o.rpc, accountId: pass.account_id, token: pass.crm_token, workerId: o.workerId, mail, calendar: null});
+      {fetcher: o.fetcher, apiUrl: o.gmailApiUrl, tokenUrl: o.tokenUrl, rateLimitRetries: 3, wait: o.wait});
+    // Catch-up after downtime is paced: small pages, position saved after each, and a time budget
+    // inside the 60-second function limit. The next minute's pass continues from the saved position.
+    const r = await relayAccount({rpc: o.rpc, accountId: pass.account_id, token: pass.crm_token, workerId: o.workerId, mail, calendar: null,
+      sync: {limit: 20, maxPages: 10, checkpoint: true, deadline: Date.now() + (o.budgetMs ?? 35_000)}});
     const sent = 'sent' in r.send ? r.send.sent : 0;
     const result = r.sync.status === 'healthy' ? 'healthy' : r.sync.status;
     await finish({result, detail: r.sync.error ?? '', ingested: r.sync.ingested, sent});

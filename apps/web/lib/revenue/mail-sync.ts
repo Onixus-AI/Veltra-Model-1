@@ -19,8 +19,16 @@ export function toIngestEvent(m: ProviderMessage): Record<string, unknown> {
  * Two-way sync pass. The cursor only advances after every message in the page was ingested, so a
  * failure mid-page is retried from the same position; ingestion is idempotent per provider id.
  */
-export async function syncMailbox(o: {provider: MailProvider; cursor: string | null; ingest: MailIngest; limit?: number; maxPages?: number}): Promise<SyncResult> {
-  let cursor = o.cursor, ingested = 0, mailbox: string | undefined;
+export type SyncOptions = {
+  limit?: number; maxPages?: number;
+  /** Save the position after every page, so a catch-up interrupted by a rate limit or a time limit resumes where it stopped. */
+  checkpoint?: boolean;
+  /** Stop starting new pages after this time (ms since epoch); the saved position carries on next pass. */
+  deadline?: number;
+};
+
+export async function syncMailbox(o: {provider: MailProvider; cursor: string | null; ingest: MailIngest} & SyncOptions): Promise<SyncResult> {
+  let cursor = o.cursor, ingested = 0, reported = 0, saved = o.cursor, mailbox: string | undefined;
   const skipped: {provider_message_id: string; reason: string}[] = [];
   try {
     mailbox = await o.provider.address();
@@ -46,14 +54,18 @@ export async function syncMailbox(o: {provider: MailProvider; cursor: string | n
         }
       }
       cursor = changes.cursor;
-      if (!changes.more) break;
+      if (o.checkpoint && changes.more) {
+        await o.ingest({type: 'sync.status', status: 'healthy', provider: o.provider.name.toLowerCase(), mailbox, cursor, messages_synced: ingested - reported, backlog: 1, occurred_at: new Date().toISOString()});
+        reported = ingested; saved = cursor;
+      }
+      if (!changes.more || (o.deadline && Date.now() > o.deadline)) break;
     }
-    await o.ingest({type: 'sync.status', status: 'healthy', provider: o.provider.name.toLowerCase(), mailbox, cursor, messages_synced: ingested, ...(skipped.length ? {skipped: skipped.length} : {}), occurred_at: new Date().toISOString()});
+    await o.ingest({type: 'sync.status', status: 'healthy', provider: o.provider.name.toLowerCase(), mailbox, cursor, messages_synced: ingested - reported, ...(skipped.length ? {skipped: skipped.length} : {}), occurred_at: new Date().toISOString()});
     return {status: 'healthy', cursor, ingested, skipped};
   } catch (e) {
     const expired = e instanceof MailProviderError && e.code === 'auth_expired';
     const message = e instanceof MailProviderError ? e.message : 'Mail sync failed unexpectedly.';
-    await o.ingest({type: 'sync.status', status: expired ? 'expired' : 'error', provider: o.provider.name.toLowerCase(), mailbox, error: message, messages_synced: ingested, occurred_at: new Date().toISOString()}).catch(() => undefined);
-    return {status: expired ? 'expired' : 'error', cursor: o.cursor, ingested, error: message, detail: e instanceof Error ? e.message : String(e)};
+    await o.ingest({type: 'sync.status', status: expired ? 'expired' : 'error', provider: o.provider.name.toLowerCase(), mailbox, error: message, messages_synced: ingested - reported, occurred_at: new Date().toISOString()}).catch(() => undefined);
+    return {status: expired ? 'expired' : 'error', cursor: saved, ingested, error: message, detail: e instanceof Error ? e.message : String(e)};
   }
 }
