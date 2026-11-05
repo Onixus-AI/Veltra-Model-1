@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import type {ProviderMessage} from '../lib/revenue/mail-provider';
 import type {Brain, Classification} from '../lib/mail/brain';
 import {ruleClassification, openRouterBrain} from '../lib/mail/brain';
-import {actOnApproved, noteNew, planFor, sortSome, type EmployeeDeps, type Plan, type Settings} from '../lib/mail/employee';
+import {actOnApproved, greeting, noteNew, planFor, sortSome, withDeadlinePriority, type EmployeeDeps, type Plan, type Settings} from '../lib/mail/employee';
 import {tmsQuoteLane} from '../lib/mail/tms';
 import {parseUnsubscribe} from '../lib/mail/unsubscribe';
 
@@ -186,4 +186,20 @@ test('the model call: classification is validated, email text is fenced, and pro
   assert.equal(user.match(/<\/email_untrusted>/g)!.length, 1, 'the email cannot close its own fence');
   const bad = openRouterBrain({apiKey: 'k', models: ['m'], fetcher: (async () => Response.json({choices: [{message: {tool_calls: [{function: {name: 'classify_email', arguments: '{"category":"DELETE_ALL"}'}}]}}]})) as typeof fetch});
   await assert.rejects(bad.classify({from: 'a', fromName: '', subject: '', text: '', attachments: []}, {name: 'H', industry: ''}));
+});
+
+test('greetings use a person\'s first name, never a shared inbox\'s name', () => {
+  assert.equal(greeting({fromName: 'Dana Broker', from: 'dana@freight.test'}), 'Hi Dana,');
+  assert.equal(greeting({fromName: 'dray W', from: 'dray@immensity.test'}), 'Hello,');
+  assert.equal(greeting({fromName: 'Dispatch Team', from: 'ops@carrier.test'}), 'Hello,');
+  assert.equal(greeting({fromName: '', from: 'quotes@x.test'}), 'Hello,');
+  assert.equal(greeting({fromName: 'Max Will', from: 'max.will@bestbay.test'}), 'Hi Max,');
+});
+
+test('a rate request on a deadline is at least HIGH priority', () => {
+  const lfd = withDeadlinePriority(cls('QUOTE_REQUEST'), {subject: 'URGENT Rate Request – Norfolk to High Point | LFD Tomorrow 11/5', text: ''});
+  assert.equal(lfd.priority, 'HIGH');
+  assert.equal(withDeadlinePriority(cls('QUOTE_REQUEST'), {subject: 'Import project, starting mid-November', text: 'Best rate please'}).priority, 'NORMAL');
+  assert.equal(withDeadlinePriority(cls('QUOTE_REQUEST', {priority: 'URGENT'}), {subject: 'today', text: ''}).priority, 'URGENT', 'never lowered');
+  assert.equal(withDeadlinePriority(cls('NEWSLETTER'), {subject: 'Sale ends today', text: ''}).priority, 'NORMAL', 'only rate requests');
 });
