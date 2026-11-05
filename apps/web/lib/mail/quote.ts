@@ -58,7 +58,8 @@ export function googleDistance(apiKey: string, o: {fetcher?: typeof fetch; url?:
     const r = await (o.fetcher ?? fetch)(o.url ?? 'https://routes.googleapis.com/directions/v2:computeRoutes', {method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
       headers: {'content-type': 'application/json', 'x-goog-api-key': apiKey, 'x-goog-fieldmask': 'routes.distanceMeters'},
       body: JSON.stringify({origin: {address: from}, destination: {address: to}, travelMode: 'DRIVE', units: 'IMPERIAL'})});
-    if (!r.ok) return null;
+    // Say why Maps refused (key missing a permission, billing off, API not enabled): the quote records it.
+    if (!r.ok) throw new Error(`Google Maps ${r.status}: ${((await r.json().catch(() => ({}))) as {error?: {message?: string}}).error?.message?.slice(0, 160) ?? 'no detail'}`);
     const meters = ((await r.json().catch(() => ({}))) as {routes?: {distanceMeters?: number}[]}).routes?.[0]?.distanceMeters;
     const miles = meters ? meters / 1609.344 : null;
     if (cache.size > 2000) cache.clear();
@@ -73,7 +74,9 @@ const TERMS_UNIT = (days: number) => `This quote is valid for ${days} days from 
 Assumptions: standard service within the stated rate conditions; quantities and shipment details as provided. Please include any changes when accepting.`;
 const AVAILABILITY = 'Subject to equipment and service availability. This quotation does not reserve capacity or confirm a booking.';
 
-export type WrittenQuote = {body: string; method: 'tariff' | 'mileage' | 'unit_rates'; total: number | null; miles: number | null};
+export type WrittenQuote = {body: string; method: 'tariff' | 'mileage' | 'unit_rates'; total: number | null; miles: number | null;
+  /** Why the quote fell back to unit rates, when it did (Maps not set up, address not found, Maps error). */
+  note?: string};
 
 /**
  * The reply to a rate request, every word chosen by code. Returns null only when there is nothing
@@ -92,7 +95,9 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
       body: sign(`Our quote${lane ? ` for ${lane}` : ''} (USD):\n${lines.join('\n')}${est}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
   }
   if (!o.card) return null;
-  const miles = o.lane && o.distance ? await o.distance(o.lane.origin, o.lane.destination).catch(() => null) : null;
+  let note = !o.lane ? 'No pickup and delivery found in the email' : !o.distance ? 'Driving miles not set up (GOOGLE_MAPS_API_KEY)' : '';
+  const miles = o.lane && o.distance ? await o.distance(o.lane.origin, o.lane.destination).catch((e: unknown) => { note = e instanceof Error ? e.message : 'Google Maps failed'; return null; }) : null;
+  if (o.lane && o.distance && miles === null && !note) note = 'Google Maps found no driving route for these addresses';
   if (o.lane && miles) {
     const q = mileageQuote(o.card, miles, {accessorials: o.lane.accessorials ?? [], stops: Math.max(0, Math.min(20, o.lane.extra_stops ?? 0))});
     const breakdown = q.lines.map(l => `${l.label}: ${usd(l.amount)}`).join('\n');
@@ -103,5 +108,5 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
   const c = o.card;
   const rates = [`Transportation: ${usd(c.per_mile)} per mile${c.fuel_pct ? `, plus ${c.fuel_pct}% fuel surcharge` : ''}${c.minimum ? `; minimum ${usd(c.minimum)} per load` : ''}. Distance and final total subject to lane confirmation.`,
     ...c.accessorials.map(a => `${a.name}: ${usd(a.price)} per ${a.per}.`)];
-  return {method: 'unit_rates', total: null, miles: null, body: sign(`Our quoted rates (USD)${lane ? ` for ${lane}` : ''}:\n${rates.join('\n')}\n\n${TERMS_UNIT(days)}`)};
+  return {method: 'unit_rates', total: null, miles: null, note, body: sign(`Our quoted rates (USD)${lane ? ` for ${lane}` : ''}:\n${rates.join('\n')}\n\n${TERMS_UNIT(days)}`)};
 }
