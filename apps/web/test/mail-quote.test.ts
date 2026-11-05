@@ -92,3 +92,9 @@ test('no Maps route: estimate, and multi-lane notes appear once', async () => {
   assert.equal(q.body.match(/overweight \(lane 1\)/g)?.length, 1, 'conditions listed once');
   assert.match(q.body, /\(estimated miles\)/);
 });
+
+test('the chassis charged is not also listed as priced on confirmation', () => {
+  const q = mileageQuote(ONIXUS, 100, {accessorials: ['chassis split', 'storage'], stops: 0, drayage: true});
+  assert.ok(q.lines.some(l => l.label.startsWith('Chassis: 3 days')));
+  assert.deepEqual(q.unpriced, ['chassis split: priced on confirmation', 'storage: priced on confirmation']);
+});

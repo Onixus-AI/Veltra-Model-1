@@ -54,7 +54,8 @@ export function mileageQuote(m: RateCard, miles: number, extras: {accessorials: 
       asked.delete(a.name.toLowerCase());
       continue;
     }
-    const hit = [...asked].find(x => x === a.name.toLowerCase() || x.includes(a.name.toLowerCase()));
+    // Exact name first ("chassis"), else the first that contains it; others ("chassis split") stay as conditions.
+    const hit = asked.has(a.name.toLowerCase()) ? a.name.toLowerCase() : [...asked].find(x => x.includes(a.name.toLowerCase()));
     if (!hit) continue;
     asked.delete(hit);
     // Hours (detention, waiting) aren't known until the load moves: quoted as a rate.
