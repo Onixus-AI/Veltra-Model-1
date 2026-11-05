@@ -565,6 +565,7 @@ function Mail(s: Shared) {
   const waiting = data.threads.filter(t => t.state === 'waiting_on_us');
   return <>
     <Heading title="Onixus Mail" sub="Nothing is sent without approval. “Accepted by provider” means Gmail took the message; it is not proof of delivery." onRefresh={reload} loading={loading} at={at}/>
+    {s.isOwner && !s.preview && <MailWork s={s}/>}
     <section className="rev-panel" aria-labelledby="sync-h"><h2 id="sync-h">Mailbox sync</h2>
       {data.sync.length ? <ul className="rev-list">{data.sync.map(x => <li key={x.account_id}><Activity size={15} aria-hidden/><span>{x.mailbox ?? 'Mailbox'} ({x.provider}): <strong>{label(x.status)}</strong> · last synced {since(x.last_synced_at)} · {x.messages_synced} messages{x.last_error ? <span className="rev-warn"> — {x.last_error}{x.status === 'expired' ? '. Reconnect Google in Onixus Mail.' : ''}</span> : null}</span></li>)}</ul>
         : <Empty>No mailbox is syncing into this workspace yet. Connect Google in Onixus Mail; sync status will appear here.</Empty>}
@@ -598,6 +599,71 @@ function Mail(s: Shared) {
       {!data.messages.length && <Empty>No messages{filter ? ' with this status' : ''}.</Empty>}
     </section>
   </>;
+}
+
+// ---------- Mail's own work: what it sorted and wants to do, waiting for the owner ----------
+type MailItem = {id: string; from_email: string; from_name: string | null; subject: string; category: string | null; summary: string; priority: string; needs_owner: boolean;
+  owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean} | null; draft: string | null;
+  status: string; result: {error?: string; unsubscribe?: {detail?: string}} | null; created_at: string};
+type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null};
+const kindCopy: Record<string, string> = {JUNK: 'Junk', NEWSLETTER: 'Newsletter', COLD_OUTREACH: 'Cold pitch', NOTIFICATION: 'Notification', QUESTION: 'Question',
+  QUOTE_REQUEST: 'Quote request', DOCUMENT: 'Document', PERSONAL: 'Personal', OTHER: 'Other'};
+const doCopy = (i: MailItem) => i.plan?.action === 'trash' ? 'Delete (moves to Gmail Trash)' : i.plan?.action === 'archive' ? (i.plan.unsubscribe ? 'Unsubscribe and archive' : 'Archive')
+  : i.plan?.action === 'reply' ? (i.plan.purpose === 'QUOTE' ? 'Send this quote' : 'Send this reply') : 'No action';
+
+function MailWork({s}: {s: Shared}) {
+  const [tab, setTab] = useState<'pending' | 'done' | 'info' | 'failed'>('pending');
+  const [items, setItems] = useState<MailItem[] | null>(null);
+  const [settings, setSettings] = useState<MailSettings | null>(null);
+  const [edits, setEdits] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    try {
+      const [list, st] = await Promise.all([s.post<MailItem[]>('rpc/mail_items_list', {args: {p_status: tab}}), s.post<MailSettings>('rpc/mail_settings', {args: {p_settings: null}})]);
+      setItems(list); setSettings(st);
+    } catch (e) { s.setError(e instanceof Error ? e.message : 'Could not load Mail’s work.'); }
+  }, [s.post, tab]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [load, s.tick]);
+  const decide = async (i: MailItem, decision: 'approve' | 'skip') => {
+    const edited = edits[i.id];
+    await s.act('mail_item_decide', {p_id: i.id, p_decision: decision, p_draft: decision === 'approve' && edited !== undefined && edited !== i.draft ? edited : null},
+      decision === 'approve' ? 'Approved. Mail does it within a minute.' : 'Skipped. Mail will leave it alone.');
+  };
+  const approveAll = async (list: MailItem[]) => { for (const i of list) await decide(i, 'approve'); };
+  const save = (next: MailSettings) => { setSettings(next); void s.act('mail_settings', {p_settings: next}, 'Mail settings saved.'); };
+  const cleanup = (items ?? []).filter(i => tab === 'pending' && ['trash', 'archive'].includes(i.plan?.action ?? ''));
+  const toggleSend = (k: string, on: boolean) => settings && save({...settings, auto_send: on ? [...new Set([...settings.auto_send, k])] : settings.auto_send.filter(x => x !== k)});
+  return <section className="rev-panel" aria-labelledby="mw-h">
+    <div className="rev-heading"><h2 id="mw-h">Mail’s work</h2>
+      <div className="rev-actions" role="tablist">{(['pending', 'done', 'info', 'failed'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'primary' : undefined} onClick={() => setTab(t)}>
+        {t === 'pending' ? 'Waiting for you' : t === 'done' ? 'Done' : t === 'info' ? 'For your information' : 'Needs a look'}</button>)}</div></div>
+    <p className="rev-muted">Mail sorts each new email, labels it in Gmail (Onixus/…), drafts replies and quotes from your rates, and proposes clean-up. Nothing is sent, archived or deleted until you approve it, unless you turn that kind on below.</p>
+    {tab === 'pending' && cleanup.length > 1 && <div className="rev-actions"><button type="button" disabled={s.busy} onClick={() => void approveAll(cleanup)}>Approve all {cleanup.length} clean-ups</button></div>}
+    {items === null ? <p className="rev-muted">Loading…</p> : !items.length ? <Empty>{tab === 'pending' ? 'Nothing waiting for you.' : 'Nothing here yet.'}</Empty> :
+      <ul className="rev-messages">{items.map(i => <li key={i.id}>
+        <div className="rev-tl-head"><strong>{i.plan?.headline || i.subject || '(no subject)'}</strong><span className="rev-muted">{kindCopy[i.category ?? ''] ?? 'Unsorted'}{i.priority === 'URGENT' || i.priority === 'HIGH' ? ` · ${i.priority.toLowerCase()}` : ''}</span></div>
+        <small>From {i.from_name ? `${i.from_name} <${i.from_email}>` : i.from_email} · “{i.subject}” · {since(i.created_at)}</small>
+        {i.summary && <p>{i.summary}</p>}
+        {i.needs_owner && <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> Needs you{i.owner_reason ? `: ${i.owner_reason}` : ''}</p>}
+        {i.plan?.needs_review && <p className="rev-warn">No rate on file for this lane, so the reply says a rate will follow. Add the price before sending, or set rates in your TMS.</p>}
+        {i.plan?.action === 'reply' && (tab === 'pending'
+          ? <label className="rev-form">Reply<textarea rows={7} value={edits[i.id] ?? i.draft ?? ''} onChange={e => setEdits({...edits, [i.id]: e.target.value})}/></label>
+          : i.draft && <pre>{i.draft}</pre>)}
+        {i.result?.error && <p className="rev-warn">{i.result.error}</p>}
+        {i.result?.unsubscribe?.detail && <p className="rev-muted">{i.result.unsubscribe.detail}</p>}
+        {tab === 'pending' && <div className="rev-actions">
+          <button type="button" className="primary" disabled={s.busy || (i.plan?.action === 'reply' && !(edits[i.id] ?? i.draft ?? '').trim())} onClick={() => void decide(i, 'approve')}>{doCopy(i)}</button>
+          <button type="button" disabled={s.busy} onClick={() => void decide(i, 'skip')}>Skip</button></div>}
+      </li>)}</ul>}
+    {settings && <details className="rev-form"><summary>Autopilot (what Mail may do without asking)</summary>
+      <label><input type="checkbox" checked={settings.auto_clean} onChange={e => save({...settings, auto_clean: e.target.checked})}/> Clean the inbox on its own: archive newsletters, cold pitches and notifications{settings.delete_junk ? ', delete junk' : ''}</label>
+      <label><input type="checkbox" checked={settings.delete_junk} onChange={e => save({...settings, delete_junk: e.target.checked})}/> Junk it is sure about, with no attachment, goes to Gmail Trash (kept 30 days) instead of being archived</label>
+      <label><input type="checkbox" checked={settings.unsubscribe} onChange={e => save({...settings, unsubscribe: e.target.checked})}/> Unsubscribe from newsletters and cold pitches when archiving them</label>
+      <label><input type="checkbox" checked={settings.auto_send.includes('QUOTE_REQUEST')} onChange={e => toggleSend('QUOTE_REQUEST', e.target.checked)}/> Send quotes on its own when your rates price the lane</label>
+      <label><input type="checkbox" checked={settings.auto_send.includes('DOCUMENT')} onChange={e => toggleSend('DOCUMENT', e.target.checked)}/> Confirm receipt of documents (BOL, POD, rate confirmations) on its own</label>
+      <label><input type="checkbox" checked={settings.auto_send.includes('QUESTION')} onChange={e => toggleSend('QUESTION', e.target.checked)}/> Answer questions on its own</label>
+      <p className="rev-muted">Never on autopilot: anything Mail flags as needing you (complaints, claims, payment or legal issues), and quotes with no rate on file.</p>
+    </details>}
+  </section>;
 }
 
 function ThreadPanel({s, thread, identities, onClose}: {s: Shared; thread: Thread; identities: Json[]; onClose: () => void}) {

@@ -25,6 +25,8 @@ export type SyncOptions = {
   checkpoint?: boolean;
   /** Stop starting new pages after this time (ms since epoch); the saved position carries on next pass. */
   deadline?: number;
+  /** Sees each message after it is recorded (Mail's employee notes new inbound mail to sort). */
+  onMessage?: (m: ProviderMessage) => void;
 };
 
 export async function syncMailbox(o: {provider: MailProvider; cursor: string | null; ingest: MailIngest} & SyncOptions): Promise<SyncResult> {
@@ -46,6 +48,7 @@ export async function syncMailbox(o: {provider: MailProvider; cursor: string | n
         try {
           await o.ingest(toIngestEvent(m));
           ingested++;
+          o.onMessage?.(m);
         } catch (e) {
           // A message the database rejects as invalid would otherwise block the mailbox forever;
           // transient failures still stop the pass so the page is retried from the same cursor.
