@@ -5,6 +5,7 @@ import {brainFromEnv, type Brain} from './brain';
 import {actOnApproved, noteNew, sortSome, type Settings} from './employee';
 import {gmailActions} from './gmail-actions';
 import {tmsQuoteLane} from './tms';
+import {googleDistance} from './quote';
 
 // Mail runs inside Workspace (2026-11): Supabase keeps each mailbox's Google refresh token in Vault
 // and starts one single-use pass per mailbox every minute; this module connects Gmail and runs a pass.
@@ -77,6 +78,7 @@ export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; job
         business: {name: pass.business?.name || 'the business', industry: pass.business?.industry ?? ''},
         gmail: gmailActions(credentials, {fetcher: o.fetcher, apiUrl: o.gmailApiUrl, tokenUrl: o.tokenUrl}),
         quoteLane: tmsQuoteLane({url: env.TMS_API_URL, key: env.TMS_API_KEY, orgId: settings.tms_org_id, fetcher: o.fetcher}),
+        distance: env.GOOGLE_MAPS_API_KEY ? googleDistance(env.GOOGLE_MAPS_API_KEY, {fetcher: o.fetcher}) : null,
         deadline: started + budget};
       try {
         const noted = await noteNew(d, seen);
