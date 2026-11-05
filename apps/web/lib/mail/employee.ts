@@ -22,7 +22,17 @@ export type QuoteLane = (lane: NonNullable<NonNullable<Classification['quote']>[
 
 const CLEAN = new Set(['JUNK', 'NEWSLETTER', 'COLD_OUTREACH', 'NOTIFICATION']);
 const who = (m: ProviderMessage) => m.fromName || m.from;
-const greeting = (m: ProviderMessage) => { const first = m.fromName.trim().split(/\s+/)[0] ?? ''; return /^[A-Za-z][A-Za-z'-]{1,30}$/.test(first) ? `Hi ${first},` : 'Hello,'; };
+// Shared inboxes (dray@, dispatch@, quotes@…) often show their mailbox name as the sender name: no "Hi dray,".
+const ROLE = /^(dray(age)?|dispatch|ops|operations|info|sales|quotes?|rates?|pricing|logistics|freight|booking|bookings|import|export|support|admin|office|team|hello|contact|customer-?service|cs|accounts?|billing|ap|ar|noreply|no-?reply)$/i;
+export const greeting = (m: Pick<ProviderMessage, 'fromName' | 'from'>) => {
+  const first = m.fromName.trim().split(/\s+/)[0] ?? '';
+  const person = /^[A-Za-z][A-Za-z'-]{1,30}$/.test(first) && !ROLE.test(first);
+  return person ? `Hi ${first},` : 'Hello,';
+};
+// A rate request on a deadline (last free day, today/tomorrow, urgent) is at least HIGH, whatever the model said.
+const DEADLINE = /\b(urgent|asap|lfd|last free day|today|tomorrow|tmrw|cut-?off|expedite[d]?|hot load|same day)\b/i;
+export const withDeadlinePriority = (c: Classification, e: {subject: string; text: string}): Classification =>
+  c.category === 'QUOTE_REQUEST' && (c.priority === 'NORMAL' || c.priority === 'LOW') && DEADLINE.test(`${e.subject}\n${e.text.slice(0, 3000)}`) ? {...c, priority: 'HIGH'} : c;
 const signatureOf = (d: Pick<EmployeeDeps, 'settings' | 'business'>) => d.settings.signature?.trim() || `${d.business.name} team`;
 
 /** What to do with one sorted email. Junk is deleted only when sure and attachment-free. */
@@ -73,7 +83,7 @@ export async function sortSome(d: EmployeeDeps): Promise<{sorted: number; skippe
       const m = await d.gmail.get(item.provider_message_id, d.mailbox);
       const unsub = d.settings.unsubscribe ? await d.gmail.unsubscribeHeaders(m.providerMessageId).catch(() => ({listUnsubscribe: undefined})) : {listUnsubscribe: undefined};
       const email = {from: m.from, fromName: m.fromName, subject: m.subject, text: m.text, attachments: m.attachments};
-      const c = ruleClassification({...email, listUnsubscribe: unsub.listUnsubscribe ?? null}) ?? await d.brain.classify(email, d.business);
+      const c = withDeadlinePriority(ruleClassification({...email, listUnsubscribe: unsub.listUnsubscribe ?? null}) ?? await d.brain.classify(email, d.business), email);
       const plan = planFor(c, m, d.settings);
       let draft: string | null = null;
       if (plan.action === 'reply' && plan.purpose === 'QUOTE') {

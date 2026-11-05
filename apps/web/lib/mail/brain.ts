@@ -42,7 +42,7 @@ const TOOL = {
       category: {type: 'string', enum: CATEGORIES, description: 'JUNK: spam, phishing, scams. NEWSLETTER: marketing and newsletters. COLD_OUTREACH: unsolicited sales pitches to the business. NOTIFICATION: automated receipts, alerts, system mail. QUESTION: a customer or prospect asking something. QUOTE_REQUEST: someone asking the business for a price or rate. DOCUMENT: a customer or partner sending a document (BOL, POD, rate confirmation, invoice, order). PERSONAL: personal mail. OTHER: anything else.'},
       confidence: {type: 'number', minimum: 0, maximum: 1},
       summary: {type: 'string', description: 'One sentence: who wants what.'},
-      priority: {type: 'string', enum: ['URGENT', 'HIGH', 'NORMAL', 'LOW'], description: 'URGENT: a dispute, legal threat, payment problem, safety issue or a deadline today or tomorrow. HIGH: a large opportunity or unhappy customer. LOW: can wait or needs no reply.'},
+      priority: {type: 'string', enum: ['URGENT', 'HIGH', 'NORMAL', 'LOW'], description: 'URGENT: a dispute, legal threat, payment problem, safety issue or a deadline today or tomorrow. A rate request with a last free day, pickup today or tomorrow, or marked urgent is at least HIGH. HIGH: a large opportunity or unhappy customer. LOW: can wait or needs no reply.'},
       needs_owner: {type: 'boolean', description: 'True for an angry customer, a claim or damage, a legal or payment problem, or anything urgent a person must handle today.'},
       owner_reason: {type: ['string', 'null']},
       quote: {type: ['object', 'null'], description: 'For QUOTE_REQUEST only.', properties: {
