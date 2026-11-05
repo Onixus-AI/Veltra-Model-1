@@ -6,6 +6,7 @@ import {
   workspaceBusiness,
   activeWorkspaceTool,
   readWorkspacePreferences,
+  withTms,
 } from "../lib/workspace-navigation";
 import { readAppearance } from "../lib/workspace-appearance";
 
@@ -43,6 +44,8 @@ test("saved tools keep user order, deduplicate and discard unavailable or perman
     }).tools,
     ["mail", "crm"],
   );
+  assert.deepEqual(withTms(["chat", "mail", "crm", "tms"]), ["chat", "mail", "tms", "crm"], "TMS follows Mail in the menu");
+  assert.deepEqual(withTms(["chat", "crm"]), ["chat", "crm"], "no Mail, no TMS");
   assert.equal(
     readWorkspacePreferences({ version: 1, name: "  Operations  ", tools: [] })
       .name,
