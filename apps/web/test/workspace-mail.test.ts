@@ -46,7 +46,8 @@ test('a pass with Google sign-in unconfigured reports the problem instead of fai
 test('sign-in asks Google for a lasting Gmail read and send grant, bound to the state', () => {
   const u = new URL(googleSignInUrl({clientId: 'cid', clientSecret: 's'}, 'https://app.test', 'st4te'));
   assert.equal(u.searchParams.get('redirect_uri'), 'https://app.test/api/mail/google/callback');
-  assert.deepEqual([u.searchParams.get('access_type'), u.searchParams.get('prompt'), u.searchParams.get('state')], ['offline', 'consent', 'st4te']);
+  assert.deepEqual([u.searchParams.get('access_type'), u.searchParams.get('prompt'), u.searchParams.get('state')], ['offline', 'consent select_account', 'st4te']);
+  // select_account: the owner picks which Gmail to add (info@, o.harris@…), not whichever is signed in.
   assert.deepEqual(u.searchParams.get('scope')!.split(' '), GMAIL_SCOPES);
   assert.equal(u.searchParams.get('client_secret'), null, 'the secret never goes to the browser');
 });
