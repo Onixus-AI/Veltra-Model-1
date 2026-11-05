@@ -39,7 +39,8 @@ export function sourcePage(raw:unknown,phase:number,cursor:number){
  const more=ordered.length>100;
  return {leads,next_phase:more?phase:phase+1,next_cursor:more?page.at(-1)!.id:0,exhausted:!more&&phase===2};
 }
-export async function discoverPage(job:{provider?:string;category:string;bounds:Bounds;phase:number;cursor:number},fetcher:typeof fetch=fetch){
+export async function discoverPage(job:{provider?:string;category:string;bounds:Bounds;phase:number;cursor:number;search_text?:string|null},fetcher:typeof fetch=fetch,options:{placesKey?:string}={}){
+ if(job.provider==='google_places')return discoverPlacesPage({search_text:job.search_text??'',cursor:job.cursor},fetcher,options.placesKey??'');
  if(job.provider&&job.provider!=='openstreetmap')return discoverRegistryPage({provider:job.provider,cursor:job.cursor},fetcher);
  const response=await fetcher('https://overpass-api.de/api/interpreter',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','User-Agent':'VeltraCRM/1.0 (https://veltra.ai)'},body:new URLSearchParams({data:sourceQuery(job.category,job.bounds,job.phase,job.cursor)}),redirect:'error',signal:AbortSignal.timeout(25000)});
  if(!response.ok)throw Error('Open map source unavailable ('+response.status+'); retry scheduled.');
@@ -78,4 +79,53 @@ export async function discoverRegistryPage(job:{provider:string;cursor:number},f
  if(!response.ok)throw Error('Business registry unavailable ('+response.status+'); retry scheduled.');
  const text=await response.text();if(text.length>1000000)throw Error('Registry page exceeds the size limit.');
  return registryPage(job.provider,JSON.parse(text),job.cursor);
+}
+/**
+ * Google Places (New) Text Search, Enterprise fields: name, address, phone, website.
+ * One run reads at most three pages (60 businesses), then the source rests for 30 days.
+ * Places never returns email; a listing with no website is kept and flagged by its empty website.
+ */
+export const PLACES_ENDPOINT='https://places.googleapis.com/v1/places:searchText';
+export const PLACES_FIELD_MASK='places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.businessStatus,nextPageToken';
+export const PLACES_MAX_PAGES=3;
+export function placesSearchText(value:unknown):string{
+ if(typeof value!=='string')throw Error('Describe the businesses to find, for example "plumbers in Broward County, FL".');
+ const text=value.trim().replace(/\s+/g,' ');
+ if(text.length<3||text.length>160)throw Error('Describe the businesses to find in 3 to 160 characters.');
+ return text;
+}
+export function placeSourceUrl(id:string){return 'https://www.google.com/maps/place/?q=place_id:'+id;}
+type Place={id?:unknown;displayName?:{text?:unknown};formattedAddress?:unknown;nationalPhoneNumber?:unknown;websiteUri?:unknown;businessStatus?:unknown};
+export function placesLeads(raw:unknown){
+ const data=raw as {places?:Place[];nextPageToken?:unknown};
+ if(data===null||typeof data!=='object'||(data.places!==undefined&&!Array.isArray(data.places)))throw Error('Google Places returned an invalid page.');
+ const places=data.places??[];
+ if(places.length>20)throw Error('Google Places returned more results than requested.');
+ const leads=places.flatMap(p=>{
+  if(typeof p.id!=='string'||!/^[A-Za-z0-9_-]{10,255}$/.test(p.id))return [];
+  if(p.businessStatus==='CLOSED_PERMANENTLY')return [];
+  const company=(typeof p.displayName?.text==='string'?p.displayName.text:'').trim().slice(0,200);if(!company)return [];
+  let website='';try{const u=new URL(typeof p.websiteUri==='string'?p.websiteUri:'');if(['https:','http:'].includes(u.protocol)&&!u.username&&!u.password)website=u.href.slice(0,1000);}catch{}
+  return [{source_key:'google_places/'+p.id,source_url:placeSourceUrl(p.id),company,email:null,website,phone:(typeof p.nationalPhoneNumber==='string'?p.nationalPhoneNumber:'').slice(0,80),location:(typeof p.formattedAddress==='string'?p.formattedAddress:'').slice(0,200)}];
+ });
+ return {leads,next:typeof data.nextPageToken==='string'&&data.nextPageToken?data.nextPageToken:null};
+}
+export async function discoverPlacesPage(job:{search_text:string;cursor:number},fetcher:typeof fetch=fetch,apiKey=''){
+ if(!apiKey)throw Error('Google Places key is not configured; add GOOGLE_PLACES_API_KEY to the discovery worker.');
+ const textQuery=placesSearchText(job.search_text);
+ const seen=new Set<string>(),leads:ReturnType<typeof placesLeads>['leads']=[];
+ let pageToken:string|null=null;
+ for(let page=0;page<PLACES_MAX_PAGES;page++){
+  const body:Record<string,unknown>={textQuery,pageSize:20};if(pageToken)body.pageToken=pageToken;
+  const response=await fetcher(PLACES_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':apiKey,'X-Goog-FieldMask':PLACES_FIELD_MASK},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(20000)});
+  if(!response.ok){
+   if(page>0)break;
+   throw Error(response.status===429?'Google Places daily limit reached; retry scheduled.':'Google Places unavailable ('+response.status+'); retry scheduled.');
+  }
+  const text=await response.text();if(text.length>500000)throw Error('Google Places page exceeds the size limit.');
+  const result=placesLeads(JSON.parse(text));
+  for(const lead of result.leads)if(!seen.has(lead.source_key)){seen.add(lead.source_key);leads.push(lead);}
+  pageToken=result.next;if(!pageToken)break;
+ }
+ return {leads,next_phase:3,next_cursor:job.cursor,exhausted:true};
 }
