@@ -603,7 +603,7 @@ function Mail(s: Shared) {
 
 // ---------- Mail's own work: what it sorted and wants to do, waiting for the owner ----------
 type MailItem = {id: string; from_email: string; from_name: string | null; subject: string; category: string | null; summary: string; priority: string; needs_owner: boolean;
-  owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean; quote_method?: string} | null; draft: string | null;
+  owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean; quote_method?: string; quote_note?: string} | null; draft: string | null;
   status: string; result: {error?: string; unsubscribe?: {detail?: string}} | null; created_at: string};
 type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour'}[]};
 type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
@@ -674,7 +674,7 @@ function MailWork({s}: {s: Shared}) {
         {i.summary && <p>{i.summary}</p>}
         {i.needs_owner && <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> Needs you{i.owner_reason ? `: ${i.owner_reason}` : ''}</p>}
         {i.plan?.needs_review && <p className="rev-warn">No rates are set, so the reply says a rate will follow. Add your rates under “Rates and quote signature” below, or put the price in the reply.</p>}
-        {i.plan?.quote_method && <p className="rev-muted">{methodCopy[i.plan.quote_method] ?? ''}</p>}
+        {i.plan?.quote_method && <p className="rev-muted">{methodCopy[i.plan.quote_method] ?? ''}{i.plan.quote_note ? `: ${i.plan.quote_note}` : ''}</p>}
         {i.plan?.action === 'reply' && (tab === 'pending'
           ? <label className="rev-form">Reply<textarea rows={7} value={edits[i.id] ?? i.draft ?? ''} onChange={e => setEdits({...edits, [i.id]: e.target.value})}/></label>
           : i.draft && <pre>{i.draft}</pre>)}

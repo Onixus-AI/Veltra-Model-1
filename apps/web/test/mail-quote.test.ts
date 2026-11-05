@@ -24,6 +24,8 @@ test('every quote carries the disclaimers and the signature; nothing to quote fr
   assert.equal(await writeQuote({lane: null, tms: null, card: null, distance: null, signature: 'S'}), null);
   const failing = (await writeQuote({lane: {origin: 'a', destination: 'b'}, tms: null, card: CARD, distance: async () => { throw new Error('maps down'); }, signature: 'S'}))!;
   assert.equal(failing.method, 'unit_rates', 'a Maps failure falls back to unit rates');
+  assert.equal(failing.note, 'maps down', 'and says why');
+  assert.match((await writeQuote({lane: {origin: 'a', destination: 'b'}, tms: null, card: CARD, distance: null, signature: 'S'}))!.note!, /not set up/);
 });
 
 test('rate cards are checked; Google distance returns miles or null', async () => {
@@ -33,5 +35,5 @@ test('rate cards are checked; Google distance returns miles or null', async () =
   assert.ok(!validRateCard(null));
   const d = googleDistance('k', {fetcher: (async () => Response.json({routes: [{distanceMeters: 160934.4}]})) as typeof fetch});
   assert.equal(Math.round((await d('a', 'b'))!), 100);
-  assert.equal(await googleDistance('k', {fetcher: (async () => new Response('no', {status: 403})) as typeof fetch})('a', 'b'), null);
+  await assert.rejects(googleDistance('k', {fetcher: (async () => Response.json({error: {message: 'Routes API has not been used in project 123'}}, {status: 403})) as typeof fetch})('a', 'b'), /Google Maps 403: Routes API has not been used/);
 });
