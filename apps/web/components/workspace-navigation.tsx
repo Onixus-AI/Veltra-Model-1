@@ -19,9 +19,12 @@ import {
   X,
   ArrowUp,
   ArrowDown,
+  Truck,
 } from "lucide-react";
 import {
   workspaceTools,
+  businessOsTools,
+  withTms,
   workspaceHref,
   readWorkspacePreferences,
   type WorkspacePreferences,
@@ -36,6 +39,7 @@ const icons = {
   chat: MessageSquare,
   crm: Contact,
   mail: Mail,
+  tms: Truck,
   calendar: CalendarDays,
   signal: Radio,
   files: FolderOpen,
@@ -46,6 +50,8 @@ const icons = {
   connections: Plug,
   settings: Settings,
 };
+const isBusinessOs = (id: WorkspaceToolId) => (businessOsTools as readonly string[]).includes(id);
+
 export default function WorkspaceNavigation({
   business = "",
   active,
@@ -84,7 +90,7 @@ export default function WorkspaceNavigation({
       return { ...previous, tools };
     });
   }
-  const visible = [...preferences.tools];
+  const visible = withTms(preferences.tools);
   // An open tool remains reachable even when it isn't pinned.
   if (
     active &&
@@ -122,7 +128,13 @@ export default function WorkspaceNavigation({
     <>
       <nav className="workspace-tool-navigation" aria-label="Workspace tools">
         <span className="workspace-navigation-name">{preferences.name}</span>
-        {visible.map(item)}
+        {visible.filter((id) => !isBusinessOs(id)).map(item)}
+        {visible.some(isBusinessOs) && (
+          <div className="workspace-navigation-group" role="group" aria-label="Business OS">
+            <span className="workspace-navigation-group-name">Business OS</span>
+            {visible.filter(isBusinessOs).map(item)}
+          </div>
+        )}
         <div className="workspace-navigation-settings">
           {item("connections")}
           {item("settings")}
@@ -187,7 +199,8 @@ export default function WorkspaceNavigation({
                 (id) =>
                   !draft.tools.includes(id) &&
                   id !== "connections" &&
-                  id !== "settings",
+                  id !== "settings" &&
+                  id !== "tms", // TMS follows Mail; it is not a separate choice
               ),
           ].map((id) => {
             const tool = workspaceTools.find((tool) => tool.id === id)!,

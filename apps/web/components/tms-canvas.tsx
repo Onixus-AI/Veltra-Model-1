@@ -1,16 +1,21 @@
 'use client';
 import ToolLogo from '@/components/tool-logo';
-import {useEffect,useState,type FormEvent} from 'react';
-import {gatewayAuthorizationHeaders} from '@/lib/client-session';
-import {browserSupabase} from '@/lib/supabase';
-type Tms={connected:boolean;mailbox?:{email:string};operations?:{jobs:{id:string;title:string;status:string;payment_status:string;amount_cents:number|null}[];profile:{modules:string[];service_area:string}|null;connections:{calendar:boolean;stripe:boolean;mail:boolean};scope:string}};
-export default function TmsCanvas(){
- const [data,setData]=useState<Tms|null>(null),[error,setError]=useState(''),[busy,setBusy]=useState(false),[spaces,setSpaces]=useState<{id:string;name:string}[]>([]);
- async function call(method='GET',body?:unknown){const r=await fetch('/api/mail/tms',{method,headers:{...await gatewayAuthorizationHeaders(),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,cache:'no-store'});const d=await r.json();if(!r.ok)throw new Error(d.error??'TMS unavailable.');return d as Tms;}
- async function load(){setError('');try{setData(await call());}catch(e){setError(e instanceof Error?e.message:'TMS unavailable.');}}
- useEffect(()=>{let live=true;void call().then(d=>{if(live)setData(d);}).catch(e=>{if(live)setError(e.message);});const db=browserSupabase();if(db)void db.from('crm_workspaces').select('id,name').then(r=>{if(live&&!r.error)setSpaces(r.data??[]);});return()=>{live=false;};},[]);
- async function connect(e:FormEvent<HTMLFormElement>){e.preventDefault();const form=e.currentTarget,f=new FormData(form);setBusy(true);setError('');try{await call('POST',{connection_code:f.get('code'),...(f.get('workspace')?{workspace_id:f.get('workspace')}:{})});form.reset();await load();}catch(e){setError(e instanceof Error?e.message:'Connection failed.');}finally{setBusy(false);}}
- return <div className="workspace-tool-state tms-canvas"><h2><ToolLogo name="Onixus TMS"/> Onixus TMS</h2><p>Business OS · Transport operations</p><div className="actions"><a href="https://onixus-tms.vercel.app/" target="_blank" rel="noreferrer">Open full TMS workspace ↗</a><button onClick={()=>void load()} disabled={busy}>Refresh</button></div>{error&&<p role="alert">{error}</p>}
- {!data?.connected?<><p>Use the same business owner account in TMS and Onixus Mail. In TMS Operations, prepare the Mail / CRM connection, then paste its private connection code below. Your existing Mail inbox will be used.</p><form onSubmit={connect}><label>Connection code<input name="code" type="password" required autoComplete="off" maxLength={2000}/></label><label>CRM workspace<select name="workspace"><option value="">Keep current CRM connection</option>{spaces.map(s=><option value={s.id} key={s.id}>{s.name}</option>)}</select></label><button disabled={busy}>{busy?'Connecting…':'Connect TMS, Mail and CRM'}</button></form></>:<><p>Inbox: {data.mailbox?.email??'Connect a mailbox in Onixus Mail'}</p><p>Services: {data.operations?.profile?.modules.join(', ')||'Select your services in TMS Operations'}</p><p>{data.operations?.profile?.service_area}</p><p>Calendar: {data.operations?.connections.calendar?'Connected':'Needs authorization'} · Payments: {data.operations?.connections.stripe?'Connected':'Needs setup'}</p><h3>Service jobs</h3>{!data.operations?.jobs.length&&<p>No service jobs recorded yet.</p>}{data.operations?.jobs.map(j=><article key={j.id}><strong>{j.title}</strong><p>{j.status} · {j.payment_status}{j.amount_cents?` · $${(j.amount_cents/100).toFixed(2)}`:''}</p></article>)}<small>{data.operations?.scope}</small><p>Open the full workspace to review quotes, create payment links and book services.</p><button disabled={busy} onClick={()=>{setBusy(true);void call('DELETE').then(()=>setData({connected:false})).catch(e=>setError(e.message)).finally(()=>setBusy(false));}}>Disconnect TMS from Mail</button></>}
- </div>;
+
+// Onixus TMS in Workspace (Business OS). The TMS runs at its own address (Vercel, since 2026-11);
+// this panel opens it. The old in-panel connect form went through Railway Mail, which is retired.
+const TMS_URL = 'https://onixus-tms.vercel.app/';
+
+export default function TmsCanvas() {
+  return <div className="workspace-tool-state tms-canvas">
+    <h2><ToolLogo name="Onixus TMS"/> Onixus TMS</h2>
+    <p>Business OS · Transport operations</p>
+    <p>Loads, dispatch, drivers, fleet, billing and quotes for drayage, OTR and other transport services. Sign in with the same email you use here.</p>
+    <div className="actions"><a className="button" href={TMS_URL} target="_blank" rel="noreferrer">Open Onixus TMS ↗</a></div>
+    <h3>First time?</h3>
+    <ol>
+      <li>Open the TMS and create your company.</li>
+      <li>Setup asks what you run (drayage, OTR and your equipment, warehousing and more) and what to connect.</li>
+      <li>Rates you save in the TMS are what Onixus Mail quotes from.</li>
+    </ol>
+  </div>;
 }

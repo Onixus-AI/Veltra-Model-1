@@ -1,4 +1,7 @@
 /** Shared navigation metadata. No React, browser storage, or authorization logic. */
+/** The business tools, shown together under "Business OS" in the menu. TMS is not a separate
+ * menu choice: it shows wherever Mail does (see withTms), so saved menus get it too. */
+export const businessOsTools = ["crm", "mail", "tms", "calendar", "signal"] as const;
 export const workspaceTools = [
   { id: "overview", label: "Overview", path: "/workspace" },
   { id: "pathway", label: "Build & Growth", path: "/workspace/build" },
@@ -6,6 +9,7 @@ export const workspaceTools = [
   { id: "chat", label: "Onyx", path: "/", view: "chat" },
   { id: "crm", label: "CRM", path: "/", canvas: "crm" },
   { id: "mail", label: "Mail", path: "/", canvas: "mail" },
+  { id: "tms", label: "TMS", path: "/", canvas: "tms" },
   { id: "calendar", label: "Calendar", path: "/", canvas: "calendar" },
   { id: "signal", label: "Signal", path: "/", canvas: "signal" },
   { id: "files", label: "Docs & Sheets", path: "/workspace/files" },
@@ -20,6 +24,7 @@ export type WorkspaceToolId = (typeof workspaceTools)[number]["id"];
 export type CanvasTool =
   | "crm"
   | "mail"
+  | "tms"
   | "calendar"
   | "signal"
   | "build"
@@ -110,4 +115,12 @@ export function readWorkspacePreferences(value: unknown): WorkspacePreferences {
         : defaultWorkspacePreferences.name,
     tools,
   };
+}
+
+/** TMS sits right after Mail in the menu; it follows Mail rather than being saved on its own. */
+export function withTms(tools: readonly WorkspaceToolId[]): WorkspaceToolId[] {
+  const list: WorkspaceToolId[] = tools.filter((id) => id !== "tms");
+  const at = list.indexOf("mail");
+  if (at >= 0) list.splice(at + 1, 0, "tms");
+  return list;
 }

@@ -410,7 +410,7 @@ export default function OnyxWorkspace() {
   const business=(crmOpen?crmScope?.workspace_id:cloud?.workspace_id)||selectedBusiness;
   useEffect(()=>{const id=crmOpen?crmScope?.workspace_id:cloud?.workspace_id;if(id)rememberBusiness(id);},[cloud?.workspace_id,crmScope?.workspace_id,crmOpen]);
   function openWorkspaceTool(id:WorkspaceToolId){
-    const local=id==='chat'||id==='crm'||id==='mail'||id==='calendar'||id==='signal'||id==='build'||id==='code';
+    const local=id==='chat'||id==='crm'||id==='mail'||id==='tms'||id==='calendar'||id==='signal'||id==='build'||id==='code';
     if(!local)return false;
     const href=workspaceHref(id,business);
     if(location.pathname+location.search!==href)history.pushState(null,'',href);
@@ -448,7 +448,7 @@ export default function OnyxWorkspace() {
       </nav>
       {accessRequest&&<TaskAccessDialog request={accessRequest} onDecision={answerAppAccess}/>}
       <aside ref={sidebar} role={mobileNavigation&&sidebarOpen?"dialog":undefined} aria-modal={mobileNavigation&&sidebarOpen?true:undefined} id="workspace-sidebar" className="workspace-sidebar" aria-label="Workspace sidebar">
-        <WorkspaceNavigation business={business} active={!canvasVisible?'chat':crmOpen?'crm':mailOpen?'mail':calendarOpen?'calendar':signalOpen?'signal':buildOpen?'build':codeOpen?'code':null} onOpen={openWorkspaceTool}/>
+        <WorkspaceNavigation business={business} active={!canvasVisible?'chat':crmOpen?'crm':mailOpen?'mail':tmsOpen?'tms':calendarOpen?'calendar':signalOpen?'signal':buildOpen?'build':codeOpen?'code':null} onOpen={openWorkspaceTool}/>
         <nav aria-label="Additional workspace actions">
           <details className="workspace-more-tools"><summary title="More tools"><MoreHorizontal size={17}/><span>More tools</span></summary><div>
           <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
