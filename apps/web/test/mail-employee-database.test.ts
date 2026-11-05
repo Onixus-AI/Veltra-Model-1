@@ -39,6 +39,7 @@ async function database() {
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105090000_mail_employee.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105110000_mail_quotes.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105190000_mail_rate_card_days.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261105210000_mail_second_mailbox.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
@@ -134,5 +135,20 @@ test('the rate card and signature are saved with the settings; bad rates are ref
   for (const bad of [{...card, per_mile: 0}, {...card, accessorials: [{name: 'x', price: 1, per: 'mile'}]}, {...card, fuel_pct: 'ten'}, {...card, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 2.5}]}])
     await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({...base, rate_card: bad})]), /Invalid/);
   await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({...base, quote_valid_days: 0})]), /Invalid/);
+  await db.close();
+});
+
+test('a second mailbox in the workspace starts with the same rates and signature', async () => {
+  const {db} = await database();
+  await as(db, OWNER);
+  const card = {per_mile: 2.5, minimum: 350, fuel_pct: 0, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 3}]};
+  await db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({auto_clean: false, delete_junk: true, unsubscribe: false, auto_send: [], rate_card: card, signature: 'Onixus Inc'})]);
+  const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
+  await db.query(`select public.mail_google_complete($1,$2,'o.harris@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
+  const second = await one<{rate_card: unknown; signature: string}>(db, `select settings r from crm_private.mail_google where mailbox='o.harris@hampton.test'`);
+  assert.deepEqual([second.rate_card, second.signature], [card, 'Onixus Inc']);
+  const other = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [OTHER]);
+  await db.query(`select public.mail_google_complete($1,$2,'ops@other.test')`, [other.state, 'refresh-'.repeat(4)]);
+  assert.equal(await one<unknown>(db, `select settings->'rate_card' r from crm_private.mail_google where mailbox='ops@other.test'`), null, 'never from another workspace');
   await db.close();
 });
