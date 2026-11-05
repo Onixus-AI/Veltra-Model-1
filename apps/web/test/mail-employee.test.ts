@@ -93,8 +93,16 @@ test('a rate request is answered with a rate written by code, with the disclaime
   assert.deepEqual(tms.gmail, ['label q1 Onixus/Quote requests'], 'sorting only labels; nothing is archived or sent yet');
   assert.equal(tms.sent.length, 0);
 
-  // No saved lane and no distance: the rate card as unit rates.
+  // No Maps route: miles estimated from ZIP/city, labeled as estimated.
+  const est = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, rate_card: CARD}});
+  await sortSome(est.d);
+  assert.match(est.recorded()[0]!.draft!, /Linehaul: \d+ mi each way, round trip \d+ mi × \$2\.50\/mi \(estimated miles\)/);
+  assert.match(est.recorded()[0]!.draft!, /Estimated miles are confirmed before booking/);
+  assert.match((est.recorded()[0]!.plan as {quote_note?: string}).quote_note!, /Miles estimated from ZIP\/city/);
+
+  // Nothing to measure or estimate: the rate card as unit rates.
   const card = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, rate_card: CARD}});
+  card.d.estimate = null;
   await sortSome(card.d);
   const [c] = card.recorded();
   assert.equal(c!.plan.needs_review, false);

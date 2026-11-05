@@ -20,6 +20,8 @@ export const isDrayage = (l: Pick<Lane, 'equipment_type' | 'container_size' | 'o
   l.equipment_type === 'CONTAINER' || !!l.container_size || PORTISH.test(`${l.origin} ${l.destination}`);
 const perLabel = (a: Accessorial) => a.per === 'day' ? `per day${a.min && a.min > 1 ? ` (${a.min}-day minimum)` : ''}` : `per ${a.per}`;
 export type Distance = (from: string, to: string) => Promise<number | null>;
+/** Fallback when Maps has no route: estimated miles from ZIP or city (see places.ts). */
+export type Estimate = (from: string, to: string) => number | null;
 export type QuoteLine = {label: string; amount: number};
 
 export const DEFAULT_VALID_DAYS = 3;
@@ -66,6 +68,10 @@ export function mileageQuote(m: RateCard, miles: number, extras: {accessorials: 
   return {miles: Math.round(miles), lines, total, unpriced};
 }
 
+const lastNoRoute = new Map<string, string>();
+/** Why Google found no route for this pair, when it said (for the quote's note). */
+export const noRouteReason = (from: string, to: string) => lastNoRoute.get(`${from}→${to}`) ?? lastNoRoute.get(`${from}, USA→${to}, USA`);
+
 /** Driving distance from Google Maps (Routes API); null when it can't be measured. */
 export function googleDistance(apiKey: string, o: {fetcher?: typeof fetch; url?: string} = {}): Distance {
   const cache = new Map<string, number | null>();
@@ -73,12 +79,18 @@ export function googleDistance(apiKey: string, o: {fetcher?: typeof fetch; url?:
     const key = `${from.trim().toLowerCase()}→${to.trim().toLowerCase()}`;
     if (cache.has(key)) return cache.get(key)!;
     const r = await (o.fetcher ?? fetch)(o.url ?? 'https://routes.googleapis.com/directions/v2:computeRoutes', {method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000),
-      headers: {'content-type': 'application/json', 'x-goog-api-key': apiKey, 'x-goog-fieldmask': 'routes.distanceMeters'},
+      headers: {'content-type': 'application/json', 'x-goog-api-key': apiKey, 'x-goog-fieldmask': 'routes.distanceMeters,geocodingResults'},
       body: JSON.stringify({origin: {address: from}, destination: {address: to}, travelMode: 'DRIVE', units: 'IMPERIAL'})});
     // Say why Maps refused (key missing a permission, billing off, API not enabled): the quote records it.
     if (!r.ok) throw new Error(`Google Maps ${r.status}: ${((await r.json().catch(() => ({}))) as {error?: {message?: string}}).error?.message?.slice(0, 160) ?? 'no detail'}`);
-    const meters = ((await r.json().catch(() => ({}))) as {routes?: {distanceMeters?: number}[]}).routes?.[0]?.distanceMeters;
+    type Geo = {geocoderStatus?: {code?: number; message?: string}};
+    const data = (await r.json().catch(() => ({}))) as {routes?: {distanceMeters?: number}[]; geocodingResults?: {origin?: Geo; destination?: Geo}};
+    const meters = data.routes?.[0]?.distanceMeters;
     const miles = meters ? meters / 1609.344 : null;
+    // No route: say which address Google could not place, when it says so.
+    const geo = (g?: Geo) => g?.geocoderStatus?.code ? g.geocoderStatus.message ?? `code ${g.geocoderStatus.code}` : '';
+    if (!miles && (geo(data.geocodingResults?.origin) || geo(data.geocodingResults?.destination)))
+      lastNoRoute.set(`${from}→${to}`, `Google Maps could not place ${[geo(data.geocodingResults?.origin) && 'the pickup', geo(data.geocodingResults?.destination) && 'the delivery'].filter(Boolean).join(' or ')}`);
     if (cache.size > 2000) cache.clear();
     cache.set(key, miles);
     return miles;
@@ -100,7 +112,7 @@ export type WrittenQuote = {body: string; method: 'tariff' | 'mileage' | 'unit_r
  * to quote from (no TMS rate and no rate card): then a person prices it.
  */
 export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unknown> | null; card: RateCard | null; distance: Distance | null;
-  signature: string; validDays?: number; greeting?: string}): Promise<WrittenQuote | null> {
+  estimate?: Estimate | null; signature: string; validDays?: number; greeting?: string}): Promise<WrittenQuote | null> {
   const days = o.validDays ?? DEFAULT_VALID_DAYS;
   const sign = (body: string) => `${o.greeting ? o.greeting + '\n\n' : ''}${body}\n\n${o.signature}`.trim();
   const tmsLane = o.lane ? `${o.lane.origin} to ${o.lane.destination}` : '';
@@ -117,30 +129,38 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
   // Several delivery points: each gets its own price.
   const stops = l ? (l.destinations?.filter(d => d.trim()).length ?? 0) > 1 ? l.destinations!.filter(d => d.trim()) : [l.destination] : [];
   let note = !l ? 'No pickup and delivery found in the email' : !o.distance ? 'Driving miles not set up (GOOGLE_MAPS_API_KEY)' : '';
-  const measure = async (to: string) => {
-    if (!l || !o.distance) return null;
-    try {
-      // Google sometimes finds no route for a bare city or port name: try once more as a US address.
-      return (await o.distance(l.origin, to)) ?? (await o.distance(`${l.origin}, USA`, `${to}, USA`));
-    } catch (e) { note = e instanceof Error ? e.message : 'Google Maps failed'; return null; }
+  // Google first, then Google again as a US address, then miles estimated from ZIP or city.
+  const measure = async (to: string): Promise<{miles: number; estimated: boolean} | null> => {
+    if (!l) return null;
+    if (o.distance) {
+      try {
+        const miles = (await o.distance(l.origin, to)) ?? (await o.distance(`${l.origin}, USA`, `${to}, USA`));
+        if (miles) return {miles, estimated: false};
+        note = noRouteReason(l.origin, to) ?? 'Google Maps found no driving route for these addresses';
+      } catch (e) { note = e instanceof Error ? e.message : 'Google Maps failed'; }
+    }
+    const est = o.estimate?.(l.origin, to) ?? null;
+    return est ? {miles: est, estimated: true} : null;
   };
-  const priced: {to: string; q: ReturnType<typeof mileageQuote> | null}[] = [];
+  const priced: {to: string; q: ReturnType<typeof mileageQuote> | null; estimated: boolean}[] = [];
   for (const to of stops.slice(0, 10)) {
-    const miles = await measure(to);
-    priced.push({to, q: miles ? mileageQuote(card, miles, {accessorials: l?.accessorials ?? [], stops: Math.max(0, Math.min(20, l?.extra_stops ?? 0)), roundTrip, drayage}) : null});
+    const m = await measure(to);
+    priced.push({to, estimated: !!m?.estimated, q: m ? mileageQuote(card, m.miles, {accessorials: l?.accessorials ?? [], stops: Math.max(0, Math.min(20, l?.extra_stops ?? 0)), roundTrip, drayage}) : null});
   }
   if (priced.some(p => p.q)) {
     const how = drayage ? 'Drayage, priced round trip (to the delivery and back) with chassis.' : roundTrip ? 'Priced round trip, as requested.' : '';
+    const conditions = [...new Set(priced.flatMap(p => p.q?.unpriced ?? []))];
     const block = (p: typeof priced[number]) => p.q
-      ? `${p.q.lines.map(x => `${x.label}: ${usd(x.amount)}`).join('\n')}\nTotal: ${usd(p.q.total)} per load.${p.q.unpriced.length ? `\nRate conditions: ${p.q.unpriced.join('; ')}.` : ''}`
+      ? `${p.q.lines.map(x => `${x.label}${x.label.startsWith('Linehaul') && p.estimated ? ' (estimated miles)' : ''}: ${usd(x.amount)}`).join('\n')}\nTotal: ${usd(p.q.total)} per load.`
       : 'Priced on confirmation: we could not measure this lane yet.';
     const body = priced.length === 1
       ? `Quote for ${l!.origin} to ${priced[0]!.to} (USD):\n${block(priced[0]!)}`
       : `Quotes from ${l!.origin} (USD), per load:\n\n${priced.map((p, i) => `${i + 1}. To ${p.to}\n${block(p)}`).join('\n\n')}`;
+    const after = [conditions.length ? `Rate conditions: ${conditions.join('; ')}.` : '', priced.some(p => p.estimated) ? 'Estimated miles are confirmed before booking.' : '', how].filter(Boolean).join('\n');
     const one = priced.length === 1 ? priced[0]!.q : null;
-    return {method: 'mileage', total: one?.total ?? null, miles: one?.miles ?? null,
-      note: priced.some(p => !p.q) ? `Some lanes not measured${note ? `: ${note}` : ''}` : undefined,
-      body: sign(`${body}${how ? `\n${how}` : ''}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
+    const notes = [priced.some(p => !p.q) ? 'Some lanes not measured' : '', priced.some(p => p.estimated) ? `Miles estimated from ZIP/city${note ? ` (${note})` : ''}` : ''].filter(Boolean).join('; ');
+    return {method: 'mileage', total: one?.total ?? null, miles: one?.miles ?? null, note: notes || undefined,
+      body: sign(`${body}${after ? `\n${after}` : ''}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
   }
   if (l && o.distance && !note) note = 'Google Maps found no driving route for these addresses';
   const lane = l ? `${l.origin} to ${stops.join('; ')}` : '';
