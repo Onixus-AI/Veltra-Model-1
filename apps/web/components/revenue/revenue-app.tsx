@@ -603,9 +603,38 @@ function Mail(s: Shared) {
 
 // ---------- Mail's own work: what it sorted and wants to do, waiting for the owner ----------
 type MailItem = {id: string; from_email: string; from_name: string | null; subject: string; category: string | null; summary: string; priority: string; needs_owner: boolean;
-  owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean} | null; draft: string | null;
+  owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean; quote_method?: string} | null; draft: string | null;
   status: string; result: {error?: string; unsubscribe?: {detail?: string}} | null; created_at: string};
-type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null};
+type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour'}[]};
+type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
+  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
+const methodCopy: Record<string, string> = {tariff: 'Priced from your saved lane rate', mileage: 'Priced from your rate card and driving miles', unit_rates: 'Your unit rates (distance not measured)'};
+
+function RateCardForm({settings, save, busy}: {settings: MailSettings; save: (s: MailSettings) => void; busy: boolean}) {
+  const [card, setCard] = useState<RateCard>(settings.rate_card ?? {per_mile: 0, minimum: 0, fuel_pct: 0, accessorials: []});
+  const [signature, setSignature] = useState(settings.signature ?? '');
+  const [days, setDays] = useState(settings.quote_valid_days ?? 3);
+  const num = (v: string) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  const setAcc = (i: number, patch: Partial<RateCard['accessorials'][number]>) => setCard({...card, accessorials: card.accessorials.map((a, j) => j === i ? {...a, ...patch} : a)});
+  const valid = card.per_mile > 0 && card.accessorials.every(a => a.name.trim());
+  return <details className="rev-form"><summary>Rates and quote signature</summary>
+    <p className="rev-muted">Mail answers every rate request with a rate from these numbers, written by code, with the standard disclaimers (valid for {days} days, final charges depend on the lane, equipment and weight, subject to availability).</p>
+    <label>Rate per mile ($)<input type="number" min="0" step="0.01" value={card.per_mile} onChange={e => setCard({...card, per_mile: num(e.target.value)})}/></label>
+    <label>Minimum per load ($)<input type="number" min="0" step="1" value={card.minimum} onChange={e => setCard({...card, minimum: num(e.target.value)})}/></label>
+    <label>Fuel surcharge (%)<input type="number" min="0" max="100" step="0.1" value={card.fuel_pct} onChange={e => setCard({...card, fuel_pct: num(e.target.value)})}/></label>
+    <label>Quote valid for (days)<input type="number" min="1" max="60" value={days} onChange={e => setDays(Math.max(1, Math.min(60, num(e.target.value))))}/></label>
+    <fieldset><legend>Accessorials</legend>
+      {card.accessorials.map((a, i) => <div key={i} className="rev-actions">
+        <input aria-label="Name" value={a.name} onChange={e => setAcc(i, {name: e.target.value})}/>
+        <input aria-label="Price" type="number" min="0" step="1" value={a.price} onChange={e => setAcc(i, {price: num(e.target.value)})}/>
+        <select aria-label="Charged" value={a.per} onChange={e => setAcc(i, {per: e.target.value as 'flat' | 'stop' | 'hour'})}><option value="flat">flat</option><option value="stop">per stop</option><option value="hour">per hour</option></select>
+        <button type="button" onClick={() => setCard({...card, accessorials: card.accessorials.filter((_, j) => j !== i)})}>Remove</button></div>)}
+      <button type="button" onClick={() => setCard({...card, accessorials: [...card.accessorials, {name: '', price: 0, per: 'flat'}]})}>Add accessorial</button>
+    </fieldset>
+    <label>Signature<textarea rows={5} value={signature} onChange={e => setSignature(e.target.value)}/></label>
+    <div className="rev-actions"><button type="button" className="primary" disabled={busy || !valid} onClick={() => save({...settings, rate_card: card, signature: signature.trim() || null, quote_valid_days: days})}>Save rates</button></div>
+  </details>;
+}
 const kindCopy: Record<string, string> = {JUNK: 'Junk', NEWSLETTER: 'Newsletter', COLD_OUTREACH: 'Cold pitch', NOTIFICATION: 'Notification', QUESTION: 'Question',
   QUOTE_REQUEST: 'Quote request', DOCUMENT: 'Document', PERSONAL: 'Personal', OTHER: 'Other'};
 const doCopy = (i: MailItem) => i.plan?.action === 'trash' ? 'Delete (moves to Gmail Trash)' : i.plan?.action === 'archive' ? (i.plan.unsubscribe ? 'Unsubscribe and archive' : 'Archive')
@@ -644,7 +673,8 @@ function MailWork({s}: {s: Shared}) {
         <small>From {i.from_name ? `${i.from_name} <${i.from_email}>` : i.from_email} · “{i.subject}” · {since(i.created_at)}</small>
         {i.summary && <p>{i.summary}</p>}
         {i.needs_owner && <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> Needs you{i.owner_reason ? `: ${i.owner_reason}` : ''}</p>}
-        {i.plan?.needs_review && <p className="rev-warn">No rate on file for this lane, so the reply says a rate will follow. Add the price before sending, or set rates in your TMS.</p>}
+        {i.plan?.needs_review && <p className="rev-warn">No rates are set, so the reply says a rate will follow. Add your rates under “Rates and quote signature” below, or put the price in the reply.</p>}
+        {i.plan?.quote_method && <p className="rev-muted">{methodCopy[i.plan.quote_method] ?? ''}</p>}
         {i.plan?.action === 'reply' && (tab === 'pending'
           ? <label className="rev-form">Reply<textarea rows={7} value={edits[i.id] ?? i.draft ?? ''} onChange={e => setEdits({...edits, [i.id]: e.target.value})}/></label>
           : i.draft && <pre>{i.draft}</pre>)}
@@ -658,11 +688,12 @@ function MailWork({s}: {s: Shared}) {
       <label><input type="checkbox" checked={settings.auto_clean} onChange={e => save({...settings, auto_clean: e.target.checked})}/> Clean the inbox on its own: archive newsletters, cold pitches and notifications{settings.delete_junk ? ', delete junk' : ''}</label>
       <label><input type="checkbox" checked={settings.delete_junk} onChange={e => save({...settings, delete_junk: e.target.checked})}/> Junk it is sure about, with no attachment, goes to Gmail Trash (kept 30 days) instead of being archived</label>
       <label><input type="checkbox" checked={settings.unsubscribe} onChange={e => save({...settings, unsubscribe: e.target.checked})}/> Unsubscribe from newsletters and cold pitches when archiving them</label>
-      <label><input type="checkbox" checked={settings.auto_send.includes('QUOTE_REQUEST')} onChange={e => toggleSend('QUOTE_REQUEST', e.target.checked)}/> Send quotes on its own when your rates price the lane</label>
+      <label><input type="checkbox" checked={settings.auto_send.includes('QUOTE_REQUEST')} onChange={e => toggleSend('QUOTE_REQUEST', e.target.checked)}/> Send quotes on its own (always from your rates, with the disclaimers)</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('DOCUMENT')} onChange={e => toggleSend('DOCUMENT', e.target.checked)}/> Confirm receipt of documents (BOL, POD, rate confirmations) on its own</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('QUESTION')} onChange={e => toggleSend('QUESTION', e.target.checked)}/> Answer questions on its own</label>
-      <p className="rev-muted">Never on autopilot: anything Mail flags as needing you (complaints, claims, payment or legal issues), and quotes with no rate on file.</p>
+      <p className="rev-muted">Never on autopilot: anything Mail flags as needing you (complaints, claims, payment or legal issues), and quotes when no rates are set.</p>
     </details>}
+    {settings && <RateCardForm key={JSON.stringify(settings.rate_card ?? null) + (settings.signature ?? '')} settings={settings} save={save} busy={s.busy}/>}
   </section>;
 }
 

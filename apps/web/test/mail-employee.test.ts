@@ -73,20 +73,44 @@ test('only new inbound mail from others is noted for sorting', async () => {
   assert.deepEqual((calls[0]!.args.p_items as {provider_message_id: string}[]).map(i => i.provider_message_id), ['in']);
 });
 
-test('a quote is priced from the TMS; with no price the draft says a rate will follow and a person reviews it', async () => {
-  const drafts: string[] = [];
-  const brain = fakeBrain({'Rate request': cls('QUOTE_REQUEST', {quote: {request: '40ft Norfolk to Richmond', freight: {origin: 'Norfolk, VA', destination: 'Richmond, VA 23219', equipment_type: 'CONTAINER', container_size: '40'}}})}, drafts);
-  const priced = harness({q1: msg('q1')}, {brain, quote: {method: 'mileage', total: 640, miles_estimated: 110}});
-  await sortSome(priced.d);
-  const [p] = priced.recorded();
-  assert.equal(p!.plan.needs_review, false);
-  assert.match(drafts[0]!, /"total":640/);
-  assert.deepEqual(priced.gmail, ['label q1 Onixus/Quote requests'], 'sorting only labels; nothing is archived or sent yet');
-  assert.equal(priced.sent.length, 0);
+const CARD = {per_mile: 2.5, minimum: 350, fuel_pct: 0, accessorials: [{name: 'Chassis', price: 35, per: 'flat' as const}, {name: 'Detention', price: 75, per: 'hour' as const}]};
+const LANE = {request: '40ft Norfolk to Richmond', freight: {origin: 'Norfolk, VA', destination: 'Richmond, VA 23219', equipment_type: 'CONTAINER' as const, container_size: '40' as const, accessorials: ['chassis']}};
 
-  const unpriced = harness({q1: msg('q1')}, {brain: fakeBrain({'Rate request': cls('QUOTE_REQUEST')}), quote: null});
-  await sortSome(unpriced.d);
-  assert.equal(unpriced.recorded()[0]!.plan.needs_review, true);
+test('a rate request is answered with a rate written by code, with the disclaimers, never by the model', async () => {
+  const drafts: string[] = [];
+  const brain = fakeBrain({'Rate request': cls('QUOTE_REQUEST', {quote: LANE})}, drafts);
+  // Saved lane in the TMS first.
+  const tms = harness({q1: msg('q1')}, {brain, quote: {method: 'tariff', total: 640, base_rate: 600, fuel_surcharge: 40}, settings: {...OFF, rate_card: CARD, signature: 'Hampton Haulers\nDispatch'}});
+  await sortSome(tms.d);
+  const [t] = tms.recorded();
+  assert.deepEqual([t!.plan.needs_review, t!.plan.price, (t!.plan as {quote_method?: string}).quote_method], [false, 640, 'tariff']);
+  assert.match(t!.draft!, /^Hi Dana,/);
+  assert.match(t!.draft!, /Total: \$640\.00 per load/);
+  assert.match(t!.draft!, /valid for 3 days/);
+  assert.match(t!.draft!, /does not reserve capacity/);
+  assert.match(t!.draft!, /Hampton Haulers\nDispatch$/);
+  assert.equal(drafts.length, 0, 'the model writes no quote');
+  assert.deepEqual(tms.gmail, ['label q1 Onixus/Quote requests'], 'sorting only labels; nothing is archived or sent yet');
+  assert.equal(tms.sent.length, 0);
+
+  // No saved lane and no distance: the rate card as unit rates.
+  const card = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, rate_card: CARD}});
+  await sortSome(card.d);
+  const [c] = card.recorded();
+  assert.equal(c!.plan.needs_review, false);
+  assert.match(c!.draft!, /Transportation: \$2\.50 per mile; minimum \$350\.00 per load/);
+  assert.match(c!.draft!, /These are unit rates, not a confirmed all-in shipment total/);
+
+  // With driving miles: a total.
+  const miles = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, rate_card: CARD}});
+  miles.d.distance = async () => 94;
+  await sortSome(miles.d);
+  assert.match(miles.recorded()[0]!.draft!, /Linehaul: 94 mi × \$2\.50\/mi: \$235\.00\nChassis: \$35\.00\nMinimum charge adjustment: \$80\.00\nTotal: \$350\.00 per load/);
+
+  // No rates at all: the model says a rate will follow and a person reviews it.
+  const none = harness({q1: msg('q1')}, {brain: fakeBrain({'Rate request': cls('QUOTE_REQUEST')}), quote: null});
+  await sortSome(none.d);
+  assert.equal(none.recorded()[0]!.plan.needs_review, true);
 });
 
 test('without a model nothing is sorted: emails wait instead of being guessed', async () => {

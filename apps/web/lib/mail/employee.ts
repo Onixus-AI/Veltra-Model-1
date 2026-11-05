@@ -4,21 +4,26 @@ import {replySubject} from '../revenue/mail-provider';
 import {ruleClassification, type Brain, type Business, type Classification} from './brain';
 import {MAIL_LABELS, type GmailActions} from './gmail-actions';
 import {parseUnsubscribe, unsubscriber as makeUnsubscriber, type UnsubResult} from './unsubscribe';
+import {validRateCard, writeQuote, type Distance, type RateCard} from './quote';
 
 // Mail as an employee: after each sync, sort a few new emails, plan what to do with each, label
 // it in Gmail (labels are harmless and always applied), draft replies, then carry out whatever a
 // person approved or the owner put on autopilot. The model labels and writes; this code decides.
 // Ported from Onixus Mail's agent (Railway, retired 2026-11).
 
-export type Settings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null};
+export type Settings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
+  /** Trucking rate card: Mail quotes from it, with the standard disclaimers. */
+  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
 export type Plan =
   | {action: 'trash' | 'archive'; unsubscribe: boolean; label: string; headline: string}
-  | {action: 'reply'; purpose: 'ANSWER' | 'QUOTE' | 'DOCUMENT_RECEIVED'; label: string; headline: string; to: string; message_id_header: string | null; references: string | null; needs_review?: boolean; price?: unknown}
+  | {action: 'reply'; purpose: 'ANSWER' | 'QUOTE' | 'DOCUMENT_RECEIVED'; label: string; headline: string; to: string; message_id_header: string | null; references: string | null; needs_review?: boolean; price?: unknown; quote_method?: string}
   | {action: 'none'; label: string; headline: string};
 export type QuoteLane = (lane: NonNullable<NonNullable<Classification['quote']>['freight']>) => Promise<Record<string, unknown> | null>;
 
 const CLEAN = new Set(['JUNK', 'NEWSLETTER', 'COLD_OUTREACH', 'NOTIFICATION']);
 const who = (m: ProviderMessage) => m.fromName || m.from;
+const greeting = (m: ProviderMessage) => { const first = m.fromName.trim().split(/\s+/)[0] ?? ''; return /^[A-Za-z][A-Za-z'-]{1,30}$/.test(first) ? `Hi ${first},` : 'Hello,'; };
+const signatureOf = (d: Pick<EmployeeDeps, 'settings' | 'business'>) => d.settings.signature?.trim() || `${d.business.name} team`;
 
 /** What to do with one sorted email. Junk is deleted only when sure and attachment-free. */
 export function planFor(c: Classification, m: ProviderMessage, s: Settings): Plan {
@@ -42,7 +47,7 @@ export function planFor(c: Classification, m: ProviderMessage, s: Settings): Pla
 
 export type EmployeeDeps = {
   rpc: Rpc; accountId: string; token: string; mailbox: string; business: Business; settings: Settings;
-  brain: Brain | null; gmail: GmailActions; mail: MailProvider; quoteLane?: QuoteLane | null;
+  brain: Brain | null; gmail: GmailActions; mail: MailProvider; quoteLane?: QuoteLane | null; distance?: Distance | null;
   unsubscribe?: (u: NonNullable<ReturnType<typeof parseUnsubscribe>>) => Promise<UnsubResult>;
   deadline: number; sortLimit?: number;
 };
@@ -71,16 +76,16 @@ export async function sortSome(d: EmployeeDeps): Promise<{sorted: number; skippe
       const c = ruleClassification({...email, listUnsubscribe: unsub.listUnsubscribe ?? null}) ?? await d.brain.classify(email, d.business);
       const plan = planFor(c, m, d.settings);
       let draft: string | null = null;
-      if (plan.action === 'reply') {
-        let facts: Record<string, unknown> = {business: d.business.name};
-        if (plan.purpose === 'QUOTE') {
-          const freight = c.quote?.freight;
-          const price = freight && d.quoteLane ? await d.quoteLane(freight).catch(() => null) : null;
-          facts = {...facts, request: c.quote?.request ?? null, lane: freight ?? null, price, pricing: price ? 'from the rate card' : 'no price available: say a rate will follow'};
-          plan.needs_review = !price;
-          plan.price = price;
-        }
-        draft = await d.brain.draft(plan.purpose, email, d.business, facts);
+      if (plan.action === 'reply' && plan.purpose === 'QUOTE') {
+        // In trucking a rate request is answered with a rate and the disclaimers. Code writes it.
+        const freight = c.quote?.freight ?? null;
+        const tms = freight && d.quoteLane ? await d.quoteLane(freight).catch(() => null) : null;
+        const card = validRateCard(d.settings.rate_card) ? d.settings.rate_card : null;
+        const q = await writeQuote({lane: freight, tms, card, distance: d.distance ?? null, signature: signatureOf(d), validDays: d.settings.quote_valid_days ?? undefined, greeting: greeting(m)});
+        if (q) { draft = q.body; plan.price = q.total; plan.quote_method = q.method; plan.needs_review = false; }
+        else { plan.needs_review = true; draft = await d.brain.draft('QUOTE', email, d.business, {business: d.business.name, request: c.quote?.request ?? null, lane: freight, price: null, pricing: 'no price available: say a rate will follow'}); }
+      } else if (plan.action === 'reply') {
+        draft = await d.brain.draft(plan.purpose, email, d.business, {business: d.business.name, signature: signatureOf(d)});
       }
       if (plan.action === 'reply' && !draft) plan.needs_review = true;
       await d.gmail.label(m.providerMessageId, plan.label, false);
