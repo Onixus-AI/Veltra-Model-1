@@ -24,7 +24,7 @@ export const callbackUrl = (origin: string) => `${origin.replace(/\/$/, '')}/api
 export function googleSignInUrl(client: GoogleClient, origin: string, state: string): string {
   const u = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   u.search = new URLSearchParams({client_id: client.clientId, redirect_uri: callbackUrl(origin), response_type: 'code', scope: GMAIL_SCOPES.join(' '),
-    access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true', state}).toString();
+    access_type: 'offline', prompt: 'consent select_account', include_granted_scopes: 'true', state}).toString();
   return u.href;
 }
 

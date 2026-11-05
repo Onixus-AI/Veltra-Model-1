@@ -23,6 +23,8 @@ export async function GET(request: NextRequest) {
     if (error) throw new Error(error.message);
     const active = (data as Status).find(m => m.status === 'active') ?? (data as Status)[0];
     return Response.json({connected: active?.status === 'active', mailbox: active ? {email: active.mailbox} : null, status: active?.status ?? null,
+      // Every mailbox connected to this business (e.g. info@ for quotes and o.harris@ for outreach).
+      mailboxes: (data as Status).filter(m => m.status === 'active').map(m => m.mailbox),
       last_pass_at: active?.last_pass_at ?? null, last_result: active?.last_result ?? null, mail_url: '', workspace_id: workspace}, {headers: {'Cache-Control': 'no-store'}});
   } catch (e) { return crmError(e); }
 }
