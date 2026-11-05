@@ -25,6 +25,8 @@ export const classification = z.object({
       container_size: z.enum(['20', '40', '45', '53']).nullable().optional(),
       accessorials: z.array(z.string().max(80)).max(20).nullable().optional(),
       extra_stops: z.number().int().min(0).max(20).nullable().optional(),
+      destinations: z.array(z.string().max(300)).max(10).nullable().optional(),
+      round_trip: z.boolean().nullable().optional(),
     }).nullable().optional(),
   }).nullable().optional(),
 });
@@ -53,7 +55,9 @@ const TOOL = {
           equipment_type: {type: 'string', enum: EQUIPMENT},
           container_size: {type: ['string', 'null'], enum: ['20', '40', '45', '53', null]},
           accessorials: {type: ['array', 'null'], items: {type: 'string'}, description: 'Extras asked for, in plain words: liftgate, hazmat, chassis, pre-pull, detention, overweight, storage.'},
-          extra_stops: {type: ['integer', 'null'], description: 'Stops beyond one pickup and one delivery.'},
+          extra_stops: {type: ['integer', 'null'], description: 'Stops beyond one pickup and one delivery on the same load.'},
+          destinations: {type: ['array', 'null'], items: {type: 'string'}, description: 'When the request asks prices to several different delivery places (separate loads), each place, as written with ZIP.'},
+          round_trip: {type: ['boolean', 'null'], description: 'True only when the email asks for a round trip or return to origin.'},
         }, required: ['origin', 'destination', 'equipment_type']},
       }, required: ['request']},
     }}}};

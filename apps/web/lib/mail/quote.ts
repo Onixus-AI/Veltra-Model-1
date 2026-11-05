@@ -3,12 +3,22 @@
 // always answer a rate request with a rate, plus the standard disclaimers.
 //  1. A saved lane rate from the company's TMS, when there is one.
 //  2. Otherwise the owner's rate card: driving miles × rate per mile, fuel %, accessorials asked
-//     for, never under the minimum.
+//     for, never under the minimum. Drayage is always round trip (the container goes back) and
+//     always carries a chassis; OTR is one way unless the request says round trip. Several
+//     destinations are priced one by one.
 //  3. When the distance can't be measured: the rate card itself, as unit rates.
 
-export type Accessorial = {name: string; price: number; per: 'flat' | 'stop' | 'hour'};
+export type Accessorial = {name: string; price: number; per: 'flat' | 'stop' | 'hour' | 'day'; /** minimum days, e.g. chassis 3 */ min?: number};
 export type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: Accessorial[]};
-export type Lane = {origin: string; destination: string; equipment_type?: string; container_size?: string | null; accessorials?: string[] | null; extra_stops?: number | null};
+export type Lane = {origin: string; destination: string; equipment_type?: string; container_size?: string | null; accessorials?: string[] | null; extra_stops?: number | null;
+  /** Every delivery point when the request lists several (each is priced on its own). */
+  destinations?: string[] | null; /** The request asks for a round trip (OTR); drayage always is. */ round_trip?: boolean | null};
+
+const PORTISH = /\b(port|terminal|nit|vig|pmt|apm|ramp|rail ?yard|intermodal|cy)\b/i;
+/** Container work: priced round trip with a chassis. */
+export const isDrayage = (l: Pick<Lane, 'equipment_type' | 'container_size' | 'origin' | 'destination'>) =>
+  l.equipment_type === 'CONTAINER' || !!l.container_size || PORTISH.test(`${l.origin} ${l.destination}`);
+const perLabel = (a: Accessorial) => a.per === 'day' ? `per day${a.min && a.min > 1 ? ` (${a.min}-day minimum)` : ''}` : `per ${a.per}`;
 export type Distance = (from: string, to: string) => Promise<number | null>;
 export type QuoteLine = {label: string; amount: number};
 
@@ -21,26 +31,33 @@ export function validRateCard(c: unknown): c is RateCard {
   return !!r && typeof r === 'object' && Number.isFinite(r.per_mile) && r.per_mile > 0 && r.per_mile <= 100
     && Number.isFinite(r.minimum) && r.minimum >= 0 && Number.isFinite(r.fuel_pct) && r.fuel_pct >= 0 && r.fuel_pct <= 100
     && Array.isArray(r.accessorials) && r.accessorials.length <= 30
-    && r.accessorials.every(a => a && typeof a.name === 'string' && a.name.trim() && Number.isFinite(a.price) && a.price >= 0 && ['flat', 'stop', 'hour'].includes(a.per));
+    && r.accessorials.every(a => a && typeof a.name === 'string' && a.name.trim() && Number.isFinite(a.price) && a.price >= 0 && ['flat', 'stop', 'hour', 'day'].includes(a.per)
+      && (a.min === undefined || (Number.isInteger(a.min) && a.min >= 1 && a.min <= 30)));
 }
 
 /** One load priced from the rate card: linehaul, fuel, each accessorial asked for, never under the minimum. */
-export function mileageQuote(m: RateCard, miles: number, extras: {accessorials: string[]; stops: number}) {
-  const linehaul = cents(miles * m.per_mile);
-  const lines: QuoteLine[] = [{label: `Linehaul: ${Math.round(miles)} mi × ${usd(m.per_mile)}/mi`, amount: linehaul}];
+export function mileageQuote(m: RateCard, miles: number, extras: {accessorials: string[]; stops: number; roundTrip?: boolean; drayage?: boolean}) {
+  const legs = extras.roundTrip || extras.drayage ? 2 : 1, billed = miles * legs;
+  const linehaul = cents(billed * m.per_mile);
+  const label = legs === 2 ? `Linehaul: ${Math.round(miles)} mi each way, round trip ${Math.round(billed)} mi × ${usd(m.per_mile)}/mi` : `Linehaul: ${Math.round(miles)} mi × ${usd(m.per_mile)}/mi`;
+  const lines: QuoteLine[] = [{label, amount: linehaul}];
   if (m.fuel_pct) lines.push({label: `Fuel surcharge (${m.fuel_pct}%)`, amount: cents((linehaul * m.fuel_pct) / 100)});
   const unpriced: string[] = [];
   const asked = new Set(extras.accessorials.map(a => a.trim().toLowerCase()).filter(Boolean));
+  // Drayage always needs a chassis.
+  if (extras.drayage) for (const a of m.accessorials) if (/chassis/i.test(a.name)) asked.add(a.name.toLowerCase());
   for (const a of m.accessorials) {
     if (a.per === 'stop') {
       if (extras.stops > 0) lines.push({label: `${a.name} × ${extras.stops}`, amount: cents(a.price * extras.stops)});
       asked.delete(a.name.toLowerCase());
       continue;
     }
-    if (!asked.has(a.name.toLowerCase())) continue;
-    asked.delete(a.name.toLowerCase());
+    const hit = [...asked].find(x => x === a.name.toLowerCase() || x.includes(a.name.toLowerCase()));
+    if (!hit) continue;
+    asked.delete(hit);
     // Hours (detention, waiting) aren't known until the load moves: quoted as a rate.
     if (a.per === 'hour') unpriced.push(`${a.name} at ${usd(a.price)}/hour if needed`);
+    else if (a.per === 'day') { const days = Math.max(1, a.min ?? 1); lines.push({label: `${a.name}: ${days} day${days > 1 ? 's' : ''} minimum × ${usd(a.price)}/day`, amount: cents(a.price * days)}); }
     else lines.push({label: a.name, amount: a.price});
   }
   unpriced.push(...[...asked].map(x => `${x}: priced on confirmation`));
@@ -86,27 +103,48 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
   signature: string; validDays?: number; greeting?: string}): Promise<WrittenQuote | null> {
   const days = o.validDays ?? DEFAULT_VALID_DAYS;
   const sign = (body: string) => `${o.greeting ? o.greeting + '\n\n' : ''}${body}\n\n${o.signature}`.trim();
-  const lane = o.lane ? `${o.lane.origin} to ${o.lane.destination}` : '';
+  const tmsLane = o.lane ? `${o.lane.origin} to ${o.lane.destination}` : '';
   if (o.tms && typeof o.tms.total === 'number') {
     const t = o.tms as {total: number; base_rate?: number; fuel_surcharge?: number; miles_estimated?: number; method?: string};
     const lines = [t.base_rate != null ? `Linehaul: ${usd(t.base_rate)}` : '', t.fuel_surcharge ? `Fuel surcharge: ${usd(t.fuel_surcharge)}` : '', `Total: ${usd(t.total)} per load`].filter(Boolean);
     const est = t.method === 'mileage' && t.miles_estimated ? `\nMiles are estimated (${t.miles_estimated} mi).` : '';
     return {method: 'tariff', total: t.total, miles: t.miles_estimated ?? null,
-      body: sign(`Our quote${lane ? ` for ${lane}` : ''} (USD):\n${lines.join('\n')}${est}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
+      body: sign(`Our quote${tmsLane ? ` for ${tmsLane}` : ''} (USD):\n${lines.join('\n')}${est}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
   }
   if (!o.card) return null;
-  let note = !o.lane ? 'No pickup and delivery found in the email' : !o.distance ? 'Driving miles not set up (GOOGLE_MAPS_API_KEY)' : '';
-  const miles = o.lane && o.distance ? await o.distance(o.lane.origin, o.lane.destination).catch((e: unknown) => { note = e instanceof Error ? e.message : 'Google Maps failed'; return null; }) : null;
-  if (o.lane && o.distance && miles === null && !note) note = 'Google Maps found no driving route for these addresses';
-  if (o.lane && miles) {
-    const q = mileageQuote(o.card, miles, {accessorials: o.lane.accessorials ?? [], stops: Math.max(0, Math.min(20, o.lane.extra_stops ?? 0))});
-    const breakdown = q.lines.map(l => `${l.label}: ${usd(l.amount)}`).join('\n');
-    const cond = q.unpriced.length ? `\nRate conditions: ${q.unpriced.join('; ')}.` : '';
-    return {method: 'mileage', total: q.total, miles: q.miles,
-      body: sign(`Quote for ${lane} (USD):\n${breakdown}\nTotal: ${usd(q.total)} per load.\n\n${TERMS_TOTAL(days)}${cond}\n${AVAILABILITY}`)};
+  const card = o.card, l = o.lane;
+  const drayage = !!l && isDrayage(l), roundTrip = drayage || !!l?.round_trip;
+  // Several delivery points: each gets its own price.
+  const stops = l ? (l.destinations?.filter(d => d.trim()).length ?? 0) > 1 ? l.destinations!.filter(d => d.trim()) : [l.destination] : [];
+  let note = !l ? 'No pickup and delivery found in the email' : !o.distance ? 'Driving miles not set up (GOOGLE_MAPS_API_KEY)' : '';
+  const measure = async (to: string) => {
+    if (!l || !o.distance) return null;
+    try {
+      // Google sometimes finds no route for a bare city or port name: try once more as a US address.
+      return (await o.distance(l.origin, to)) ?? (await o.distance(`${l.origin}, USA`, `${to}, USA`));
+    } catch (e) { note = e instanceof Error ? e.message : 'Google Maps failed'; return null; }
+  };
+  const priced: {to: string; q: ReturnType<typeof mileageQuote> | null}[] = [];
+  for (const to of stops.slice(0, 10)) {
+    const miles = await measure(to);
+    priced.push({to, q: miles ? mileageQuote(card, miles, {accessorials: l?.accessorials ?? [], stops: Math.max(0, Math.min(20, l?.extra_stops ?? 0)), roundTrip, drayage}) : null});
   }
-  const c = o.card;
-  const rates = [`Transportation: ${usd(c.per_mile)} per mile${c.fuel_pct ? `, plus ${c.fuel_pct}% fuel surcharge` : ''}${c.minimum ? `; minimum ${usd(c.minimum)} per load` : ''}. Distance and final total subject to lane confirmation.`,
-    ...c.accessorials.map(a => `${a.name}: ${usd(a.price)} per ${a.per}.`)];
+  if (priced.some(p => p.q)) {
+    const how = drayage ? 'Drayage, priced round trip (to the delivery and back) with chassis.' : roundTrip ? 'Priced round trip, as requested.' : '';
+    const block = (p: typeof priced[number]) => p.q
+      ? `${p.q.lines.map(x => `${x.label}: ${usd(x.amount)}`).join('\n')}\nTotal: ${usd(p.q.total)} per load.${p.q.unpriced.length ? `\nRate conditions: ${p.q.unpriced.join('; ')}.` : ''}`
+      : 'Priced on confirmation: we could not measure this lane yet.';
+    const body = priced.length === 1
+      ? `Quote for ${l!.origin} to ${priced[0]!.to} (USD):\n${block(priced[0]!)}`
+      : `Quotes from ${l!.origin} (USD), per load:\n\n${priced.map((p, i) => `${i + 1}. To ${p.to}\n${block(p)}`).join('\n\n')}`;
+    const one = priced.length === 1 ? priced[0]!.q : null;
+    return {method: 'mileage', total: one?.total ?? null, miles: one?.miles ?? null,
+      note: priced.some(p => !p.q) ? `Some lanes not measured${note ? `: ${note}` : ''}` : undefined,
+      body: sign(`${body}${how ? `\n${how}` : ''}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
+  }
+  if (l && o.distance && !note) note = 'Google Maps found no driving route for these addresses';
+  const lane = l ? `${l.origin} to ${stops.join('; ')}` : '';
+  const rates = [`Transportation: ${usd(card.per_mile)} per mile${card.fuel_pct ? `, plus ${card.fuel_pct}% fuel surcharge` : ''}${card.minimum ? `; minimum ${usd(card.minimum)} per load` : ''}. ${drayage ? 'Drayage is billed round trip. ' : ''}Distance and final total subject to lane confirmation.`,
+    ...card.accessorials.map(a => `${a.name}: ${usd(a.price)} ${perLabel(a)}.`)];
   return {method: 'unit_rates', total: null, miles: null, note, body: sign(`Our quoted rates (USD)${lane ? ` for ${lane}` : ''}:\n${rates.join('\n')}\n\n${TERMS_UNIT(days)}`)};
 }

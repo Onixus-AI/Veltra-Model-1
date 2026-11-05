@@ -38,6 +38,7 @@ async function database() {
      if w is null then raise exception 'Mail connection is not authorized' using errcode='42501'; end if; return w; end $$;`);
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105090000_mail_employee.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105110000_mail_quotes.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261105190000_mail_rate_card_days.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
@@ -128,7 +129,9 @@ test('the rate card and signature are saved with the settings; bad rates are ref
   const card = {per_mile: 2.5, minimum: 350, fuel_pct: 0, accessorials: [{name: 'Chassis', price: 35, per: 'flat'}]};
   const saved = await one<{rate_card: unknown; signature: string}>(db, 'select public.mail_settings($1,$2) r', [W, JSON.stringify({...base, rate_card: card, signature: 'Onixus Inc', quote_valid_days: 3})]);
   assert.deepEqual([saved.rate_card, saved.signature], [card, 'Onixus Inc']);
-  for (const bad of [{...card, per_mile: 0}, {...card, accessorials: [{name: 'x', price: 1, per: 'mile'}]}, {...card, fuel_pct: 'ten'}])
+  const chassis = {...card, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 3}]};
+  assert.deepEqual((await one<{rate_card: unknown}>(db, 'select public.mail_settings($1,$2) r', [W, JSON.stringify({...base, rate_card: chassis})])).rate_card, chassis, 'per day with a minimum');
+  for (const bad of [{...card, per_mile: 0}, {...card, accessorials: [{name: 'x', price: 1, per: 'mile'}]}, {...card, fuel_pct: 'ten'}, {...card, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 2.5}]}])
     await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({...base, rate_card: bad})]), /Invalid/);
   await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({...base, quote_valid_days: 0})]), /Invalid/);
   await db.close();
