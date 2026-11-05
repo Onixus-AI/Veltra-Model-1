@@ -4,7 +4,8 @@ import {replySubject} from '../revenue/mail-provider';
 import {ruleClassification, type Brain, type Business, type Classification} from './brain';
 import {MAIL_LABELS, type GmailActions} from './gmail-actions';
 import {parseUnsubscribe, unsubscriber as makeUnsubscriber, type UnsubResult} from './unsubscribe';
-import {validRateCard, writeQuote, type Distance, type RateCard} from './quote';
+import {validRateCard, writeQuote, type Distance, type Estimate, type RateCard} from './quote';
+import {estimateMiles} from './places';
 
 // Mail as an employee: after each sync, sort a few new emails, plan what to do with each, label
 // it in Gmail (labels are harmless and always applied), draft replies, then carry out whatever a
@@ -57,7 +58,7 @@ export function planFor(c: Classification, m: ProviderMessage, s: Settings): Pla
 
 export type EmployeeDeps = {
   rpc: Rpc; accountId: string; token: string; mailbox: string; business: Business; settings: Settings;
-  brain: Brain | null; gmail: GmailActions; mail: MailProvider; quoteLane?: QuoteLane | null; distance?: Distance | null;
+  brain: Brain | null; gmail: GmailActions; mail: MailProvider; quoteLane?: QuoteLane | null; distance?: Distance | null; estimate?: Estimate | null;
   unsubscribe?: (u: NonNullable<ReturnType<typeof parseUnsubscribe>>) => Promise<UnsubResult>;
   deadline: number; sortLimit?: number;
 };
@@ -91,7 +92,7 @@ export async function sortSome(d: EmployeeDeps): Promise<{sorted: number; skippe
         const freight = c.quote?.freight ?? null;
         const tms = freight && d.quoteLane ? await d.quoteLane(freight).catch(() => null) : null;
         const card = validRateCard(d.settings.rate_card) ? d.settings.rate_card : null;
-        const q = await writeQuote({lane: freight, tms, card, distance: d.distance ?? null, signature: signatureOf(d), validDays: d.settings.quote_valid_days ?? undefined, greeting: greeting(m)});
+        const q = await writeQuote({lane: freight, tms, card, distance: d.distance ?? null, estimate: d.estimate === undefined ? estimateMiles : d.estimate, signature: signatureOf(d), validDays: d.settings.quote_valid_days ?? undefined, greeting: greeting(m)});
         if (q) { draft = q.body; plan.price = q.total; plan.quote_method = q.method; plan.needs_review = false; if (q.note) plan.quote_note = q.note; }
         else { plan.needs_review = true; draft = await d.brain.draft('QUOTE', email, d.business, {business: d.business.name, request: c.quote?.request ?? null, lane: freight, price: null, pricing: 'no price available: say a rate will follow'}); }
       } else if (plan.action === 'reply') {

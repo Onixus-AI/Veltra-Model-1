@@ -1,5 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
+import {estimateMiles, placeOf} from '../lib/mail/places';
 import {googleDistance, isDrayage, mileageQuote, validRateCard, writeQuote} from '../lib/mail/quote';
 
 const CARD = {per_mile: 2.5, minimum: 350, fuel_pct: 10, accessorials: [{name: 'Liftgate', price: 75, per: 'flat' as const}, {name: 'Extra stop', price: 75, per: 'stop' as const}, {name: 'Detention', price: 75, per: 'hour' as const}]};
@@ -70,4 +71,24 @@ test('a day accessorial needs a valid minimum', () => {
   assert.ok(validRateCard(ONIXUS));
   assert.ok(!validRateCard({...ONIXUS, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 0}]}));
   assert.ok(!validRateCard({...ONIXUS, accessorials: [{name: 'Chassis', price: 35, per: 'week'}]}));
+});
+
+test('places: ZIPs, cities, port terminals; estimates only when both ends are placed', () => {
+  assert.equal(placeOf('Ashland, VA 23005')?.zip, '23005');
+  assert.equal(placeOf('11890 North Lakeridge Pkwy, Ashland, VA 23005')?.zip, '23005', 'a street number is not the ZIP');
+  assert.equal(placeOf('NIT')?.zip, '23505');
+  assert.equal(placeOf('VIG')?.zip, '23703');
+  assert.equal(placeOf('Norfolk Port')?.zip, '23505');
+  assert.equal(placeOf('Charleston, WV')?.zip, '25301', 'a city with a state beats the port of the same name');
+  const nr = estimateMiles('Norfolk, VA', 'Richmond, VA')!;
+  assert.ok(nr > 80 && nr < 110, `Norfolk to Richmond about 94 road miles, got ${nr}`);
+  assert.equal(estimateMiles('VIG', 'Boviet / Greenville'), null, 'no state, no guess');
+});
+
+test('no Maps route: estimate, and multi-lane notes appear once', async () => {
+  const q = (await writeQuote({lane: {origin: 'Norfolk Port', destination: 'x', destinations: ['Chantilly, VA 20151', 'Charlotte, NC 28262'], equipment_type: 'CONTAINER', accessorials: ['overweight (lane 1)']},
+    tms: null, card: ONIXUS, signature: 'S', distance: async () => null, estimate: estimateMiles}))!;
+  assert.equal(q.method, 'mileage');
+  assert.equal(q.body.match(/overweight \(lane 1\)/g)?.length, 1, 'conditions listed once');
+  assert.match(q.body, /\(estimated miles\)/);
 });
