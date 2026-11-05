@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {googleDistance, mileageQuote, validRateCard, writeQuote} from '../lib/mail/quote';
+import {googleDistance, isDrayage, mileageQuote, validRateCard, writeQuote} from '../lib/mail/quote';
 
 const CARD = {per_mile: 2.5, minimum: 350, fuel_pct: 10, accessorials: [{name: 'Liftgate', price: 75, per: 'flat' as const}, {name: 'Extra stop', price: 75, per: 'stop' as const}, {name: 'Detention', price: 75, per: 'hour' as const}]};
 
@@ -36,4 +36,38 @@ test('rate cards are checked; Google distance returns miles or null', async () =
   const d = googleDistance('k', {fetcher: (async () => Response.json({routes: [{distanceMeters: 160934.4}]})) as typeof fetch});
   assert.equal(Math.round((await d('a', 'b'))!), 100);
   await assert.rejects(googleDistance('k', {fetcher: (async () => Response.json({error: {message: 'Routes API has not been used in project 123'}}, {status: 403})) as typeof fetch})('a', 'b'), /Google Maps 403: Routes API has not been used/);
+});
+
+const ONIXUS = {per_mile: 2.5, minimum: 350, fuel_pct: 0, accessorials: [{name: 'Chassis', price: 35, per: 'day' as const, min: 3}, {name: 'Pre-Pull', price: 250, per: 'flat' as const}]};
+
+test('drayage is round trip with a 3-day chassis; OTR is one way unless asked', async () => {
+  const d = (await writeQuote({lane: {origin: 'Norfolk International Terminal, VA', destination: 'Lorton, VA 22079', equipment_type: 'CONTAINER', container_size: '40'}, tms: null, card: ONIXUS, distance: async () => 172, signature: 'S'}))!;
+  assert.equal(d.total, 965, '172 x 2 x 2.50 = 860 + chassis 3 days x 35 = 105');
+  assert.match(d.body, /Chassis: 3 days minimum × \$35\.00\/day: \$105\.00/);
+  const otr = (await writeQuote({lane: {origin: 'Charlotte, NC', destination: 'Atlanta, GA', equipment_type: 'DRY_VAN'}, tms: null, card: ONIXUS, distance: async () => 245, signature: 'S'}))!;
+  assert.equal(otr.total, 612.5, 'one way, no chassis');
+  const rt = (await writeQuote({lane: {origin: 'Charlotte, NC', destination: 'Atlanta, GA', equipment_type: 'FLATBED', round_trip: true}, tms: null, card: ONIXUS, distance: async () => 245, signature: 'S'}))!;
+  assert.equal(rt.total, 1225, 'round trip when the request says so');
+  assert.ok(isDrayage({origin: 'VIG', destination: 'Greenville, NC'}), 'a terminal name means container work');
+  assert.match((await writeQuote({lane: {origin: 'NIT', destination: 'x', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, distance: null, signature: 'S'}))!.body, /Chassis: \$35\.00 per day \(3-day minimum\)\.[\s\S]*|Drayage is billed round trip/);
+});
+
+test('several destinations are priced one by one; a lane Maps misses is retried, then marked', async () => {
+  const miles: Record<string, number> = {'Chantilly, VA 20151': 200, 'Charlotte, NC 28262': 330};
+  const calls: string[] = [];
+  const q = (await writeQuote({lane: {origin: 'Norfolk Port', destination: 'several', destinations: ['Chantilly, VA 20151', 'Charlotte, NC 28262', 'Nowhere 00000'], equipment_type: 'CONTAINER'},
+    tms: null, card: ONIXUS, signature: 'S', distance: async (_f, t) => { calls.push(t); return miles[t] ?? null; }}))!;
+  assert.equal(q.method, 'mileage');
+  assert.match(q.body, /1\. To Chantilly, VA 20151\n[\s\S]*Total: \$1,105\.00 per load/);
+  assert.match(q.body, /2\. To Charlotte, NC 28262\n[\s\S]*Total: \$1,755\.00 per load/);
+  assert.match(q.body, /3\. To Nowhere 00000\nPriced on confirmation/);
+  assert.ok(calls.includes('Nowhere 00000, USA'), 'retried as a US address');
+  assert.equal(q.total, null, 'no single total for several loads');
+  assert.match(q.note!, /Some lanes not measured/);
+});
+
+test('a day accessorial needs a valid minimum', () => {
+  assert.ok(validRateCard(ONIXUS));
+  assert.ok(!validRateCard({...ONIXUS, accessorials: [{name: 'Chassis', price: 35, per: 'day', min: 0}]}));
+  assert.ok(!validRateCard({...ONIXUS, accessorials: [{name: 'Chassis', price: 35, per: 'week'}]}));
 });

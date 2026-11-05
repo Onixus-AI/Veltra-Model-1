@@ -105,7 +105,9 @@ test('a rate request is answered with a rate written by code, with the disclaime
   const miles = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, rate_card: CARD}});
   miles.d.distance = async () => 94;
   await sortSome(miles.d);
-  assert.match(miles.recorded()[0]!.draft!, /Linehaul: 94 mi × \$2\.50\/mi: \$235\.00\nChassis: \$35\.00\nMinimum charge adjustment: \$80\.00\nTotal: \$350\.00 per load/);
+  // A container from Norfolk is drayage: round trip, with chassis.
+  assert.match(miles.recorded()[0]!.draft!, /Linehaul: 94 mi each way, round trip 188 mi × \$2\.50\/mi: \$470\.00\nChassis: \$35\.00\nTotal: \$505\.00 per load/);
+  assert.match(miles.recorded()[0]!.draft!, /Drayage, priced round trip/);
 
   // No rates at all: the model says a rate will follow and a person reviews it.
   const none = harness({q1: msg('q1')}, {brain: fakeBrain({'Rate request': cls('QUOTE_REQUEST')}), quote: null});

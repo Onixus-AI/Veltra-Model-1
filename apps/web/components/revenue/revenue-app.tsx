@@ -605,7 +605,7 @@ function Mail(s: Shared) {
 type MailItem = {id: string; from_email: string; from_name: string | null; subject: string; category: string | null; summary: string; priority: string; needs_owner: boolean;
   owner_reason: string | null; plan: {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean; quote_method?: string; quote_note?: string} | null; draft: string | null;
   status: string; result: {error?: string; unsubscribe?: {detail?: string}} | null; created_at: string};
-type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour'}[]};
+type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour' | 'day'; min?: number}[]};
 type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
   rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
 const methodCopy: Record<string, string> = {tariff: 'Priced from your saved lane rate', mileage: 'Priced from your rate card and driving miles', unit_rates: 'Your unit rates (distance not measured)'};
@@ -618,7 +618,7 @@ function RateCardForm({settings, save, busy}: {settings: MailSettings; save: (s:
   const setAcc = (i: number, patch: Partial<RateCard['accessorials'][number]>) => setCard({...card, accessorials: card.accessorials.map((a, j) => j === i ? {...a, ...patch} : a)});
   const valid = card.per_mile > 0 && card.accessorials.every(a => a.name.trim());
   return <details className="rev-form"><summary>Rates and quote signature</summary>
-    <p className="rev-muted">Mail answers every rate request with a rate from these numbers, written by code, with the standard disclaimers (valid for {days} days, final charges depend on the lane, equipment and weight, subject to availability).</p>
+    <p className="rev-muted">Mail answers every rate request with a rate from these numbers, written by code, with the standard disclaimers (valid for {days} days, final charges depend on the lane, equipment and weight, subject to availability). Drayage is priced round trip and always includes the chassis; OTR is one way unless the request asks for a round trip.</p>
     <label>Rate per mile ($)<input type="number" min="0" step="0.01" value={card.per_mile} onChange={e => setCard({...card, per_mile: num(e.target.value)})}/></label>
     <label>Minimum per load ($)<input type="number" min="0" step="1" value={card.minimum} onChange={e => setCard({...card, minimum: num(e.target.value)})}/></label>
     <label>Fuel surcharge (%)<input type="number" min="0" max="100" step="0.1" value={card.fuel_pct} onChange={e => setCard({...card, fuel_pct: num(e.target.value)})}/></label>
@@ -627,7 +627,8 @@ function RateCardForm({settings, save, busy}: {settings: MailSettings; save: (s:
       {card.accessorials.map((a, i) => <div key={i} className="rev-actions">
         <input aria-label="Name" value={a.name} onChange={e => setAcc(i, {name: e.target.value})}/>
         <input aria-label="Price" type="number" min="0" step="1" value={a.price} onChange={e => setAcc(i, {price: num(e.target.value)})}/>
-        <select aria-label="Charged" value={a.per} onChange={e => setAcc(i, {per: e.target.value as 'flat' | 'stop' | 'hour'})}><option value="flat">flat</option><option value="stop">per stop</option><option value="hour">per hour</option></select>
+        <select aria-label="Charged" value={a.per} onChange={e => setAcc(i, {per: e.target.value as 'flat' | 'stop' | 'hour' | 'day', min: e.target.value === 'day' ? a.min ?? 1 : undefined})}><option value="flat">flat</option><option value="stop">per stop</option><option value="hour">per hour</option><option value="day">per day</option></select>
+        {a.per === 'day' && <input aria-label="Minimum days" type="number" min="1" max="30" step="1" value={a.min ?? 1} onChange={e => setAcc(i, {min: Math.max(1, Math.min(30, Math.round(num(e.target.value)) || 1))})} title="Minimum days"/>}
         <button type="button" onClick={() => setCard({...card, accessorials: card.accessorials.filter((_, j) => j !== i)})}>Remove</button></div>)}
       <button type="button" onClick={() => setCard({...card, accessorials: [...card.accessorials, {name: '', price: 0, per: 'flat'}]})}>Add accessorial</button>
     </fieldset>
