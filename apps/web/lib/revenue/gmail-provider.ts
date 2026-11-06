@@ -68,6 +68,20 @@ export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeo
     throw new MailProviderError('rejected', message, false);
   }
 
+  // The name the mailbox owner set in Gmail ("Omar Harris"), so mail Onixus sends shows a person, not a bare address.
+  const displayNames = new Map<string, string>();
+  async function displayName(from: string): Promise<string | null> {
+    const key = from.toLowerCase();
+    if (!displayNames.has(key)) {
+      try {
+        const list = await call<{sendAs?: {sendAsEmail: string; displayName?: string}[]}>('/settings/sendAs');
+        for (const a of list.sendAs ?? []) displayNames.set(a.sendAsEmail.toLowerCase(), (a.displayName ?? '').trim());
+      } catch { /* the bare address still works */ }
+      if (!displayNames.has(key)) displayNames.set(key, '');
+    }
+    return displayNames.get(key) || null;
+  }
+
   async function address() {
     mailbox ??= (await call<{emailAddress: string; historyId: string}>('/profile')).emailAddress.toLowerCase();
     return mailbox;
@@ -77,6 +91,7 @@ export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeo
     name: 'Gmail',
     address,
     async send(mail: OutboundMail) {
+      if (!mail.fromName) mail = {...mail, fromName: await displayName(mail.from)};
       const raw = Buffer.from(buildMime(mail)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       const sent = await call<{id: string; threadId: string}>('/messages/send', {method: 'POST', body: JSON.stringify({raw, ...(mail.threadId ? {threadId: mail.threadId} : {})})});
       return {providerMessageId: sent.id, providerThreadId: sent.threadId};
