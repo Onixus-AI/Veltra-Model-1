@@ -35,3 +35,19 @@ The board reads the latest 100 scoped `revenue_jobs`, polling every ten seconds 
 Migration `20261029203000_team_daily_schedule.sql` adds owner-controlled, default-off daily planning. The cron claims at most one due business per pass, once per UTC date, shared with the three-run daily pilot cap. An owner who loses membership cannot keep scheduling work. Pause stops future claims; it does not interrupt a request already executing. A failed run consumes that day's automatic claim to prevent retry spend loops.
 
 Daily planning currently checks a bounded sample of operational job health and creates reviewed proposals. It does **not** automatically repair jobs, publish campaigns, send messages or update shared industry playbooks. Those require supported execution handlers, business authorization and outcome receipts. No private client information is shared between businesses. Runtime hosting/key activation remains pending; do not enable schedules before a verified end-to-end provider run.
+
+## Google Cloud Run migration
+
+For Cloud Run's repository setup, select `services/onixelia/Dockerfile.cloudrun`.
+Its build context is `services/onixelia`; it copies only the two runtime files.
+The existing root-context Dockerfile remains temporarily for rollback, with the
+same pinned Hermes image and entrypoint. There is no second agent implementation.
+Retire the legacy Dockerfile and Railway configuration after verified cutover.
+
+Initial service configuration: require IAM authentication, request-based CPU,
+minimum 0 instances, maximum 1, concurrency 1, 1 CPU, 2 GiB memory, port 8080.
+Keep the existing dedicated capped provider key requirement. Missing secrets
+must produce an unconfigured health response rather than simulated success.
+Workspace must supply a Cloud Run identity token as well as the application
+bearer token before enabling the service; the existing bearer alone is not IAM
+credentials. Do not enable recurring work until a real end-to-end run passes.
