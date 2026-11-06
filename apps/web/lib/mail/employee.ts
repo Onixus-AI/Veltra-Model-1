@@ -17,7 +17,7 @@ export type Settings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: 
   rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
 export type Plan =
   | {action: 'trash' | 'archive'; unsubscribe: boolean; label: string; headline: string}
-  | {action: 'reply'; purpose: 'ANSWER' | 'QUOTE' | 'DOCUMENT_RECEIVED'; label: string; headline: string; to: string; message_id_header: string | null; references: string | null; needs_review?: boolean; price?: unknown; quote_method?: string; quote_note?: string}
+  | {action: 'reply'; purpose: 'ANSWER' | 'QUOTE' | 'DOCUMENT_RECEIVED'; label: string; headline: string; to: string; message_id_header: string | null; references: string | null; needs_review?: boolean; price?: unknown; quote_method?: string; quote_note?: string; quote_check?: string}
   | {action: 'none'; label: string; headline: string};
 export type QuoteLane = (lane: NonNullable<NonNullable<Classification['quote']>['freight']>) => Promise<Record<string, unknown> | null>;
 
@@ -93,7 +93,7 @@ export async function sortSome(d: EmployeeDeps): Promise<{sorted: number; skippe
         const tms = freight && d.quoteLane ? await d.quoteLane(freight).catch(() => null) : null;
         const card = validRateCard(d.settings.rate_card) ? d.settings.rate_card : null;
         const q = await writeQuote({lane: freight, tms, card, distance: d.distance ?? null, estimate: d.estimate === undefined ? estimateMiles : d.estimate, signature: signatureOf(d), validDays: d.settings.quote_valid_days ?? undefined, greeting: greeting(m)});
-        if (q) { draft = q.body; plan.price = q.total; plan.quote_method = q.method; plan.needs_review = false; if (q.note) plan.quote_note = q.note; }
+        if (q) { draft = q.body; plan.price = q.total; plan.quote_method = q.method; plan.needs_review = !!q.check; if (q.note) plan.quote_note = q.note; if (q.check) plan.quote_check = q.check; }
         else { plan.needs_review = true; draft = await d.brain.draft('QUOTE', email, d.business, {business: d.business.name, request: c.quote?.request ?? null, lane: freight, price: null, pricing: 'no price available: say a rate will follow'}); }
       } else if (plan.action === 'reply') {
         draft = await d.brain.draft(plan.purpose, email, d.business, {business: d.business.name, signature: signatureOf(d)});

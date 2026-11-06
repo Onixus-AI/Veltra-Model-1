@@ -98,3 +98,15 @@ test('the chassis charged is not also listed as priced on confirmation', () => {
   assert.ok(q.lines.some(l => l.label.startsWith('Chassis: 3 days')));
   assert.deepEqual(q.unpriced, ['chassis split: priced on confirmation', 'storage: priced on confirmation']);
 });
+
+test('a price whose miles look wrong is flagged for a person, never auto-sent', async () => {
+  const far = (await writeQuote({lane: {origin: 'Richmond Barge Terminal', destination: 'Chester, VA 23836', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, signature: 'S',
+    distance: async () => 850, estimate: () => 15}))!;
+  assert.match(far.check!, /Google says 850 mi, the ZIP\/city estimate 15 mi/);
+  const none = (await writeQuote({lane: {origin: 'Norfolk Port', destination: 'Not specified', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, signature: 'S',
+    distance: async () => 1881, estimate: () => null}))!;
+  assert.match(none.check!, /No delivery place given/);
+  const ok = (await writeQuote({lane: {origin: 'NIT', destination: 'Lorton, VA 22079', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, signature: 'S',
+    distance: async () => 172, estimate: () => 159}))!;
+  assert.equal(ok.check, undefined, 'normal Google vs estimate gap is fine');
+});

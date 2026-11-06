@@ -213,3 +213,13 @@ test('a rate request on a deadline is at least HIGH priority', () => {
   assert.equal(withDeadlinePriority(cls('QUOTE_REQUEST', {priority: 'URGENT'}), {subject: 'today', text: ''}).priority, 'URGENT', 'never lowered');
   assert.equal(withDeadlinePriority(cls('NEWSLETTER'), {subject: 'Sale ends today', text: ''}).priority, 'NORMAL', 'only rate requests');
 });
+
+test('a flagged quote waits for review even with quotes on autopilot', async () => {
+  const brain = fakeBrain({'Rate request': cls('QUOTE_REQUEST', {quote: {request: 'x', freight: {origin: 'Richmond Barge Terminal', destination: 'Chester, VA 23836', equipment_type: 'CONTAINER'}}})});
+  const h = harness({q1: msg('q1')}, {brain, quote: null, settings: {...OFF, auto_send: ['QUOTE_REQUEST'], rate_card: CARD}});
+  h.d.distance = async () => 850; h.d.estimate = () => 15;
+  await sortSome(h.d);
+  const plan = h.recorded()[0]!.plan as {needs_review?: boolean; quote_check?: string};
+  assert.equal(plan.needs_review, true);
+  assert.match(plan.quote_check!, /850 mi/);
+});
