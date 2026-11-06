@@ -32,6 +32,7 @@ function harness(messages: Record<string, ProviderMessage>, o: {brain?: Brain | 
       async unsubscribeHeaders() { return {listUnsubscribe: '<https://lists.test/u?x=1>', listUnsubscribePost: 'List-Unsubscribe=One-Click'}; },
       async label(id, name, archive) { gmail.push(`${archive ? 'archive' : 'label'} ${id} ${name}`); },
       async trash(id) { gmail.push(`trash ${id}`); },
+      async sendDraft(id) { gmail.push(`send draft ${id}`); return {providerMessageId: 'draft-sent', providerThreadId: 'x'}; },
     },
     mail: {name: 'Gmail', address: async () => 'dispatch@hampton.test', changes: async () => ({messages: [], cursor: '', more: false}),
       send: async m => { sent.push(m); return {providerMessageId: 'sent-1', providerThreadId: m.threadId ?? 'x'}; }},
