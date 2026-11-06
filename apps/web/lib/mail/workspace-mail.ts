@@ -3,6 +3,7 @@ import {relayAccount, type Rpc} from '../revenue/relay';
 import type {ProviderMessage} from '../revenue/mail-provider';
 import {brainFromEnv, type Brain} from './brain';
 import {actOnApproved, noteNew, sortSome, type Settings} from './employee';
+import {noteOutreachReplies, sendOutreach} from './outreach';
 import {gmailActions} from './gmail-actions';
 import {tmsQuoteLane} from './tms';
 import {googleDistance} from './quote';
@@ -87,6 +88,14 @@ export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; job
         employee = {noted, ...sorted, done: acted.done, failed: acted.failed, ...(brain ? {} : {ai: 'not configured'})};
       } catch (e) {
         employee = {error: e instanceof Error ? e.message.slice(0, 200) : 'Mail employee step failed.'};
+      }
+      // Outreach autopilot (off unless the owner switched it on for this mailbox): replies first,
+      // so nobody who just answered gets another email, then at most one send.
+      try {
+        const replies = await noteOutreachReplies(d, seen);
+        employee.outreach = {...await sendOutreach(d), ...(replies ? {replies} : {})};
+      } catch (e) {
+        employee.outreach = {error: e instanceof Error ? e.message.slice(0, 200) : 'Outreach step failed.'};
       }
     }
     await finish({result, detail: r.sync.error ?? '', ingested: r.sync.ingested, sent, employee});

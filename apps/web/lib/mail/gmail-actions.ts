@@ -1,6 +1,7 @@
 import {googleAccessToken, type GoogleCredentials} from '../revenue/google-auth';
 import {MailProviderError, type ProviderMessage} from '../revenue/mail-provider';
 import {toProviderMessage} from '../revenue/gmail-provider';
+import {OutreachSkip} from './outreach';
 
 // What Mail does to a message in Gmail beyond reading and sending: label it, archive it, move it
 // to Trash (Gmail keeps Trash for 30 days, so nothing is deleted for good), and read the headers
@@ -11,6 +12,8 @@ export type GmailActions = {
   unsubscribeHeaders(id: string): Promise<{listUnsubscribe?: string; listUnsubscribePost?: string}>;
   label(id: string, name: string, archive: boolean): Promise<void>;
   trash(id: string): Promise<void>;
+  /** Sends a Gmail draft as it is now, only if it is still addressed to `to` (outreach autopilot). */
+  sendDraft(id: string, to: string): Promise<{providerMessageId: string; providerThreadId: string}>;
 };
 
 export const MAIL_LABELS: Record<string, string> = {
@@ -57,6 +60,14 @@ export function gmailActions(credentials: GoogleCredentials, o: {fetcher?: typeo
     },
     async trash(id) {
       await call(`/messages/${encodeURIComponent(id)}/trash`, {method: 'POST'});
+    },
+    async sendDraft(id, to) {
+      const draft = await call<{message?: {payload?: {headers?: {name: string; value: string}[]}}}>(`/drafts/${encodeURIComponent(id)}?format=metadata`);
+      const recipients = (draft.message?.payload?.headers ?? []).filter(h => ['to', 'cc', 'bcc'].includes(h.name.toLowerCase())).map(h => h.value.toLowerCase()).join(',');
+      const addresses = recipients.match(/[^\s<>,;"']+@[^\s<>,;"']+/g) ?? [];
+      if (addresses.length !== 1 || addresses[0] !== to.toLowerCase()) throw new OutreachSkip('The draft in Gmail is no longer addressed to this company only.');
+      const sent = await call<{id: string; threadId: string}>('/drafts/send', {method: 'POST', body: JSON.stringify({id})});
+      return {providerMessageId: sent.id, providerThreadId: sent.threadId};
     },
   };
 }

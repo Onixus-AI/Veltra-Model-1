@@ -641,6 +641,33 @@ const kindCopy: Record<string, string> = {JUNK: 'Junk', NEWSLETTER: 'Newsletter'
 const doCopy = (i: MailItem) => i.plan?.action === 'trash' ? 'Delete (moves to Gmail Trash)' : i.plan?.action === 'archive' ? (i.plan.unsubscribe ? 'Unsubscribe and archive' : 'Archive')
   : i.plan?.action === 'reply' ? (i.plan.purpose === 'QUOTE' ? 'Send this quote' : 'Send this reply') : 'No action';
 
+type OutreachBox = {mailbox: string; enabled: boolean; daily_limit: number; queued: number; sent_today: number; sent: number; replied: number; needs_look: number;
+  recent: {to_email: string; status: string; detail: string; t: string}[]};
+const outreachCopy: Record<string, string> = {sending: 'Sending', sent: 'Sent', skipped: 'Skipped', failed: 'Failed', replied: 'Replied', bounced: 'Bounced'};
+
+/** Outreach autopilot per mailbox: a few first-touch emails a day, weekdays 9–4 Eastern. */
+function MailOutreach({s}: {s: Shared}) {
+  const [boxes, setBoxes] = useState<OutreachBox[] | null>(null);
+  const load = useCallback(async () => {
+    try { setBoxes(await s.post<OutreachBox[]>('rpc/mail_outreach_status', {args: {}})); } catch { setBoxes([]); }
+  }, [s.post]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [load, s.tick]);
+  const set = (b: OutreachBox, enabled: boolean, limit: number) =>
+    void s.act('mail_outreach_set', {p_mailbox: b.mailbox, p_enabled: enabled, p_daily_limit: limit}, enabled ? `Outreach autopilot is on for ${b.mailbox}.` : `Outreach autopilot is off for ${b.mailbox}.`);
+  const shown = (boxes ?? []).filter(b => b.enabled || b.queued || b.sent);
+  if (!shown.length) return null;
+  return <div className="rev-form" aria-label="Outreach autopilot">
+    <strong>Outreach autopilot</strong>
+    <p className="rev-muted">Sends queued first emails on its own, weekdays 9am–4pm Eastern, spaced through the day. Anyone who has written to you, replies, bounces or says “no thanks” is not emailed again.</p>
+    {shown.map(b => <div key={b.mailbox}>
+      <label><input type="checkbox" checked={b.enabled} disabled={s.busy} onChange={e => set(b, e.target.checked, b.daily_limit)}/> Send from {b.mailbox} on its own,{' '}
+        <select value={b.daily_limit} disabled={s.busy} aria-label="Emails a day" onChange={e => set(b, b.enabled, Number(e.target.value))}>{[5, 10, 15, 20, 25].map(n => <option key={n} value={n}>{n}</option>)}</select> a day</label>
+      <small>{b.sent_today} sent today · {b.queued} waiting · {b.sent} sent in all · {b.replied} replied{b.needs_look ? ` · ${b.needs_look} need a look` : ''}</small>
+      {b.recent.length > 0 && <ul className="rev-muted">{b.recent.map(r => <li key={r.to_email}>{outreachCopy[r.status] ?? r.status}: {r.to_email}{r.detail ? ` (${r.detail})` : ''} · {since(r.t)}</li>)}</ul>}
+    </div>)}
+  </div>;
+}
+
 function MailWork({s}: {s: Shared}) {
   const [tab, setTab] = useState<'pending' | 'done' | 'info' | 'failed'>('pending');
   const [items, setItems] = useState<MailItem[] | null>(null);
@@ -670,6 +697,7 @@ function MailWork({s}: {s: Shared}) {
         {t === 'pending' ? 'Waiting for you' : t === 'done' ? 'Done' : t === 'info' ? 'For your information' : 'Needs a look'}</button>)}</div></div>
     <div className="rev-actions mail-boxes"><span className="rev-muted">Mailboxes: {boxes.filter(b => b.status === 'active').map(b => b.mailbox).join(' · ') || 'none connected'}</span>
       <a className="button" href="/settings/connections?add_mail=1">Add another Gmail</a></div>
+    <MailOutreach s={s}/>
     <p className="rev-muted">Mail sorts each new email, labels it in Gmail (Onixus/…), drafts replies and quotes from your rates, and proposes clean-up. Nothing is sent, archived or deleted until you approve it, unless you turn that kind on below.</p>
     {tab === 'pending' && cleanup.length > 1 && <div className="rev-actions"><button type="button" disabled={s.busy} onClick={() => void approveAll(cleanup)}>Approve all {cleanup.length} clean-ups</button></div>}
     {items === null ? <p className="rev-muted">Loading…</p> : !items.length ? <Empty>{tab === 'pending' ? 'Nothing waiting for you.' : 'Nothing here yet.'}</Empty> :

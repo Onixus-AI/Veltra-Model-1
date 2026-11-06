@@ -29,6 +29,7 @@ const actions: Record<string, string[]> = {
   revenue_mark_proposal_sent: ['p_proposal', 'p_checkout_reference', 'p_checkout_url'], revenue_cancel_proposal: ['p_proposal', 'p_reason'],
   revenue_score_prospects: [],
   mail_items_list: ['p_status'], mail_google_status: [], mail_item_decide: ['p_id', 'p_decision', 'p_draft'], mail_settings: ['p_settings'],
+  mail_outreach_status: [], mail_outreach_set: ['p_mailbox', 'p_enabled', 'p_daily_limit'],
   revenue_calendar_select: ['p_calendar', 'p_sync', 'p_write_default'], revenue_calendar_settings: ['p_timezone', 'p_share'],
 };
 
