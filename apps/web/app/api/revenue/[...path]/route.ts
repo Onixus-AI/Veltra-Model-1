@@ -30,6 +30,7 @@ const actions: Record<string, string[]> = {
   revenue_score_prospects: [],
   mail_items_list: ['p_status'], mail_google_status: [], mail_item_decide: ['p_id', 'p_decision', 'p_draft'], mail_settings: ['p_settings'],
   mail_outreach_status: [], mail_outreach_set: ['p_mailbox', 'p_enabled', 'p_daily_limit'],
+  mail_quote_cleanup_list: [], mail_quote_cleanup_decide: ['p_ids', 'p_approve'],
   revenue_calendar_select: ['p_calendar', 'p_sync', 'p_write_default'], revenue_calendar_settings: ['p_timezone', 'p_share'],
 };
 

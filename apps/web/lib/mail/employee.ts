@@ -14,7 +14,9 @@ import {estimateMiles} from './places';
 
 export type Settings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
   /** Trucking rate card: Mail quotes from it, with the standard disclaimers. */
-  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
+  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null;
+  /** Rate requests quiet this many days go to Gmail's Trash (null = off). */
+  quote_cleanup_days?: number | null};
 export type Plan =
   | {action: 'trash' | 'archive'; unsubscribe: boolean; label: string; headline: string}
   | {action: 'reply'; purpose: 'ANSWER' | 'QUOTE' | 'DOCUMENT_RECEIVED'; label: string; headline: string; to: string; message_id_header: string | null; references: string | null; needs_review?: boolean; price?: unknown; quote_method?: string; quote_note?: string; quote_check?: string}

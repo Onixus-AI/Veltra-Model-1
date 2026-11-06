@@ -607,7 +607,7 @@ type MailItem = {id: string; from_email: string; from_name: string | null; subje
   status: string; result: {error?: string; unsubscribe?: {detail?: string}} | null; created_at: string};
 type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour' | 'day'; min?: number}[]};
 type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
-  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null};
+  rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null; quote_cleanup_days?: number | null};
 const methodCopy: Record<string, string> = {tariff: 'Priced from your saved lane rate', mileage: 'Priced from your rate card and driving miles', unit_rates: 'Your unit rates (distance not measured)'};
 
 function RateCardForm({settings, save, busy}: {settings: MailSettings; save: (s: MailSettings) => void; busy: boolean}) {
@@ -665,6 +665,34 @@ function MailOutreach({s}: {s: Shared}) {
       <small>{b.sent_today} sent today · {b.queued} waiting · {b.sent} sent in all · {b.replied} replied{b.needs_look ? ` · ${b.needs_look} need a look` : ''}</small>
       {b.recent.length > 0 && <ul className="rev-muted">{b.recent.map(r => <li key={r.to_email}>{outreachCopy[r.status] ?? r.status}: {r.to_email}{r.detail ? ` (${r.detail})` : ''} · {since(r.t)}</li>)}</ul>}
     </div>)}
+  </div>;
+}
+
+type QuoteCleanup = {proposed: {id: string; mailbox: string; subject: string; from_email: string; last_message_at: string | null}[]; trashed: number; waiting: number; failed: number};
+
+/** Old rate requests found by search: listed for the owner, trashed only once approved. */
+function QuoteCleanupReview({s}: {s: Shared}) {
+  const [data, setData] = useState<QuoteCleanup | null>(null);
+  const load = useCallback(async () => {
+    try { setData(await s.post<QuoteCleanup>('rpc/mail_quote_cleanup_list', {args: {}})); } catch { setData(null); }
+  }, [s.post]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [load, s.tick]);
+  if (!data || (!data.proposed.length && !data.trashed && !data.waiting)) return null;
+  const decide = (ids: string[] | null, approve: boolean) => void s.act('mail_quote_cleanup_decide', {p_ids: ids, p_approve: approve},
+    approve ? 'Approved: those rate requests go to Gmail Trash on the next pass.' : 'Kept: those stay in the inbox.');
+  return <div className="rev-form" aria-label="Rate request cleanup">
+    <strong>Rate request cleanup</strong>
+    <small>{data.trashed} moved to Trash · {data.waiting} waiting until quiet{data.failed ? ` · ${data.failed} failed, retrying` : ''}</small>
+    {data.proposed.length > 0 && <>
+      <p className="rev-muted">Old rate requests found in your inbox from before Mail was connected. Nothing here is trashed until you approve it.</p>
+      {s.isOwner && <div className="rev-actions"><button type="button" className="primary" disabled={s.busy} onClick={() => decide(null, true)}>Trash all {data.proposed.length}</button>
+        <button type="button" disabled={s.busy} onClick={() => decide(null, false)}>Keep all</button></div>}
+      <ul className="rev-list">{data.proposed.slice(0, 100).map(p => <li key={p.id}>
+        <strong>{p.subject || '(no subject)'}</strong> <small>{p.from_email} · {p.last_message_at ? since(p.last_message_at) : ''}</small>
+        {s.isOwner && <span className="rev-actions"><button type="button" disabled={s.busy} onClick={() => decide([p.id], true)}>Trash</button>
+          <button type="button" disabled={s.busy} onClick={() => decide([p.id], false)}>Keep</button></span>}</li>)}</ul>
+      {data.proposed.length > 100 && <small>And {data.proposed.length - 100} more (Trash all / Keep all covers every one).</small>}
+    </>}
   </div>;
 }
 
@@ -726,8 +754,13 @@ function MailWork({s}: {s: Shared}) {
       <label><input type="checkbox" checked={settings.auto_send.includes('QUOTE_REQUEST')} onChange={e => toggleSend('QUOTE_REQUEST', e.target.checked)}/> Send quotes on its own (always from your rates, with the disclaimers)</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('DOCUMENT')} onChange={e => toggleSend('DOCUMENT', e.target.checked)}/> Confirm receipt of documents (BOL, POD, rate confirmations) on its own</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('QUESTION')} onChange={e => toggleSend('QUESTION', e.target.checked)}/> Answer questions on its own</label>
+      <label>Move rate requests to Gmail Trash once their thread has been quiet for{' '}
+        <select value={settings.quote_cleanup_days ?? ''} aria-label="Days before cleanup" onChange={e => save({...settings, quote_cleanup_days: e.target.value ? Number(e.target.value) : null})}>
+          <option value="">never</option>{[3, 5, 7, 10, 14, 21, 30, 45, 60].map(n => <option key={n} value={n}>{n} days</option>)}</select>
+        {' '}(your sent quotes stay in Sent; Gmail empties Trash after 30 days)</label>
       <p className="rev-muted">Never on autopilot: anything Mail flags as needing you (complaints, claims, payment or legal issues), and quotes when no rates are set.</p>
     </details>}
+    <QuoteCleanupReview s={s}/>
     {settings && <RateCardForm key={JSON.stringify(settings.rate_card ?? null) + (settings.signature ?? '')} settings={settings} save={save} busy={s.busy}/>}
   </section>;
 }
