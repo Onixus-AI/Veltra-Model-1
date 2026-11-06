@@ -53,13 +53,15 @@ export default function ConnectionsPage() {
       const expected = sessionStorage.getItem(LINK_STATE);
       sessionStorage.removeItem(LINK_STATE);
       if (!expected || query.get("state") !== expected) setError("Check your connection below. This attempt started in another browser session.");
-      else if (result === "connected") setNotice("Google is connected. Open Veltra Mail below to use your workspace in the canvas.");
+      else if (result === "connected") setNotice("Gmail is connected. It now appears in CRM → Mail with your rates and signature.");
       else setError(result === "cancelled" ? "Google connection cancelled." : "Google connection could not finish. Try again and grant the requested Mail permissions.");
       query.delete("mail");query.delete("state");
       history.replaceState(null, "", "/settings/connections"+(query.size?"?"+query:""));
     }
     void refresh();
-  }, [refresh]);
+    // Arrived from CRM → Mail → "Add another Gmail": go straight to Google's account chooser.
+    if (query.get("add_mail") === "1") { query.delete("add_mail"); history.replaceState(null, "", "/settings/connections"+(query.size?"?"+query:"")); void connect(false); }
+  }, [refresh]); // eslint-disable-line react-hooks/exhaustive-deps
   async function connect(disconnect = false) {
     setBusy(true); setError(""); setNotice("");
     try {
