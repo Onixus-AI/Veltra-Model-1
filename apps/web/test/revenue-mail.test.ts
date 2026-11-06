@@ -69,6 +69,7 @@ test('Gmail adapter: sends, finds earlier sends, syncs history pages and maps er
   assert.deepEqual(start.messages, []);
   const sent = await gmail.send({idempotencyKey: 'onixus-abc', from: MAILBOX, to: 'pat@customer.test', subject: 'Hello', body: 'Body text'});
   assert.equal(g.delivered[0].body, 'Body text');
+  assert.equal(g.delivered[0].from, MAILBOX, 'no display name set in Gmail: the bare address');
   assert.deepEqual(await gmail.findSent!('onixus-abc'), sent);
   assert.equal(await gmail.findSent!('onixus-missing'), null);
   for (let i = 0; i < 3; i++) g.receive({from: 'pat@customer.test', fromName: 'Pat', threadId: sent.providerThreadId, subject: `Re: Hello ${i}`, text: `Reply ${i}?`});
@@ -178,4 +179,12 @@ test('daily report notifications suppress automated replies without changing nor
  assert.match(buildMime(mail),/^Auto-Submitted: auto-generated$/m);
  assert.match(buildMime(mail),/^X-Auto-Response-Suppress: All$/m);
  assert.doesNotMatch(buildMime({...mail,subject:'Customer follow-up'}),/^Auto-Submitted:/m);
+});
+
+test('Gmail adapter: mail goes out under the name set in Gmail, unless the sender gives one', async () => {
+  const g = fakeGmail({mailbox: MAILBOX, controlledRecipients: ['pat@customer.test'], displayName: 'Omar Harris'});
+  const gmail = gmailProvider(g.credentials, g.options);
+  await gmail.send({idempotencyKey: 'n1', from: MAILBOX, to: 'pat@customer.test', subject: 'Hi', body: 'x'});
+  await gmail.send({idempotencyKey: 'n2', from: MAILBOX, fromName: 'Onixus Quotes', to: 'pat@customer.test', subject: 'Hi', body: 'x'});
+  assert.deepEqual(g.delivered.map(d => d.from), [`"Omar Harris" <${MAILBOX}>`, `"Onixus Quotes" <${MAILBOX}>`]);
 });
