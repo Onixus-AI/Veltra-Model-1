@@ -646,10 +646,12 @@ function MailWork({s}: {s: Shared}) {
   const [items, setItems] = useState<MailItem[] | null>(null);
   const [settings, setSettings] = useState<MailSettings | null>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const [boxes, setBoxes] = useState<{mailbox: string; status: string}[]>([]);
   const load = useCallback(async () => {
     try {
-      const [list, st] = await Promise.all([s.post<MailItem[]>('rpc/mail_items_list', {args: {p_status: tab}}), s.post<MailSettings>('rpc/mail_settings', {args: {p_settings: null}})]);
-      setItems(list); setSettings(st);
+      const [list, st, mb] = await Promise.all([s.post<MailItem[]>('rpc/mail_items_list', {args: {p_status: tab}}), s.post<MailSettings>('rpc/mail_settings', {args: {p_settings: null}}),
+        s.post<{mailbox: string; status: string}[]>('rpc/mail_google_status', {args: {}}).catch(() => [])]);
+      setItems(list); setSettings(st); setBoxes(mb);
     } catch (e) { s.setError(e instanceof Error ? e.message : 'Could not load Mail’s work.'); }
   }, [s.post, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, [load, s.tick]);
@@ -666,6 +668,8 @@ function MailWork({s}: {s: Shared}) {
     <div className="rev-heading"><h2 id="mw-h">Mail’s work</h2>
       <div className="rev-actions" role="tablist">{(['pending', 'done', 'info', 'failed'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'primary' : undefined} onClick={() => setTab(t)}>
         {t === 'pending' ? 'Waiting for you' : t === 'done' ? 'Done' : t === 'info' ? 'For your information' : 'Needs a look'}</button>)}</div></div>
+    <div className="rev-actions mail-boxes"><span className="rev-muted">Mailboxes: {boxes.filter(b => b.status === 'active').map(b => b.mailbox).join(' · ') || 'none connected'}</span>
+      <a className="button" href="/settings/connections?add_mail=1">Add another Gmail</a></div>
     <p className="rev-muted">Mail sorts each new email, labels it in Gmail (Onixus/…), drafts replies and quotes from your rates, and proposes clean-up. Nothing is sent, archived or deleted until you approve it, unless you turn that kind on below.</p>
     {tab === 'pending' && cleanup.length > 1 && <div className="rev-actions"><button type="button" disabled={s.busy} onClick={() => void approveAll(cleanup)}>Approve all {cleanup.length} clean-ups</button></div>}
     {items === null ? <p className="rev-muted">Loading…</p> : !items.length ? <Empty>{tab === 'pending' ? 'Nothing waiting for you.' : 'Nothing here yet.'}</Empty> :
