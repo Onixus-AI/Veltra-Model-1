@@ -1,3 +1,4 @@
+import {toolFailureSummary} from '@/lib/business-team/tool-failures';
 import {createClient} from '@supabase/supabase-js';
 import {requireBearer} from '@/lib/revenue/ingest';
 import {noStore} from '@/lib/revenue/server';
@@ -20,18 +21,20 @@ export async function GET(request:Request){
  const job=start.data;if(!job)return Response.json({started:0},{headers:noStore});
  try{
  const checkedAt=new Date().toISOString();
- const [dead,overdue,pending,failed,business]=await Promise.all([
+ const [dead,overdue,pending,failed,business,toolFailures]=await Promise.all([
  db.from('revenue_jobs').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','dead'),
  db.from('crm_tasks').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','open').lt('due_at',checkedAt),
  db.from('revenue_messages').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','drafted'),
  db.from('revenue_messages').select('id',{head:true,count:'exact'}).eq('workspace_id',workspace).eq('status','failed'),
- db.from('crm_workspaces').select('industry').eq('id',workspace).single()]);
+ db.from('crm_workspaces').select('industry').eq('id',workspace).single(),
+ db.from('workspace_business_events').select('tool').eq('workspace_id',workspace).eq('status','failed').gte('created_at',new Date(Date.parse(checkedAt)-86400000).toISOString()).lt('created_at',checkedAt).order('created_at',{ascending:false}).limit(501)]);
  if(dead.error||overdue.error||pending.error||failed.error||business.error||[dead.count,overdue.count,pending.count,failed.count].some(value=>value===null))throw Error('Context unavailable');
- const metrics={failures:{dead_jobs:dead.count,failed_sends:failed.count},commitments:{overdue:overdue.count},outreach:{awaiting_approval:pending.count}};
- const priorities=[...(overdue.count? [{kind:'overdue'}]:[]),...((dead.count||failed.count)?[{kind:'failed'}]:[]),...(pending.count?[{kind:'approval'}]:[])];
+ const failures=toolFailureSummary(toolFailures.error?null:toolFailures.data);
+ const metrics={failures:{dead_jobs:dead.count,failed_sends:failed.count,...(failures.count!==null?{agent_tool_failures:failures.count}:{})},commitments:{overdue:overdue.count},outreach:{awaiting_approval:pending.count}};
+ const priorities=[...(overdue.count? [{kind:'overdue'}]:[]),...((dead.count||failed.count||failures.count)?[{kind:'failed'}]:[]),...(pending.count?[{kind:'approval'}]:[])];
  const snapshot=planningSnapshot(business.data.industry||'Business services',{generated_at:checkedAt,metrics},priorities);
  const result=await executePilot(job.id,snapshot),at=new Date().toISOString();
- const receipts=[{member:'onyx',action:'Checked daily business queues',status:'completed',at:snapshot.checked_at,source:'revenue_jobs,crm_tasks,revenue_messages',detail:'Exact scoped counts of overdue commitments, Mail drafts, failed sends and dead jobs. Other connectors are not audited by this run.'},{member:'onixelia',action:'Prepared daily improvement proposals',status:'completed',at,engine:result.engine,model:result.model,version:result.version,usage:result.usage},{member:'onyx',action:'Reviewed improvement proposals with Jev decision support',status:'completed',at,...result.review,detail:'Review only. Proposed work requires its own execution receipt.'}];
+ const receipts=[{member:'onyx',action:'Inspected recorded agent tool failures',status:failures.available?'completed':'unavailable',at:checkedAt,source:'workspace_business_events',...failures,detail:'Last 24 hours, scoped business only. Metadata excludes messages and credentials. Prioritize a reproducible regression, tested repair and deployment verification; a proposal is not a fix.'},{member:'onyx',action:'Checked daily business queues',status:'completed',at:snapshot.checked_at,source:'revenue_jobs,crm_tasks,revenue_messages',detail:'Exact scoped counts of overdue commitments, Mail drafts, failed sends and dead jobs. Other connectors are not audited by this run.'},{member:'onixelia',action:'Prepared daily improvement proposals',status:'completed',at,engine:result.engine,model:result.model,version:result.version,usage:result.usage},{member:'onyx',action:'Reviewed improvement proposals with Jev decision support',status:'completed',at,...result.review,detail:'Review only. Proposed work requires its own execution receipt.'}];
  const saved=await db.from('workspace_team_jobs').update({status:'completed',plan:result.tasks,receipts,finished_at:at}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');if(saved.error)throw Error('Receipt save failed');
  return Response.json({started:1,status:'completed',job_id:job.id},{headers:noStore});
  }catch{await db.from('workspace_team_jobs').update({status:'failed',failure:'Daily review failed. No external actions authorized.',finished_at:new Date().toISOString()}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');return Response.json({started:1,status:'failed',job_id:job.id},{headers:noStore});}

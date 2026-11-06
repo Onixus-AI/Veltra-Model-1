@@ -1,4 +1,5 @@
 "use client";
+import {capabilityFailureReply} from './tool-failure-reply';
 import {needsCapabilityCheck} from './capability-check';
 import {verifiedAnswer} from './completion-evidence';
 import {toolPresentation,type TaskObserver} from './task-progress';
@@ -226,7 +227,7 @@ export async function runAgentTurn(
     if (!calls.length) {
       const answer=typeof message.content==='string'?message.content:'';
       if(needsCapabilityCheck(answer,actionEvidence,userText)){
-        if(capabilityCheckRequested||explicitSequenceStopped||/\b(?:no tools|do not (?:use|call|run) tools|don't (?:use|call|run) tools)\b/i.test(userText))return 'Live capabilities were not verified in this turn. I cannot confirm that capability claim. '+(actionEvidence.length?'Tool results:\n'+actionEvidence.map(e=>e.tool+': '+e.content).join('\n'):'No capability-check tool ran.');
+        if(capabilityCheckRequested||explicitSequenceStopped||/\b(?:no tools|do not (?:use|call|run) tools|don't (?:use|call|run) tools)\b/i.test(userText))return capabilityFailureReply(actionEvidence);
         capabilityCheckRequested=true;
         convo.push({role:'assistant',content:answer},{role:'system',content:'Before making capability or access claims, run onyx_capabilities now. A promise to check is not a check. This is a read only; it does not authorize writes. Then use the relevant connected tool for the requested task, requesting exact-action approval as needed. If the check fails, report that failure and do not repeat an unsupported capability claim.'});
         continue;

@@ -48,3 +48,8 @@ test('threaded reply and archive receipts remain distinct from send and Trash',(
  assert.match(verifiedAnswer('I cleared the messages.',[{tool:'mail_archive',content:JSON.stringify(archive)}]),/Verified action receipts/);
  assert.match(verifiedAnswer('I deleted the messages.',[{tool:'mail_trash',content:JSON.stringify(archive)}]),/cannot verify/);
 });
+
+test('approval queue receipts preserve partial counts rather than an all-sent claim',()=>{
+ const receipt={review_id:'review',action:'send_approval_queue',status:'partial',processed:1,skipped:1,unverified:1,remaining:2,items:[{id:'a',status:'processed'},{id:'b',status:'skipped'},{id:'c',status:'unverified'}]};
+ const answer=verifiedAnswer('I sent everything.',[{tool:'mail_health',content:JSON.stringify(receipt)}]);assert.match(answer,/"unverified":1/);assert.doesNotMatch(answer,/I sent everything/);
+});
