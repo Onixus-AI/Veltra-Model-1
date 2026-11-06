@@ -14,8 +14,11 @@ export default function MailCanvas({ onClose }: { onClose: () => void }) {
     const launch = async () => {
       try {
         const response = await fetch("/api/mail/link", { headers: await gatewayAuthorizationHeaders(), cache: "no-store" });
-        const data = await response.json() as { connected?: boolean; workspace_id?: string; error?: string };
+        const data = await response.json() as { connected?: boolean; workspace_id?: string; error?: string; choose_workspace?: boolean };
         if (!response.ok) throw new Error(data.error ?? "Could not open Onixus Mail.");
+        // This login belongs to no business yet (e.g. someone signed in with a new mailbox address):
+        // connecting Gmail can't work until they sign in as the owner or are added to the business.
+        if (data.choose_workspace) throw new Error("This login isn't part of a business yet. Sign out and sign in as the business owner, then use CRM → Mail → Add another Gmail to add this mailbox. Or ask the owner to add you to the business.");
         if (!data.connected || !data.workspace_id) throw new Error("Connect Gmail first, then open Mail.");
         if (active) { setSource(`/revenue?view=mail&w=${encodeURIComponent(data.workspace_id)}`); setError(""); }
       } catch (cause) { if (active) setError(cause instanceof Error ? cause.message : "Could not open Mail."); }
