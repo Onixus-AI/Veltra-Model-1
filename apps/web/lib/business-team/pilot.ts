@@ -8,7 +8,7 @@ export function planningSnapshot(industry:string,overview:unknown,priorities:unk
  // Priority text can contain contact information. The pilot uses typed categories and fixed actions only.
  const known:Record<string,string>={overdue:'Review overdue commitments',approval:'Review pending approvals',failed:'Investigate failed work',reply:'Review customer replies'};
  const numeric:Record<string,unknown>={};
- const allowed:Record<string,string[]>={leads:['total','discovery_imports'],outreach:['threads_sent','threads_replied','replies_received','awaiting_approval'],bookings:['scheduled','upcoming'],commitments:['overdue','due_today'],failures:['failed_sends','dead_jobs','sync_problems','paused']};
+ const allowed:Record<string,string[]>={leads:['total','discovery_imports'],outreach:['threads_sent','threads_replied','replies_received','awaiting_approval'],bookings:['scheduled','upcoming'],commitments:['overdue','due_today'],failures:['failed_sends','dead_jobs','sync_problems','paused','agent_tool_failures']};
  for(const [section,fields] of Object.entries(allowed)){const raw=data.metrics[section] as Record<string,unknown>|undefined;numeric[section]=Object.fromEntries(fields.flatMap(key=>{const value=raw?.[key];return typeof value==='number'&&Number.isFinite(value)&&value>=0||typeof value==='boolean'?[[key,value]]:[];}));}
  return {industry:industry.slice(0,100),checked_at:data.generated_at,metrics:numeric,priorities:list.map(p=>{const candidate=String(p.kind??'');const kind=Object.hasOwn(known,candidate)?candidate:'other';return {kind,why:'A verified business priority requires attention.',action:known[kind]??'Review the source business priority'};})};
 }
