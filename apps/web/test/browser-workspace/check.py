@@ -81,8 +81,8 @@ with sync_playwright() as p:
  page.get_by_role('button',name='Hide Onyx',exact=True).click();expect(page.locator('.chat-panel')).not_to_be_visible()
  page.keyboard.press('Control+k');expect(page.get_by_role('dialog',name='Go anywhere')).to_be_visible()
  page.get_by_role('textbox',name='Find a workspace action').fill('Open Mail');page.keyboard.press('Enter')
- expect(page.get_by_role('dialog')).not_to_be_visible();expect(page.locator('.canvas-heading')).to_contain_text('Onixus Mail')
- page.keyboard.press('Control+k');page.keyboard.press('Escape');expect(page.get_by_role('dialog')).not_to_be_visible()
+ expect(page.get_by_role('dialog',name='Go anywhere')).not_to_be_visible();expect(page.locator('.canvas-heading')).to_contain_text('Onixus Mail')
+ page.keyboard.press('Control+k');page.keyboard.press('Escape');expect(page.get_by_role('dialog',name='Go anywhere')).not_to_be_visible()
  page.get_by_role('button',name='Expand sidebar',exact=True).click()
  page.wait_for_function('()=>document.querySelector(`img[alt="Onixus Mail logo"]`)?.naturalWidth>0')
  page.screenshot(path=str(out/'workspace-mail.png'))
@@ -91,10 +91,10 @@ with sync_playwright() as p:
  assert page.evaluate('document.documentElement.scrollWidth<=innerWidth'),'Mobile shell must fit viewport'
  page.screenshot(path=str(out/'workspace-mobile.png'))
  page.get_by_role('button',name='Search workspace actions',exact=True).click()
- expect(page.get_by_role('dialog')).to_be_visible()
- box=page.get_by_role('dialog').bounding_box();assert box['x']>=0 and box['x']+box['width']<=390
+ expect(page.get_by_role('dialog',name='Go anywhere')).to_be_visible()
+ box=page.get_by_role('dialog',name='Go anywhere').bounding_box();assert box['x']>=0 and box['x']+box['width']<=390
  page.get_by_role('textbox',name='Find a workspace action').fill('nonsense')
- expect(page.get_by_role('dialog').get_by_role('status')).to_contain_text('No matching actions')
+ expect(page.get_by_role('dialog',name='Go anywhere').get_by_role('status')).to_contain_text('No matching actions')
  page.screenshot(path=str(out/'workspace-search-mobile.png'))
  page.goto('http://127.0.0.1:3187/?canvas=build&mode=dev')
  expect(page.get_by_role('heading',name='Give the team a task.')).to_be_visible()
