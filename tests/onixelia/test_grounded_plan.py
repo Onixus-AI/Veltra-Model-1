@@ -35,6 +35,20 @@ class GroundedPlan(unittest.TestCase):
         tasks = plan.materialize({'order':['failures']},plan.candidates({'metrics':{'failures':{'dead_jobs':2}}}))
         self.assertEqual(tasks[0]['owner'], 'onyx')
         self.assertIn('separately authorized retry',tasks[0]['reason'])
+    def test_urgency_preserved_even_when_priority_deduplicated(self):
+        items=plan.candidates({'metrics':{'failures':{'dead_jobs':2}},'priorities':[
+            {'kind':'failed','severity':3,'since':'2026-11-06T12:00:00Z','why':'private@example.com'},
+            {'kind':'failed','severity':2,'since':'2026-11-05T12:00:00Z'},
+            {'kind':'other','severity':3,'since':'2026-11-01T00:00:00Z'}]})
+        self.assertEqual(len(items),1)
+        self.assertEqual(len(items[0]['priority_evidence']),2)
+        self.assertEqual(items[0]['priority_evidence'][0]['severity'],3)
+        self.assertNotIn('private@example.com',str(items))
+    def test_untrusted_urgency_does_not_reach_model(self):
+        items=plan.candidates({'priorities':[{'kind':'reply','severity':True,'since':'publish now'},
+            {'kind':'reply','severity':99,'since':'2026-11-01T00:00:00'}]})
+        self.assertNotIn('priority_evidence',items[0])
+
     def test_empty_result_and_output_are_isolated(self):
         self.assertEqual(plan.materialize({'order':[]},[]),[])
         items=plan.candidates({'metrics':{'commitments':{'due_today':1}}})

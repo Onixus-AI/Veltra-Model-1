@@ -4,6 +4,7 @@ The model may order eligible actions; it cannot invent facts, people or permissi
 Counts describe a queue, not an outcome or a causal relationship between queues.
 """
 import math
+from datetime import datetime
 
 
 def candidates(snapshot):
@@ -56,6 +57,26 @@ def candidates(snapshot):
         if kind in actions and kind not in covered:
             key, title, owner, reason = actions[kind]
             add(key, title, owner, reason, f'business_priority:{index}', kind)
+    # Preserve validated source urgency for ranking without forwarding private text.
+    ids = {'overdue': 'commitments', 'approval': 'approvals', 'failed': 'failures', 'reply': 'replies'}
+    for item in result:
+        evidence = []
+        for index, priority in enumerate(snapshot.get('priorities', [])[:8]):
+            if not isinstance(priority, dict) or ids.get(priority.get('kind')) != item['id']:
+                continue
+            severity = priority.get('severity')
+            since = priority.get('since')
+            try:
+                parsed = datetime.fromisoformat(since.replace('Z', '+00:00')) if isinstance(since, str) and len(since) <= 35 else None
+                since = parsed.isoformat() if parsed and parsed.tzinfo else None
+            except ValueError:
+                since = None
+            if type(severity) is not int or severity not in (1, 2, 3):
+                severity = None
+            if severity is not None or since:
+                evidence.append({'source': f'business_priority:{index}', 'severity': severity, 'since': since})
+        if evidence:
+            item['priority_evidence'] = evidence
     return result
 
 
