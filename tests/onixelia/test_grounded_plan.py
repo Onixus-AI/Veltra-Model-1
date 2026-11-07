@@ -49,6 +49,22 @@ class GroundedPlan(unittest.TestCase):
             {'kind':'reply','severity':99,'since':'2026-11-01T00:00:00'}]})
         self.assertNotIn('priority_evidence',items[0])
 
+    def test_final_cards_explain_evidence_action_done_and_conditional_blocker(self):
+        items=plan.candidates({'priorities':[{'kind':k,'severity':3,'since':'2026-11-06T12:00:00Z'} for k in ('overdue','approval','failed','reply')]})
+        for item in items:
+            reason=item['task']['reason']
+            for label in ('Why:', 'Next:', 'Done:', 'Blocked?', 'severity 3/3', 'deadline unverified'):
+                self.assertIn(label,reason)
+            self.assertLessEqual(len(reason),600)
+        self.assertIn('do not retry',items[2]['task']['reason'])
+    def test_missing_urgency_remains_unknown_and_timestamps_compare_as_instants(self):
+        items=plan.candidates({'priorities':[{'kind':'reply','severity':2,'since':'2026-11-06T12:00:00+02:00'},
+            {'kind':'reply','severity':2,'since':'2026-11-06T11:00:00+00:00'}]})
+        self.assertIn('business_priority:0',items[0]['task']['reason'])
+        unknown=plan.candidates({'priorities':[{'kind':'reply'}]})[0]['task']['reason']
+        self.assertNotIn('severity',unknown)
+        self.assertNotIn('queue date',unknown)
+
     def test_empty_result_and_output_are_isolated(self):
         self.assertEqual(plan.materialize({'order':[]},[]),[])
         items=plan.candidates({'metrics':{'commitments':{'due_today':1}}})
