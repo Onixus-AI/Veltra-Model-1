@@ -1,4 +1,5 @@
 import {pilotLimits,validatePlan} from './catalog';
+import {cloudRunHeaders} from './cloud-run-auth';
 export type PlanningSnapshot={industry:string;checked_at:string;metrics:Record<string,unknown>;priorities:{kind:string;why:string;action:string}[]};
 /** No recipient addresses, message bodies, files or connector credentials are handed to the runtime. */
 export function planningSnapshot(industry:string,overview:unknown,priorities:unknown):PlanningSnapshot{
@@ -17,7 +18,8 @@ export async function executePilot(id:string,snapshot:PlanningSnapshot,transport
  if(!endpoint||!token||token.length<32)throw Error('503:Onixelia is not connected. No job was executed.');
  const url=new URL(endpoint);if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash)throw Error('503:Invalid Onixelia service configuration.');
  const body=JSON.stringify({job_id:id,scope:'internal_daily_plan',snapshot});if(new TextEncoder().encode(body).length>pilotLimits.maxSnapshotBytes)throw Error('503:Planning snapshot exceeds the pilot limit.');
- const response=await transport(new URL('/v1/plan',url),{method:'POST',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(pilotLimits.maxRunSeconds*1000)});
+ const googleHeaders=await cloudRunHeaders(url,{transport});
+ const response=await transport(new URL('/v1/plan',url),{method:'POST',headers:{...googleHeaders,Authorization:'Bearer '+token,'Content-Type':'application/json'},body,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(pilotLimits.maxRunSeconds*1000)});
  if(!response.ok)throw Error('503:Onixelia could not complete the planning job.');
  const raw=await response.text();if(new TextEncoder().encode(raw).length>pilotLimits.maxOutputBytes)throw Error('503:Onixelia returned an oversized result.');
  const result=JSON.parse(raw);if(result.job_id!==id||result.engine!=='hermes'||typeof result.version!=='string'||!result.version||result.scope!=='internal_daily_plan')throw Error('503:Onixelia returned an invalid execution receipt.');
