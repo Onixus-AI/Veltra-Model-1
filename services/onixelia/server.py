@@ -1,6 +1,7 @@
 """Narrow internal-planning bridge. No connector credentials or business write tools."""
 import hmac
 import json
+import math
 import os
 import subprocess
 import sys
@@ -31,6 +32,44 @@ def configured():
     return (len(os.getenv("ONIXELIA_TOKEN", "")) >= 32 and bool(os.getenv("OPENROUTER_API_KEY"))
             and bool(os.getenv("ONIXELIA_MODEL")) and os.getenv("ONIXELIA_BUDGETED_KEY") == "true")
 
+def validate_result(value, body):
+    """Model output is a proposal, never authority to add operations or owners."""
+    required = {"job_id", "scope", "engine", "version", "model", "usage", "tasks", "review"}
+    if not isinstance(value, dict) or set(value) != required:
+        raise ValueError("Invalid plan result")
+    if (value["job_id"] != body["job_id"] or value["scope"] != body["scope"]
+            or value["engine"] != "hermes" or value["model"] != os.environ["ONIXELIA_MODEL"]
+            or not isinstance(value["version"], str) or not value["version"].strip()):
+        raise ValueError("Invalid plan provenance")
+    tasks = value["tasks"]
+    if not isinstance(tasks, list) or len(tasks) > 8:
+        raise ValueError("Invalid tasks")
+    sources = {f"business_priority:{i}" for i in range(len(body["snapshot"]["priorities"]))}
+    if body["snapshot"]["metrics"]:
+        sources.add("business_metrics")
+    seen_priorities = set()
+    for task in tasks:
+        if (not isinstance(task, dict) or set(task) != {"title", "owner", "reason", "source"}
+                or any(not isinstance(v, str) or not v.strip() or len(v) > 2000 for v in task.values())
+                or task["owner"] not in {"onyx", "onixa", "onixelia"}
+                or task["source"] not in sources):
+            raise ValueError("Invalid or ungrounded task")
+        if task["source"].startswith("business_priority:"):
+            if task["source"] in seen_priorities:
+                raise ValueError("Duplicate priority tasks")
+            seen_priorities.add(task["source"])
+    review = value["review"]
+    if (not isinstance(review, dict) or review.get("engine") != "jev"
+            or review.get("decision") != "review_only"
+            or not isinstance(review.get("model"), str)
+            or not review["model"].startswith("typesafe/jev-1.14")):
+        raise ValueError("Missing review")
+    for field, maximum in (("score", 10), ("confidence", 1)):
+        number = review.get(field)
+        if type(number) not in (int, float) or not math.isfinite(number) or not 0 <= number <= maximum:
+            raise ValueError("Invalid review score")
+    return value
+
 def verify_budget():
     req=urllib.request.Request("https://openrouter.ai/api/v1/key",headers={"Authorization":"Bearer "+os.environ["OPENROUTER_API_KEY"]})
     with urllib.request.urlopen(req,timeout=5) as response:
@@ -55,7 +94,7 @@ def execute(body):
         output = result.stdout.strip().splitlines()[-1]
         if len(output.encode()) > 20000:
             raise ValueError("Oversized result")
-        return json.loads(output)
+        return validate_result(json.loads(output), body)
 
 class Handler(BaseHTTPRequestHandler):
     def setup(self):

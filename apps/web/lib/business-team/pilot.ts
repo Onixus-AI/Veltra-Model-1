@@ -1,6 +1,6 @@
 import {pilotLimits,validatePlan} from './catalog';
 import {cloudRunHeaders} from './cloud-run-auth';
-export type PlanningSnapshot={industry:string;checked_at:string;metrics:Record<string,unknown>;priorities:{kind:string;why:string;action:string}[]};
+export type PlanningSnapshot={industry:string;checked_at:string;metrics:Record<string,unknown>;priorities:{kind:string;why:string;action:string;severity?:number;since?:string}[]};
 /** No recipient addresses, message bodies, files or connector credentials are handed to the runtime. */
 export function planningSnapshot(industry:string,overview:unknown,priorities:unknown):PlanningSnapshot{
  const data=overview as {generated_at?:string;metrics?:Record<string,unknown>};
@@ -8,10 +8,12 @@ export function planningSnapshot(industry:string,overview:unknown,priorities:unk
  const list=Array.isArray(priorities)?priorities.slice(0,8):[];
  // Priority text can contain contact information. The pilot uses typed categories and fixed actions only.
  const known:Record<string,string>={overdue:'Review overdue commitments',approval:'Review pending approvals',failed:'Investigate failed work',reply:'Review customer replies'};
+ // The revenue RPC uses these typed categories; keep private descriptions out of the model snapshot.
+ const categories:Record<string,string>={overdue_task:'overdue',drafts_waiting:'approval',failed_send:'failed',dead_job:'failed',sync_problem:'failed',calendar_problem:'failed',awaiting_reply:'reply'};
  const numeric:Record<string,unknown>={};
  const allowed:Record<string,string[]>={leads:['total','discovery_imports'],outreach:['threads_sent','threads_replied','replies_received','awaiting_approval'],bookings:['scheduled','upcoming'],commitments:['overdue','due_today'],failures:['failed_sends','dead_jobs','sync_problems','paused','agent_tool_failures']};
  for(const [section,fields] of Object.entries(allowed)){const raw=data.metrics[section] as Record<string,unknown>|undefined;numeric[section]=Object.fromEntries(fields.flatMap(key=>{const value=raw?.[key];return typeof value==='number'&&Number.isFinite(value)&&value>=0||typeof value==='boolean'?[[key,value]]:[];}));}
- return {industry:industry.slice(0,100),checked_at:data.generated_at,metrics:numeric,priorities:list.map(p=>{const candidate=String(p.kind??'');const kind=Object.hasOwn(known,candidate)?candidate:'other';return {kind,why:'A verified business priority requires attention.',action:known[kind]??'Review the source business priority'};})};
+ return {industry:industry.slice(0,100),checked_at:data.generated_at,metrics:numeric,priorities:list.map(p=>{const candidate=String(p?.kind??'');const kind=Object.hasOwn(known,candidate)?candidate:Object.hasOwn(categories,candidate)?categories[candidate]:'other';const severity=kind!=='other'&&Number.isInteger(p?.severity)&&p.severity>=1&&p.severity<=3?p.severity:undefined;const since=kind!=='other'&&typeof p?.since==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(p.since)&&Number.isFinite(Date.parse(p.since))?new Date(p.since).toISOString():undefined;return {kind,why:'A verified business priority requires attention.',action:known[kind]??'Review the source business priority',...(severity!==undefined?{severity}:{}),...(since?{since}:{})};})};
 }
 export async function executePilot(id:string,snapshot:PlanningSnapshot,transport:typeof fetch=fetch){
  const endpoint=process.env.ONIXELIA_URL,token=process.env.ONIXELIA_TOKEN;
