@@ -41,7 +41,9 @@ export function toProviderMessage(m: GmailMessage, mailbox: string): ProviderMes
 
 export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeof fetch; apiUrl?: string; tokenUrl?: string;
   /** Reads Gmail throttled ("slow down") are retried this many times with a short wait. Sends are never retried here. */
-  rateLimitRetries?: number; wait?: (ms: number) => Promise<void>} = {}): MailProvider {
+  rateLimitRetries?: number; wait?: (ms: number) => Promise<void>;
+  /** The name mail goes out under when the sender gives none (the mailbox's Workspace setting). */
+  fromName?: string | null} = {}): MailProvider {
   const fetcher = o.fetcher ?? fetch;
   const api = (o.apiUrl ?? 'https://gmail.googleapis.com/gmail/v1/users/me').replace(/\/$/, '');
   const token = googleAccessToken(credentials, o);
@@ -91,7 +93,7 @@ export function gmailProvider(credentials: GmailCredentials, o: {fetcher?: typeo
     name: 'Gmail',
     address,
     async send(mail: OutboundMail) {
-      if (!mail.fromName) mail = {...mail, fromName: await displayName(mail.from)};
+      if (!mail.fromName) mail = {...mail, fromName: o.fromName?.trim() || await displayName(mail.from)};
       const raw = Buffer.from(buildMime(mail)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       const sent = await call<{id: string; threadId: string}>('/messages/send', {method: 'POST', body: JSON.stringify({raw, ...(mail.threadId ? {threadId: mail.threadId} : {})})});
       return {providerMessageId: sent.id, providerThreadId: sent.threadId};
