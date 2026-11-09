@@ -46,7 +46,7 @@ export async function exchangeCode(client: GoogleClient, origin: string, code: s
   return {refreshToken: t.refresh_token, mailbox: profile.emailAddress.toLowerCase()};
 }
 
-type Pass = {account_id: string; workspace_id: string; mailbox: string; refresh_token: string; crm_token: string; settings?: Partial<Settings> | null; business?: {name?: string; industry?: string | null} | null};
+type Pass = {account_id: string; workspace_id: string; mailbox: string; refresh_token: string; crm_token: string; sender_name?: string | null; settings?: Partial<Settings> | null; business?: {name?: string; industry?: string | null} | null};
 const DEFAULTS: Settings = {auto_clean: false, delete_junk: true, unsubscribe: false, auto_send: []};
 
 /** One mailbox pass: redeem the single-use job, sync Gmail, send approved mail, report back. */
@@ -60,7 +60,7 @@ export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; job
   }
   try {
     const mail = gmailProvider({clientId: o.client.clientId, clientSecret: o.client.clientSecret, refreshToken: pass.refresh_token},
-      {fetcher: o.fetcher, apiUrl: o.gmailApiUrl, tokenUrl: o.tokenUrl, rateLimitRetries: 3, wait: o.wait});
+      {fetcher: o.fetcher, apiUrl: o.gmailApiUrl, tokenUrl: o.tokenUrl, rateLimitRetries: 3, wait: o.wait, fromName: pass.sender_name});
     // Catch-up after downtime is paced: small pages, position saved after each, and a time budget
     // inside the 60-second function limit. The next minute's pass continues from the saved position.
     const started = Date.now(), budget = o.budgetMs ?? 50_000;

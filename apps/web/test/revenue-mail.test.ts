@@ -188,3 +188,13 @@ test('Gmail adapter: mail goes out under the name set in Gmail, unless the sende
   await gmail.send({idempotencyKey: 'n2', from: MAILBOX, fromName: 'Onixus Quotes', to: 'pat@customer.test', subject: 'Hi', body: 'x'});
   assert.deepEqual(g.delivered.map(d => d.from), [`"Omar Harris" <${MAILBOX}>`, `"Onixus Quotes" <${MAILBOX}>`]);
 });
+
+test('Gmail adapter: the mailbox Workspace sender name is used when Gmail has none', async () => {
+  const g = fakeGmail({mailbox: MAILBOX, controlledRecipients: ['pat@customer.test']});
+  const gmail = gmailProvider(g.credentials, {...g.options, fromName: 'Omar Harris'});
+  await gmail.send({idempotencyKey: 's1', from: MAILBOX, to: 'pat@customer.test', subject: 'Hi', body: 'x'});
+  await gmail.send({idempotencyKey: 's2', from: MAILBOX, fromName: 'Onixus Quotes', to: 'pat@customer.test', subject: 'Hi', body: 'x'});
+  const blank = gmailProvider(g.credentials, {...g.options, fromName: '  '});
+  await blank.send({idempotencyKey: 's3', from: MAILBOX, to: 'pat@customer.test', subject: 'Hi', body: 'x'});
+  assert.deepEqual(g.delivered.map(d => d.from), [`"Omar Harris" <${MAILBOX}>`, `"Onixus Quotes" <${MAILBOX}>`, MAILBOX]);
+});

@@ -696,6 +696,26 @@ function QuoteCleanupReview({s}: {s: Shared}) {
   </div>;
 }
 
+/** The name each mailbox sends under ("Omar Harris"), so recipients see a person, not a bare address. */
+function SenderNames({s}: {s: Shared}) {
+  const [boxes, setBoxes] = useState<{mailbox: string; sender_name: string | null}[] | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const load = useCallback(async () => {
+    try { setBoxes(await s.post<{mailbox: string; sender_name: string | null}[]>('rpc/mail_sender_names', {args: {}})); } catch { setBoxes(null); }
+  }, [s.post]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [load, s.tick]);
+  if (!boxes?.length || !s.isOwner) return null;
+  return <div className="rev-form" aria-label="Sender names">
+    <strong>Sender name</strong>
+    <p className="rev-muted">The name people see on mail Workspace sends: quotes, replies and outreach.</p>
+    {boxes.map(b => { const value = draft[b.mailbox] ?? b.sender_name ?? ''; return <div key={b.mailbox} className="rev-actions">
+      <label>{b.mailbox}{' '}<input value={value} maxLength={80} placeholder="e.g. Omar Harris" onChange={e => setDraft({...draft, [b.mailbox]: e.target.value})}/></label>
+      <button type="button" disabled={s.busy || value === (b.sender_name ?? '')}
+        onClick={() => void s.act('mail_sender_name_set', {p_mailbox: b.mailbox, p_name: value}, value.trim() ? `${b.mailbox} now sends as ${value.trim()}.` : `${b.mailbox} sends without a name.`)}>Save</button>
+    </div>; })}
+  </div>;
+}
+
 function MailWork({s}: {s: Shared}) {
   const [tab, setTab] = useState<'pending' | 'done' | 'info' | 'failed'>('pending');
   const [items, setItems] = useState<MailItem[] | null>(null);
@@ -725,6 +745,7 @@ function MailWork({s}: {s: Shared}) {
         {t === 'pending' ? 'Waiting for you' : t === 'done' ? 'Done' : t === 'info' ? 'For your information' : 'Needs a look'}</button>)}</div></div>
     <div className="rev-actions mail-boxes"><span className="rev-muted">Mailboxes: {boxes.filter(b => b.status === 'active').map(b => b.mailbox).join(' · ') || 'none connected'}</span>
       <a className="button" href="/settings/connections?add_mail=1">Add another Gmail</a></div>
+    <SenderNames s={s}/>
     <MailOutreach s={s}/>
     <p className="rev-muted">Mail sorts each new email, labels it in Gmail (Onixus/…), drafts replies and quotes from your rates, and proposes clean-up. Nothing is sent, archived or deleted until you approve it, unless you turn that kind on below.</p>
     {tab === 'pending' && cleanup.length > 1 && <div className="rev-actions"><button type="button" disabled={s.busy} onClick={() => void approveAll(cleanup)}>Approve all {cleanup.length} clean-ups</button></div>}
