@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     let createdWorkspaceId: string | null = null;
     async function undoIncompleteAccount() {
       if (createdWorkspaceId) {
+        await admin.from('crm_signal_connections').delete().eq('workspace_id', createdWorkspaceId);
         await admin.from('crm_memberships').delete().eq('workspace_id', createdWorkspaceId);
         await admin.from('crm_workspaces').delete().eq('id', createdWorkspaceId);
       }
@@ -88,6 +89,16 @@ export async function POST(request: Request) {
     if (membershipError) {
       await undoIncompleteAccount();
       return reply('Workspace owner access did not complete.', 503);
+    }
+    // The verified Onixus JWT and client profile prove this new Signal link.
+    // A pre-existing link for that Signal client must remain untouched.
+    const { error: signalError } = await admin.from('crm_signal_connections').insert({
+      workspace_id: workspace.id, signal_client_id: user.id,
+      business_name: businessName, connected_by: created.user.id,
+    });
+    if (signalError) {
+      await undoIncompleteAccount();
+      return reply('Your Signal business is already linked to another Workspace or could not be connected. Contact support to review the existing link.', 409);
     }
     const { data: saved, error: saveError } = await admin.from('onixus_workspace_identities')
       .insert({ onixus_user_id: user.id, workspace_user_id: created.user.id,
