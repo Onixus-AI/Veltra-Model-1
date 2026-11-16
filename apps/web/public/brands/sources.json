@@ -42,16 +42,6 @@
     "via": "Simple Icons"
   },
   {
-    "name": "railway",
-    "file": "railway.svg",
-    "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/railway.svg",
-    "title": "Railway",
-    "hex": "0B0D0E",
-    "source": "https://railway.app",
-    "sha256": "846df9530923f4ff4ac0084dd79e681d5299e10f8ca060aef6b8e22f261082fe",
-    "via": "Simple Icons"
-  },
-  {
     "name": "hubspot",
     "file": "hubspot.svg",
     "asset_url": "https://raw.githubusercontent.com/simple-icons/simple-icons/develop/icons/hubspot.svg",

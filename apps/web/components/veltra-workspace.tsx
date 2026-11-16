@@ -55,11 +55,10 @@ type ChatMessage = { role: "user" | "assistant"; content: string; image?: string
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const VISION_MODEL = "veltra-vision";
 function friendlyChatError(message: string) {
-  if (/credit|wallet|deduct|supabase|token usage/i.test(message)) {
-    return /insufficient credits/i.test(message)
-      ? "You don’t have enough credits for this request. Open Settings to check your balance."
-      : "Your account is temporarily unavailable. Please try again shortly.";
-  }
+  if (/application not found/i.test(message)) return "Onyx cannot reach the Workspace AI service. Please try again after the service is restored.";
+  if (/insufficient credits/i.test(message)) return "Onyx cannot reply because this workspace has no available AI credits. Check Settings for the balance and plan.";
+  if (/credit wallet not found/i.test(message)) return "Onyx cannot find this workspace’s credit account. Contact Onixus support; retrying this message will not fix the account.";
+  if (/supabase|deduct|token usage/i.test(message)) return "Onyx could not verify this workspace’s credit account. Please try again shortly.";
   if (/session|bearer|unauthorized/i.test(message)) return "Please sign in again to continue chatting.";
   // Show the real reason so it can be fixed; the message comes from our own API routes, not the model.
   return message ? `Onixus Workspace couldn’t complete this reply: ${message.slice(0, 600)}` : "Onixus Workspace couldn’t complete this reply. Please try again.";
@@ -148,7 +147,7 @@ export default function OnyxWorkspace() {
     const requestedMode=parseWorkspaceMode(query.get("mode"));if(requestedMode)setWorkspaceMode(requestedMode);else if(query.get("crm_workspace"))setWorkspaceMode("business");
     const draft=query.get("prompt");if(draft)setInput(draft.slice(0,2000));
     if(["mail","crm","build","tms","shopify","business","calendar","signal"].includes(query.get("canvas")??""))openTool(query.get("canvas") as "mail"|"crm"|"build"|"tms"|"shopify"|"business"|"calendar"|"signal");
-    if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("dev");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","railway","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
+    if(query.get("canvas")==="code"){setCanvasVisible(true);setCodeOpen(true);setWorkspaceMode("dev");setMobileView("canvas");const tool=query.get("tool");if(["github","vercel","supabase","n8n"].includes(tool??""))setCodeTool(tool as Provider);}
   }, []);
   const [cloud,setCloud]=useState<CloudConversation|null>(null);
   const [crmNavigation,setCrmNavigation]=useState<{workspace:string;view:string;revision:number}>();
@@ -377,11 +376,13 @@ export default function OnyxWorkspace() {
       if (nextArtifact) {setArtifact(nextArtifact);if(nextArtifact.kind!=="markdown")setCanvasVisible(true);}
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The request could not be completed.";
+      const visibleError = friendlyChatError(message);
       taskEvent({type:'fail',detail:message});
-      setError(friendlyChatError(message));
+      setError(visibleError);
+      savedMessages = [...nextMessages, { role: "assistant", content: visibleError }];
       setMessages((current) => current.map((item, index) =>
         index === current.length - 1 && item.role === "assistant"
-          ? { ...item, content: item.content || friendlyChatError(message) }
+          ? { ...item, content: item.content || visibleError }
           : item,
       ));
     } finally {
@@ -454,7 +455,7 @@ export default function OnyxWorkspace() {
           <button title="Shared brain" aria-label="Shared brain" disabled={sending} onClick={openBrain}><Brain size={17}/><span>Shared brain</span></button>
           <button title="New chat" aria-label="New chat" disabled={sending} onClick={startNewChat}><SquarePen size={17}/><span>New chat</span></button>
           <button title="Canvas" aria-label="Canvas" onClick={()=>{setCanvasVisible(true);setPanelFull(false);setSignalOpen(false);setCalendarOpen(false);setBusinessOsOpen(false);setMobileView("canvas");setMailOpen(false);setCrmOpen(false);setBuildOpen(false);setCodeOpen(false);setTmsOpen(false);setShopifyOpen(false);}}><PanelRightOpen size={17}/><span>Canvas</span></button>
-          {workspaceMode==="dev"&&(["github","vercel","supabase","railway","n8n"] as Provider[]).map(provider=><button key={provider} title={provider} onClick={()=>{openTool("code");setCodeTool(provider);}}><ToolLogo name={({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}/><span>{({github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"})[provider]}</span></button>)}
+          {workspaceMode==="dev"&&(["github","vercel","supabase","n8n"] as Provider[]).map(provider=><button key={provider} title={provider} onClick={()=>{openTool("code");setCodeTool(provider);}}><ToolLogo name={({github:"GitHub",vercel:"Vercel",supabase:"Supabase",n8n:"n8n"})[provider]}/><span>{({github:"GitHub",vercel:"Vercel",supabase:"Supabase",n8n:"n8n"})[provider]}</span></button>)}
           {workspaceMode==="creator"&&<><button title="Create an image" aria-label="Create an image" disabled={sending} onClick={()=>{setImageMode(true);setCanvasVisible(false);setPanelFull(false);setMobileView("chat");}}><ImagePlus size={17}/><span>Create an image</span></button><button title="Project files" aria-label="Project files" onClick={()=>setKnowledgeOpen(true)}><FileText size={17}/><span>Project files</span></button><Link href="/settings/connections?mode=creator" title="Creator tools" aria-label="Creator tools"><SlidersHorizontal size={17}/><span>Creator tools</span></Link></>}
           {workspaceMode==="dev"&&<Link href="/design" title="Advanced design studio"><PenTool size={17}/><span>Design studio</span></Link>}
           {beeConnected&&<Link href="/settings/connections?tool=bee" title="LiveAskew / Bee"><ToolLogo name="LiveAskew / Bee"/><span>LiveAskew / Bee</span></Link>}

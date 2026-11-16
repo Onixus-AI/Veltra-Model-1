@@ -7,7 +7,7 @@ const brandAssets: Record<string, string> = {
   "Veltra Mail": "onixus-mail-icon-v2.png", "Veltra CRM": "onixus-crm-icon-v2.png", "Onixus Mail": "onixus-mail-icon-v2.png", "Onixus CRM": "onixus-crm-icon-v2.png",
   "LiveAskew / Bee": "liveaskew.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
-  n8n: "n8n.svg", Railway: "railway.svg", Gmail: "gmail.png",
+  n8n: "n8n.svg", Gmail: "gmail.png",
   "Google Docs": "googledocs.png", "Google Sheets": "googlesheets.png",
   "Google Slides": "googleslides.png", "Google Calendar": "googlecalendar.png",
   "Google Drive": "googledrive.png", "Google Workspace": "google.png",

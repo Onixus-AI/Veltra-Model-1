@@ -37,7 +37,7 @@ test('disabled rollout does not authenticate, create a task, or contact an app',
 test('task-marked developer and commerce proxy reads require their named app while manual navigation stays independent',async t=>{
  const keys=['VELTRA_TASK_ACCESS_ENABLED','NEXT_PUBLIC_SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','VELTRA_MAIL_URL'] as const;
  const previous=Object.fromEntries(keys.map(k=>[k,process.env[k]]));Object.assign(process.env,{VELTRA_TASK_ACCESS_ENABLED:'true',NEXT_PUBLIC_SUPABASE_URL:'https://permission-fixture.supabase.co',NEXT_PUBLIC_SUPABASE_ANON_KEY:'fixture-public',VELTRA_MAIL_URL:'https://mail.example.test'});
- try{for(const [app,path,kind] of [['github','github/tree','developer'],['vercel','vercel/deployments','developer'],['supabase','supabase/project','developer'],['railway','railway/project','developer'],['n8n','n8n/project','developer'],['connections','status','developer'],['shopify','shopify/catalog','mail'],['tms','tms','mail'],['mail','inbox','mail']] as const){
+ try{for(const [app,path,kind] of [['github','github/tree','developer'],['vercel','vercel/deployments','developer'],['supabase','supabase/project','developer'],['n8n','n8n/project','developer'],['connections','status','developer'],['shopify','shopify/catalog','mail'],['tms','tms','mail'],['mail','inbox','mail']] as const){
   for(const mode of ['missing','denied','allow','manual']){
    let providers=0,permissionReads=0;const mock=t.mock.method(globalThis,'fetch',async(input:RequestInfo|URL)=>{const url=new URL(String(input));
     if(url.pathname==='/auth/v1/user')return Response.json({id:USER,aud:'authenticated',role:'authenticated',is_anonymous:false,app_metadata:{},user_metadata:{}});
