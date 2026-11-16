@@ -34,7 +34,6 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "github_pr_checks", description: "Read GitHub checks, commit statuses and preview links for an exact pull-request head commit in the selected repository. Use action diff for changed-file patches; annotations uses a returned check_run ID; jobs uses a workflow run_id from a check details_url; logs uses a returned job_id. All diagnostics must match this current PR head. No checks or pending checks do not mean success. This reads the existing CI pipeline; it does not dispatch a workflow or deploy production.", parameters: {type:"object",properties:{pull_request:{type:"integer",minimum:1},action:{type:"string",enum:["checks","diff","annotations","jobs","logs"]},check_run:{type:"integer",minimum:1},run_id:{type:"integer",minimum:1},job_id:{type:"integer",minimum:1}},required:["pull_request"],additionalProperties:false} } },
   { type: "function", function: { name: "vercel_list_deployments", description: "List Vercel deployments for the selected project. Supply commit_sha from a merge receipt to verify a READY production deployment for that exact merge. No matching result means deployment remains unverified.", parameters: { type: "object", properties: {commit_sha:{type:"string"}}, additionalProperties: false } } },
   { type: "function", function: { name: "supabase_project", description: "Read the selected Supabase project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
-  { type: "function", function: { name: "railway_project", description: "Read the selected Railway project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
 export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['github_propose_commit','github_propose_changes','signal_creative','web_search','crm_bulk_import','business_team','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
@@ -51,7 +50,7 @@ export function toolsForMessages(messages:{role:string;content?:unknown;tool_cal
  ];
  if(!wanted.length)return CHAT_TOOLS;
  const selected=[...CHAT_TOOLS];
- for(const name of ['n8n_project','railway_project','supabase_project','vercel_list_deployments','brand_read_text','brand_list_files','mail_find_followups']){
+ for(const name of ['n8n_project','supabase_project','vercel_list_deployments','brand_read_text','brand_list_files','mail_find_followups']){
   if(selected.length+wanted.length<=32)break;
   if(userText.toLowerCase().includes(name.split('_')[0])||called.has(name))continue;
   const i=selected.findIndex(t=>t.function.name===name);if(i>=0)selected.splice(i,1);
@@ -82,7 +81,7 @@ function languageFor(path: string) {
   return path.split(".").pop()?.replace(/[^a-z0-9]/gi, "") ?? "";
 }
 
-const READS:Record<string,string>={vercel_list_deployments:'vercel/deployments',supabase_project:'supabase/project',railway_project:'railway/project',n8n_project:'n8n/project'};
+const READS:Record<string,string>={vercel_list_deployments:'vercel/deployments',supabase_project:'supabase/project',n8n_project:'n8n/project'};
 
 function parseArgs(raw: string): Record<string, unknown> {
   try {

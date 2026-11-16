@@ -46,10 +46,13 @@ async function authorizationHeaders(): Promise<HeadersInit> {
 }
 
 async function responseData<T>(response: Response): Promise<T> {
-  const data = await response.json().catch(() => ({}));
+  const data = await response.json().catch(() => ({})) as {detail?: string; error?: string; message?: string};
   if (!response.ok) {
+    const reason = data.detail ?? data.error ?? data.message;
     throw new Error(
-      typeof data.detail === "string" ? data.detail : `Request failed (${response.status}).`,
+      reason === "Application not found"
+        ? "The Workspace account service is unavailable."
+        : typeof reason === "string" ? reason : `Service returned ${response.status}.`,
     );
   }
   return data as T;
@@ -67,22 +70,30 @@ export default function SettingsPage() {
   const [revokingId, setRevokingId] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+  const [accountError, setAccountError] = useState("");
+  const [keysError, setKeysError] = useState("");
 
   const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
+    setAccountError("");
+    setKeysError("");
     try {
       const headers = await authorizationHeaders();
-      const [accountResponse, keysResponse] = await Promise.all([
-        fetch("/api/account", { headers, cache: "no-store" }),
-        fetch("/api/keys", { headers, cache: "no-store" }),
+      const [accountResult, keysResult] = await Promise.allSettled([
+        fetch("/api/account", { headers, cache: "no-store" }).then(responseData<Account>),
+        fetch("/api/keys", { headers, cache: "no-store" }).then(responseData<ApiKey[]>),
       ]);
-      const [accountData, keyData] = await Promise.all([
-        responseData<Account>(accountResponse),
-        responseData<ApiKey[]>(keysResponse),
-      ]);
-      setAccount(accountData);
-      setKeys(keyData);
+      if (accountResult.status === "fulfilled") setAccount(accountResult.value);
+      else {
+        setAccount(null);
+        setAccountError(accountResult.reason instanceof Error ? accountResult.reason.message : "Account data is unavailable.");
+      }
+      if (keysResult.status === "fulfilled") setKeys(keysResult.value);
+      else {
+        setKeys([]);
+        setKeysError(keysResult.reason instanceof Error ? keysResult.reason.message : "Developer keys are unavailable.");
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Could not load your settings.");
     } finally {
@@ -150,9 +161,9 @@ export default function SettingsPage() {
       <section className="settings-content settings-dashboard">
         <div className="settings-heading">
           <span className="eyebrow">WORKSPACE SETTINGS</span>
-          <h1>Settings &amp; analytics</h1>
+          <h1>Settings</h1>
           <Link href={workspaceHref("connections",business)} className="back-link">Workspace connections →</Link>
-          <p>Your credits, developer access, and subscription in one place.</p>
+          <p>Account, usage, billing, and developer access for this workspace.</p>
         </div>
 
         <div className="settings-tabs" role="tablist" aria-label="Settings sections">
@@ -173,6 +184,8 @@ export default function SettingsPage() {
         </div>
 
         {error && <div className="settings-error" role="alert"><AlertTriangle size={15} />{error}</div>}
+        {!loading && accountError && (activeTab === "usage" || activeTab === "subscription") && <div className="settings-error" role="alert"><AlertTriangle size={15} /><span>Account and balance could not load: {accountError} <button type="button" onClick={() => void refresh()}>Retry</button></span></div>}
+        {!loading && keysError && activeTab === "keys" && <div className="settings-error" role="alert"><AlertTriangle size={15} /><span>Developer keys could not load: {keysError} <button type="button" onClick={() => void refresh()}>Retry</button></span></div>}
         {loading ? (
           <div className="settings-loading"><LoaderCircle size={19} className="spin" /> Loading your settings…</div>
         ) : (
@@ -221,7 +234,7 @@ export default function SettingsPage() {
                       <button className="created-key-close icon-button" type="button" onClick={() => setCreatedKey(null)} aria-label="Dismiss new key"><X size={15} /></button>
                     </div>
                   )}
-                  <form className="create-key-form" onSubmit={(event) => void createKey(event)}>
+                  {!keysError && <form className="create-key-form" onSubmit={(event) => void createKey(event)}>
                     <label className="field-label" htmlFor="key-name">Key name</label>
                     <div className="key-input-row">
                       <input id="key-name" value={newKeyName} onChange={(event) => setNewKeyName(event.target.value)} maxLength={80} placeholder="e.g. Production app" required />
@@ -230,9 +243,9 @@ export default function SettingsPage() {
                         {working ? "Creating…" : "Generate key"}
                       </button>
                     </div>
-                  </form>
-                  <div className="key-list-heading"><h3>Your keys</h3><span>{keys.length} active</span></div>
-                  {keys.length ? (
+                  </form>}
+                  <div className="key-list-heading"><h3>Your keys</h3><span>{keysError ? "Unavailable" : `${keys.length} active`}</span></div>
+                  {!keysError && keys.length ? (
                     <div className="managed-key-list">
                       {keys.map((key) => (
                         <article className="managed-key" key={key.id}>
@@ -254,7 +267,7 @@ export default function SettingsPage() {
                         </article>
                       ))}
                     </div>
-                  ) : <p className="empty-keys">No developer keys yet. Generate one to connect your tools.</p>}
+                  ) : !keysError && <p className="empty-keys">No developer keys yet. Generate one to connect your tools.</p>}
                 </section>
                 <p className="settings-note">Store your secret keys securely. Onixus Workspace stores only a one-way hash and will not show a key again after creation.</p>
               </section>
@@ -279,7 +292,7 @@ export default function SettingsPage() {
                     <div><span>Active balance</span><strong>{account?.credits_remaining.toLocaleString() ?? "—"} credits</strong></div>
                   </div>
                   <div className="allocation-track"><div style={{ width: `${balancePercent}%` }} /></div>
-                  <p className="renewal-date">{account?.billing_period_end ? `Billing period ends ${new Date(account.billing_period_end).toLocaleDateString()}` : "Your credit allocation is on a rolling 30-day basis."}</p>
+                  <p className="renewal-date">{account?.billing_period_end ? `Billing period ends ${new Date(account.billing_period_end).toLocaleDateString()}` : "Billing period unavailable."}</p>
                 </section>
                 <PlanPackages />
                 <div className="subscription-footnote"><Check size={14} /><span>Review your accepted purchase terms for renewal and rollover details.</span></div>

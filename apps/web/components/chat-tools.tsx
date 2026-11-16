@@ -7,13 +7,13 @@ import {crmConnection} from "@/lib/crm-connection";
 import ToolLogo from "./tool-logo";
 import {connectionRequest,type Provider,type WorkspaceConnection} from "@/lib/connections-client";
 import {gatewayAuthorizationHeaders} from "@/lib/client-session";
-const names:Record<Provider,string>={github:"GitHub",vercel:"Vercel",supabase:"Supabase",railway:"Railway",n8n:"n8n"};
+const names:Record<Provider,string>={github:"GitHub",vercel:"Vercel",supabase:"Supabase",n8n:"n8n"};
 export default function ChatTools({workspaceMode="business",onKnowledge,onApp,imageMode,onImageMode,disabled}:{workspaceMode?:WorkspaceMode;onKnowledge:()=>void;onApp:(provider:Provider|"mail"|"crm"|"build"|"tms"|"business"|"shopify")=>void;imageMode:boolean;onImageMode:(value:boolean)=>void;disabled:boolean}){
  const [open,setOpen]=useState(false),[apps,setApps]=useState<WorkspaceConnection[]>([]),[mail,setMail]=useState(false),[crm,setCrm]=useState(false),[loading,setLoading]=useState(false),[failed,setFailed]=useState(false);
  const root=useRef<HTMLDivElement>(null),trigger=useRef<HTMLButtonElement>(null);
  useEffect(()=>{if(!open)return;let active=true;setLoading(true);setFailed(false);
   const loadMail=async()=>{const response=await fetch("/api/mail/link",{headers:await gatewayAuthorizationHeaders(),cache:"no-store"});if(!response.ok)throw new Error();return response.json() as Promise<{connected:boolean}>;};
-  void Promise.allSettled([connectionRequest<{connections:WorkspaceConnection[]}>("status"),loadMail(),crmConnection()]).then(([developers,email,customers])=>{if(!active)return;setApps(developers.status==="fulfilled"?developers.value.connections.filter(c=>c.connected):[]);setCrm(customers.status==="fulfilled"&&customers.value.connected);setMail(email.status==="fulfilled"&&email.value.connected);setFailed(developers.status==="rejected"||email.status==="rejected");setLoading(false);});
+  void Promise.allSettled([connectionRequest<{connections:WorkspaceConnection[]}>("status"),loadMail(),crmConnection()]).then(([developers,email,customers])=>{if(!active)return;setApps(developers.status==="fulfilled"?developers.value.connections.filter(c=>c.connected&&c.provider in names):[]);setCrm(customers.status==="fulfilled"&&customers.value.connected);setMail(email.status==="fulfilled"&&email.value.connected);setFailed(developers.status==="rejected"||email.status==="rejected");setLoading(false);});
   const close=(event:PointerEvent)=>{if(!root.current?.contains(event.target as Node))setOpen(false);};
   const escape=(event:globalThis.KeyboardEvent)=>{if(event.key==="Escape"){setOpen(false);trigger.current?.focus();}};
   document.addEventListener("pointerdown",close);document.addEventListener("keydown",escape);

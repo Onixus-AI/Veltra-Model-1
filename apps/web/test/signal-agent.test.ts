@@ -20,8 +20,8 @@ test('tenant selection, unsupported direct generation and customer-contact scope
  await assert.rejects(signalAgentAction({...opts,scope:{workspace_id:W,customer_id:ID},args:{action:'context'}},net),/client’s own linked/);
 });
 test('task-scoped Signal catalog stays within 32 tools and retains explicitly requested infrastructure tools',()=>{
- assert.equal(CHAT_TOOLS.length,32);
- for(const text of ['Use Signal to read my saved brand','Create campaign images and inspect n8n','Check Signal and Railway']){
+ assert.ok(CHAT_TOOLS.length<=32);
+ for(const text of ['Use Signal to read my saved brand','Create campaign images and inspect n8n','Check Signal and Supabase']){
   const tools=toolsForMessages([{role:'user',content:text}]);assert.equal(tools.length,32);assert.ok(tools.some(x=>x.function.name==='signal_creative'));
   if(text.includes('n8n'))assert.ok(tools.some(x=>x.function.name==='n8n_project'));
  }
