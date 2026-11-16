@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const { data: org, error: orgError } = await admin.from('organizations')
       .insert({ name: businessName, slug }).select('id').single();
     if (orgError || !org) return reply('Workspace could not reserve your business. Contact support if this persists.', 503);
+    const orgId = org.id;
     let createdUserId: string | null = null;
     let createdWorkspaceId: string | null = null;
     async function undoIncompleteAccount() {
@@ -53,13 +54,13 @@ export async function POST(request: Request) {
         await admin.from('crm_workspaces').delete().eq('id', createdWorkspaceId);
       }
       if (createdUserId) await admin.auth.admin.deleteUser(createdUserId);
-      await admin.from('organizations').delete().eq('id', org.id);
+      await admin.from('organizations').delete().eq('id', orgId);
     }
     // No paid plan or AI allowance is granted merely by signing up.
     const { data: wallet, error: walletError } = await admin.from('credit_wallets').update({
       plan_name: 'Onixus starter access', monthly_price_cents: 0,
       monthly_credit_allowance: 0, credits_remaining: 0,
-    }).eq('organization_id', org.id).select('organization_id').single();
+    }).eq('organization_id', orgId).select('organization_id').single();
     if (walletError || !wallet) {
       await undoIncompleteAccount();
       return reply('Workspace entitlement setup did not complete.', 503);
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email, email_confirm: true, password: crypto.randomUUID() + crypto.randomUUID(),
-      app_metadata: { organization_id: org.id, onixus_user_id: user.id },
+      app_metadata: { organization_id: orgId, onixus_user_id: user.id },
     });
     // Do not take over an existing Workspace account based on an email match.
     if (createError || !created.user) {
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
     }
     const { data: saved, error: saveError } = await admin.from('onixus_workspace_identities')
       .insert({ onixus_user_id: user.id, workspace_user_id: created.user.id,
-        organization_id: org.id, crm_workspace_id: workspace.id, email })
+        organization_id: orgId, crm_workspace_id: workspace.id, email })
       .select('workspace_user_id,crm_workspace_id,email').single();
     if (saveError || !saved) {
       await undoIncompleteAccount();
