@@ -41,6 +41,14 @@ export async function cleanQuoteRequests(d: Deps): Promise<{trashed: number; wai
         out.waiting++;
         continue;
       }
+      // Recheck the CRM immediately before Gmail changes. A won deal may have been recorded
+      // after this thread first entered the cleanup queue.
+      const eligible = await d.rpc<boolean>('mail_quote_cleanup_eligible',
+        {p_account: d.accountId, p_token: d.token, p_id: t.id});
+      if (!eligible) {
+        await result(t.id, 'kept', last, 0, 'A sealed deal is linked to this quote conversation.');
+        continue;
+      }
       // Only the other side's messages: our sent quotes stay as the record of what we quoted.
       const theirs = messages.filter(m => !m.sent && !m.draft);
       for (const m of theirs) await d.gmail.trash(m.id);

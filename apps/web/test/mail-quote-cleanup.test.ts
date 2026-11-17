@@ -24,11 +24,16 @@ test('old unread requests wait for review instead of going to Trash', async () =
   assert.deepEqual(h.trashed, []);
 });
 
-function harness(due: unknown, threads: Record<string, ThreadMessage[] | Error>, search: string[] = []) {
+function harness(due: unknown, threads: Record<string, ThreadMessage[] | Error>, search: string[] = [], won: string[] = []) {
   const calls: {fn: string; args: Record<string, unknown>}[] = [], trashed: string[] = [], queries: string[] = [];
   const d = {
     accountId: 'acct', token: 'tok', deadline: NOW + 60_000, now: () => NOW,
-    rpc: (async (fn: string, args: Record<string, unknown>) => { calls.push({fn, args}); return fn === 'mail_quote_cleanup_due' ? due : {added: (args.p_items as unknown[] | undefined)?.length ?? 0}; }) as never,
+    rpc: (async (fn: string, args: Record<string, unknown>) => {
+      calls.push({fn, args});
+      if (fn === 'mail_quote_cleanup_due') return due;
+      if (fn === 'mail_quote_cleanup_eligible') return !won.includes(String(args.p_id));
+      return {added: (args.p_items as unknown[] | undefined)?.length ?? 0};
+    }) as never,
     gmail: {
       thread: async (id: string) => { const t = threads[id]; if (t instanceof Error) throw t; return t ?? []; },
       trash: async (id: string) => { trashed.push(id); },
@@ -51,6 +56,14 @@ test('a quiet thread: the broker\'s messages go to Trash, our sent quote stays',
   assert.deepEqual(await cleanQuoteRequests(h.d), {trashed: 2, waiting: 0, failed: 0});
   assert.deepEqual(h.trashed, ['in1', 'in2']);
   assert.deepEqual(h.results(), [['c1', 'trashed', 2]]);
+});
+
+test('a sealed deal keeps the quiet quote thread out of Trash', async () => {
+  const h = harness({days: 7, search_backlog: false, threads: [{id: 'c1', thread_id: 't1'}]},
+    {t1: [m('in1', 9), m('out1', 8, {sent: true})]}, [], ['c1']);
+  assert.deepEqual(await cleanQuoteRequests(h.d), {trashed: 0, waiting: 0, failed: 0});
+  assert.deepEqual(h.trashed, []);
+  assert.deepEqual(h.results(), [['c1', 'kept', 0]]);
 });
 
 test('an active thread waits: anything in the last 10 days, from either side, keeps it', async () => {

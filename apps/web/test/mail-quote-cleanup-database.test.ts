@@ -30,6 +30,10 @@ async function database() {
      if not exists(select 1 from public.crm_memberships where workspace_id=w and user_id=auth.uid() and (role=r or role='owner')) then raise exception '403:Only the workspace owner can do this.'; end if; return auth.uid(); end $$;
    create table crm_customers(id uuid primary key default gen_random_uuid(), workspace_id uuid not null, company text not null, email text, suppressed boolean not null default false,
      archived_at timestamptz, merged_into_id uuid);
+   create table crm_deals(id uuid primary key default gen_random_uuid(), workspace_id uuid not null, customer_id uuid not null, stage text not null);
+   create table revenue_messages(id uuid primary key default gen_random_uuid(), workspace_id uuid not null, account_id uuid, thread_id text, deal_id uuid);
+   create function revenue_private.stage_outcome(w uuid, stage text) returns text language sql stable as $$ select stage $$;
+   create function revenue_normalize_email(email text) returns text language sql immutable as $$ select lower(trim(email)) $$;
    create table crm_activity(id uuid primary key default gen_random_uuid(), workspace_id uuid not null, customer_id uuid not null, kind text not null, title text not null, actor_id uuid, created_at timestamptz default now());
    insert into crm_workspaces values('${W}','Hampton Haulers','Trucking'),('${OTHER}','Other Co','Retail');
    insert into crm_memberships values('${W}','${OWNER}','owner'),('${OTHER}','${OWNER}','owner');`);
@@ -45,6 +49,7 @@ async function database() {
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105210000_mail_second_mailbox.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261106090000_mail_outreach_autopilot.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261106150000_mail_quote_cleanup.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261117172000_mail_quote_won_guard.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
@@ -102,6 +107,29 @@ test('an active thread comes back once it has been quiet for the period; trashed
   await db.query('select public.mail_quote_cleanup_result($1,$2,$3,$4,$5,$6,$7)', [...a, t!.id, 'trashed', null, 2, 'Moved to Trash.']);
   assert.deepEqual((await due(db, a)).threads, []);
   await assert.rejects(db.query('select public.mail_quote_cleanup_result($1,$2,$3,$4,$5,$6,$7)', [...a, t!.id, 'trashed', null, 1, 'again']), /already handled/);
+  await db.close();
+});
+
+test('won deals block quote cleanup for a linked thread or matching customer email', async () => {
+  const {db, pass} = await database();
+  const a = [pass.account_id, pass.crm_token];
+  await setDays(db, 7);
+  await quoteItem(db, a, 'm1', 'linked', 9);
+  await quoteItem(db, a, 'm2', 'sender', 9);
+  await quoteItem(db, a, 'm3', 'unsealed', 9);
+  const candidates = (await due(db, a)).threads;
+  const id = (thread: string) => candidates.find(c => c.thread_id === thread)!.id;
+  const customer = '00000000-0000-4000-8000-0000000000c1';
+  const deal = '00000000-0000-4000-8000-0000000000d1';
+  await db.query('insert into crm_customers(id,workspace_id,company,email) values($1,$2,$3,$4)', [customer, W, 'Broker', 'rates@broker.test']);
+  await db.query('insert into crm_deals(id,workspace_id,customer_id,stage) values($1,$2,$3,$4)', [deal, W, customer, 'won']);
+  await db.query('insert into revenue_messages(workspace_id,account_id,thread_id,deal_id) values($1,$2,$3,$4)', [W, pass.account_id, 'linked', deal]);
+  const eligible = (thread: string) => one<boolean>(db, 'select public.mail_quote_cleanup_eligible($1,$2,$3) r', [...a, id(thread)]);
+  assert.equal(await eligible('linked'), false);
+  assert.equal(await eligible('sender'), false);
+  await db.query('update crm_private.mail_quote_cleanup set from_email=$2 where id=$1', [id('unsealed'), 'other@broker.test']);
+  assert.equal(await eligible('unsealed'), true);
+  await assert.rejects(db.query('select public.mail_quote_cleanup_eligible($1,$2,$3)', [pass.account_id, 'wrong', id('linked')]), /not authorized/);
   await db.close();
 });
 
