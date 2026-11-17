@@ -36,6 +36,11 @@ export async function cleanQuoteRequests(d: Deps): Promise<{trashed: number; wai
       const last = Math.max(0, ...messages.map(m => m.at));
       if (!messages.length) { await result(t.id, 'kept', null, 0, 'The thread is no longer in Gmail.'); continue; }
       if (last > cutoff) { await result(t.id, 'waiting', last, 0, `Still active: cleaned ${days} days after the last message.`); out.waiting++; continue; }
+      if (messages.some(m => !m.sent && !m.draft && m.unread)) {
+        await result(t.id, 'waiting', last, 0, 'An unread request needs review before cleanup.');
+        out.waiting++;
+        continue;
+      }
       // Only the other side's messages: our sent quotes stay as the record of what we quoted.
       const theirs = messages.filter(m => !m.sent && !m.draft);
       for (const m of theirs) await d.gmail.trash(m.id);
