@@ -3,8 +3,8 @@ import {MailProviderError} from '../revenue/mail-provider';
 import type {GmailActions, ThreadMessage} from './gmail-actions';
 
 // Friday quote request cleanup: once a rate request's thread has been quiet for the set number of days
-// (Mail setting quote_cleanup_days), the other side's messages go to Gmail's Trash, which Gmail
-// empties after 30 days. Our sent quotes stay in Sent. Old rate requests from before Mail was
+// (Mail setting quote_cleanup_days), the thread's non-draft messages go to Gmail's Trash, which Gmail
+// empties after 30 days. Won deals are retained. Old rate requests from before Mail was
 // connected are found once by search and only listed: the owner approves them before any is trashed.
 
 type Deps = {rpc: Rpc; accountId: string; token: string; gmail: Pick<GmailActions, 'thread' | 'trash' | 'searchThreads'>; deadline: number; now?: () => number};
@@ -49,11 +49,10 @@ export async function cleanQuoteRequests(d: Deps): Promise<{trashed: number; wai
         await result(t.id, 'kept', last, 0, 'A sealed deal is linked to this quote conversation.');
         continue;
       }
-      // Only the other side's messages: our sent quotes stay as the record of what we quoted.
-      const theirs = messages.filter(m => !m.sent && !m.draft);
-      for (const m of theirs) await d.gmail.trash(m.id);
-      await result(t.id, 'trashed', last, theirs.length, theirs.length ? 'Moved to Trash.' : 'Nothing from the sender left in the thread.');
-      out.trashed += theirs.length;
+      const toTrash = messages.filter(m => !m.draft);
+      for (const m of toTrash) await d.gmail.trash(m.id);
+      await result(t.id, 'trashed', last, toTrash.length, toTrash.length ? 'Quote conversation moved to Trash.' : 'No non-draft messages left in the thread.');
+      out.trashed += toTrash.length;
     } catch (e) {
       const gone = e instanceof MailProviderError && /no longer in Gmail/.test(e.message);
       await result(t.id, gone ? 'kept' : 'failed', null, 0, gone ? 'The thread is no longer in Gmail.' : (e instanceof Error ? e.message.slice(0, 200) : 'Failed.')).catch(() => undefined);

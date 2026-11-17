@@ -50,12 +50,12 @@ test('off when no cleanup period is set: nothing is read or trashed', async () =
   assert.equal(h.trashed.length, 0);
 });
 
-test('a quiet thread: the broker\'s messages go to Trash, our sent quote stays', async () => {
+test('a quiet unsealed thread: received requests and sent follow-ups go to Trash, drafts stay', async () => {
   const h = harness({days: 10, search_backlog: false, threads: [{id: 'c1', thread_id: 't1'}]},
     {t1: [m('in1', 14), m('out1', 14, {sent: true, from: 'info@onixus.test'}), m('in2', 12), m('d1', 11, {draft: true})]});
-  assert.deepEqual(await cleanQuoteRequests(h.d), {trashed: 2, waiting: 0, failed: 0});
-  assert.deepEqual(h.trashed, ['in1', 'in2']);
-  assert.deepEqual(h.results(), [['c1', 'trashed', 2]]);
+  assert.deepEqual(await cleanQuoteRequests(h.d), {trashed: 3, waiting: 0, failed: 0});
+  assert.deepEqual(h.trashed, ['in1', 'out1', 'in2']);
+  assert.deepEqual(h.results(), [['c1', 'trashed', 3]]);
 });
 
 test('a sealed deal keeps the quiet quote thread out of Trash', async () => {
