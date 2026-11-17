@@ -4,7 +4,7 @@ import ToolLogo from "@/components/tool-logo";
 import {useCallback,useEffect,useState,type ReactNode} from "react";
 import {ArrowUpRight} from "lucide-react";
 import {connectionRequest,type Provider,type WorkspaceConnection} from "@/lib/connections-client";
-const providers=[{id:"github" as Provider,name:"GitHub",description:"Choose a repository. Read files, edit code and propose a draft pull request."},{id:"vercel" as Provider,name:"Vercel",description:"Choose a project and inspect its deployments beside your code."},{id:"supabase" as Provider,name:"Supabase",description:"Choose a database project and keep its details beside Chat."},{id:"railway" as Provider,name:"Railway",description:"Choose an authorized Railway project and keep it beside your code."},{id:"n8n" as Provider,name:"n8n",description:"Connect n8n Cloud and choose a workflow to keep beside Chat."}];
+const providers=[{id:"github" as Provider,name:"GitHub",description:"Choose a repository. Read files, edit code and propose a draft pull request."},{id:"vercel" as Provider,name:"Vercel",description:"Choose a project and inspect its deployments beside your code."},{id:"supabase" as Provider,name:"Supabase",description:"Choose a database project and keep its details beside Chat."},{id:"n8n" as Provider,name:"n8n",description:"Connect n8n Cloud and choose a workflow to keep beside Chat."}];
 type Resource={id:string;name:string;branch?:string};
 export default function DeveloperConnections({query="",onCount,children}:{query?:string;onCount?:(count:number)=>void;children?:ReactNode}){
  const [instance,setInstance]=useState("");

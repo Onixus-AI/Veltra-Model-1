@@ -29,7 +29,7 @@ const sections = [
   {
     "id": "sharing",
     "title": "Service providers and disclosures",
-    "body": "Onixus Workspace relies on Vercel for the web application, Railway for backend hosting and database services, Supabase for authentication and application data, and OpenRouter and model providers for AI processing. Google and GitHub process connected-service requests; other providers process requests when their integrations are enabled. Infrastructure providers may process technical logs and network information. Site fonts may be requested from Google Fonts. Information may also be disclosed when required by law, needed to protect rights or security, directed by you, or necessary for a business transfer with appropriate protections. This list describes the current architecture rather than promising any particular geographic hosting location."
+    "body": "Onixus Workspace relies on Vercel for the web application, Google Cloud for the internal planning worker, Supabase for authentication and application data, and OpenRouter and model providers for AI processing. Google and GitHub process connected-service requests; other providers process requests when their integrations are enabled. Infrastructure providers may process technical logs and network information. Site fonts may be requested from Google Fonts. Information may also be disclosed when required by law, needed to protect rights or security, directed by you, or necessary for a business transfer with appropriate protections. This list describes the current architecture rather than promising any particular geographic hosting location."
   },
   {
     "id": "storage",

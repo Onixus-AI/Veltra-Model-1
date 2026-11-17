@@ -43,7 +43,7 @@ with sync_playwright() as p:
  page.screenshot(path=str(out/'workspace-initial.png'))
  page.locator('.workspace-more-tools > summary').click()
  preset.select_option('dev')
- for provider,asset in [('github','github.svg'),('vercel','vercel.svg'),('supabase','supabase.svg'),('railway','railway.svg'),('n8n','n8n.svg')]:
+ for provider,asset in [('github','github.svg'),('vercel','vercel.svg'),('supabase','supabase.svg'),('n8n','n8n.svg')]:
   mark=page.locator(f'#workspace-sidebar button[title="{provider}"] img')
   expect(mark).to_have_attribute('src',f'/brands/{asset}')
   page.wait_for_function('(src)=>{const el=document.querySelector(`img[src="${src}"]`);return el?.complete&&el.naturalWidth>0}',arg=f'/brands/{asset}')
