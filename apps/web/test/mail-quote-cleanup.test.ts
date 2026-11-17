@@ -2,11 +2,27 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {MailProviderError} from '../lib/revenue/mail-provider';
 import type {ThreadMessage} from '../lib/mail/gmail-actions';
-import {backlogQuery, cleanQuoteRequests} from '../lib/mail/quote-cleanup';
+import {backlogQuery, cleanQuoteRequests, isFridayQuoteCleanup} from '../lib/mail/quote-cleanup';
+
+test('Friday cleanup uses America/New_York at both daylight and standard time boundaries', () => {
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-20T04:59:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-20T05:00:00Z')), true);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-21T04:59:00Z')), true);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-21T05:00:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-07-17T03:59:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-07-17T04:00:00Z')), true);
+});
 
 const NOW = Date.parse('2026-11-20T15:00:00Z'), DAY = 86_400_000;
 const m = (id: string, daysAgo: number, o: Partial<ThreadMessage> = {}): ThreadMessage =>
-  ({id, at: NOW - daysAgo * DAY, sent: false, draft: false, from: 'rates@broker.test', subject: 'Rate request NIT to Richmond', ...o});
+  ({id, at: NOW - daysAgo * DAY, sent: false, draft: false, unread: false, from: 'rates@broker.test', subject: 'Rate request NIT to Richmond', ...o});
+
+test('old unread requests wait for review instead of going to Trash', async () => {
+  const h = harness({days: 7, search_backlog: false, threads: [{id: 'c1', thread_id: 't1'}]},
+    {t1: [m('in1', 14, {unread: true}), m('out1', 12, {sent: true})]});
+  assert.deepEqual(await cleanQuoteRequests(h.d), {trashed: 0, waiting: 1, failed: 0});
+  assert.deepEqual(h.trashed, []);
+});
 
 function harness(due: unknown, threads: Record<string, ThreadMessage[] | Error>, search: string[] = []) {
   const calls: {fn: string; args: Record<string, unknown>}[] = [], trashed: string[] = [], queries: string[] = [];

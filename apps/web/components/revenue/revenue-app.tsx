@@ -754,7 +754,7 @@ function MailWork({s}: {s: Shared}) {
       <label><input type="checkbox" checked={settings.auto_send.includes('QUOTE_REQUEST')} onChange={e => toggleSend('QUOTE_REQUEST', e.target.checked)}/> Send quotes on its own (always from your rates, with the disclaimers)</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('DOCUMENT')} onChange={e => toggleSend('DOCUMENT', e.target.checked)}/> Confirm receipt of documents (BOL, POD, rate confirmations) on its own</label>
       <label><input type="checkbox" checked={settings.auto_send.includes('QUESTION')} onChange={e => toggleSend('QUESTION', e.target.checked)}/> Answer questions on its own</label>
-      <label>Move rate requests to Gmail Trash once their thread has been quiet for{' '}
+      <label>Every Friday (Eastern), move rate requests to Gmail Trash once their thread has been quiet for{' '}
         <select value={settings.quote_cleanup_days ?? ''} aria-label="Days before cleanup" onChange={e => save({...settings, quote_cleanup_days: e.target.value ? Number(e.target.value) : null})}>
           <option value="">never</option>{[3, 5, 7, 10, 14, 21, 30, 45, 60].map(n => <option key={n} value={n}>{n} days</option>)}</select>
         {' '}(your sent quotes stay in Sent; Gmail empties Trash after 30 days)</label>

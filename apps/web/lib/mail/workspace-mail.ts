@@ -4,7 +4,7 @@ import type {ProviderMessage} from '../revenue/mail-provider';
 import {brainFromEnv, type Brain} from './brain';
 import {actOnApproved, noteNew, sortSome, type Settings} from './employee';
 import {noteOutreachReplies, sendOutreach} from './outreach';
-import {cleanQuoteRequests} from './quote-cleanup';
+import {cleanQuoteRequests, isFridayQuoteCleanup} from './quote-cleanup';
 import {gmailActions} from './gmail-actions';
 import {tmsQuoteLane} from './tms';
 import {googleDistance} from './quote';
@@ -98,12 +98,15 @@ export async function runMailPass(o: {rpc: Rpc; client: GoogleClient | null; job
       } catch (e) {
         employee.outreach = {error: e instanceof Error ? e.message.slice(0, 200) : 'Outreach step failed.'};
       }
-      // Quote request cleanup (off unless quote_cleanup_days is set): quiet rate requests go to Trash.
-      try {
-        const cleanup = await cleanQuoteRequests(d);
-        if (!('off' in cleanup)) employee.quote_cleanup = cleanup;
-      } catch (e) {
-        employee.quote_cleanup = {error: e instanceof Error ? e.message.slice(0, 200) : 'Quote cleanup failed.'};
+      // Quote request cleanup is a Friday maintenance job. Every candidate is rechecked
+      // against the entire thread before a recoverable move to Gmail Trash.
+      if (isFridayQuoteCleanup(new Date(started))) {
+        try {
+          const cleanup = await cleanQuoteRequests(d);
+          if (!('off' in cleanup)) employee.quote_cleanup = cleanup;
+        } catch (e) {
+          employee.quote_cleanup = {error: e instanceof Error ? e.message.slice(0, 200) : 'Quote cleanup failed.'};
+        }
       }
     }
     await finish({result, detail: r.sync.error ?? '', ingested: r.sync.ingested, sent, employee});

@@ -19,7 +19,7 @@ export type GmailActions = {
   /** Thread ids matching a Gmail search, newest first (quote cleanup backlog). */
   searchThreads(q: string, max: number): Promise<string[]>;
 };
-export type ThreadMessage = {id: string; at: number; sent: boolean; draft: boolean; from: string; subject: string};
+export type ThreadMessage = {id: string; at: number; sent: boolean; draft: boolean; unread: boolean; from: string; subject: string};
 
 export const MAIL_LABELS: Record<string, string> = {
   JUNK: 'Onixus/Junk', NEWSLETTER: 'Onixus/Newsletters', COLD_OUTREACH: 'Onixus/Cold pitches', NOTIFICATION: 'Onixus/Notifications',
@@ -71,7 +71,7 @@ export function gmailActions(credentials: GoogleCredentials, o: {fetcher?: typeo
         `/threads/${encodeURIComponent(id)}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`);
       return (t.messages ?? []).map(m => {
         const h = (n: string) => m.payload?.headers?.find(x => x.name.toLowerCase() === n)?.value ?? '';
-        return {id: m.id, at: Number(m.internalDate ?? 0), sent: (m.labelIds ?? []).includes('SENT'), draft: (m.labelIds ?? []).includes('DRAFT'),
+        return {id: m.id, at: Number(m.internalDate ?? 0), sent: (m.labelIds ?? []).includes('SENT'), draft: (m.labelIds ?? []).includes('DRAFT'), unread: (m.labelIds ?? []).includes('UNREAD'),
           from: (h('from').match(/[^\s<>"']+@[^\s<>"']+/)?.[0] ?? '').toLowerCase(), subject: h('subject')};
       });
     },
