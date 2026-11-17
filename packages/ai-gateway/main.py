@@ -110,6 +110,9 @@ class ApiKeyCreateRequest(BaseModel):
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    required = ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "OPENROUTER_API_KEY")
+    if any(not os.environ.get(name) for name in required):
+        raise HTTPException(status_code=503, detail="Gateway configuration is incomplete")
     return {"status": "ok"}
 
 
