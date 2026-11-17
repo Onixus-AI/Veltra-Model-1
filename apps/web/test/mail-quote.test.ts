@@ -105,7 +105,15 @@ test('a price whose miles look wrong is flagged for a person, never auto-sent', 
   assert.match(far.check!, /Google says 850 mi, the ZIP\/city estimate 15 mi/);
   const none = (await writeQuote({lane: {origin: 'Norfolk Port', destination: 'Not specified', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, signature: 'S',
     distance: async () => 1881, estimate: () => null}))!;
-  assert.match(none.check!, /No delivery place given/);
+  assert.equal(none.method, 'details_needed');
+  assert.equal(none.total, null);
+  assert.match(none.check!, /Missing delivery location/);
+  assert.match(none.body, /Please confirm the delivery address or city and ZIP code/);
+  assert.doesNotMatch(none.body, /\$[0-9]/);
+  const noPickup = (await writeQuote({lane: {origin: 'TBD', destination: 'Richmond, VA'}, tms: {total: 900}, card: CARD, distance: async () => 50, signature: 'S'}))!;
+  assert.equal(noPickup.method, 'details_needed', 'an incomplete lane cannot inherit a TMS total');
+  assert.match(noPickup.body, /Please confirm the pickup address or city and ZIP code/);
+  assert.doesNotMatch(noPickup.body, /\$[0-9]/);
   const ok = (await writeQuote({lane: {origin: 'NIT', destination: 'Lorton, VA 22079', equipment_type: 'CONTAINER'}, tms: null, card: ONIXUS, signature: 'S',
     distance: async () => 172, estimate: () => 159}))!;
   assert.equal(ok.check, undefined, 'normal Google vs estimate gap is fine');

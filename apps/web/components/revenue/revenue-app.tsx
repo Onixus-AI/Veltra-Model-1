@@ -608,7 +608,7 @@ type MailItem = {id: string; from_email: string; from_name: string | null; subje
 type RateCard = {per_mile: number; minimum: number; fuel_pct: number; accessorials: {name: string; price: number; per: 'flat' | 'stop' | 'hour' | 'day'; min?: number}[]};
 type MailSettings = {auto_clean: boolean; delete_junk: boolean; unsubscribe: boolean; auto_send: string[]; tms_org_id?: string | null;
   rate_card?: RateCard | null; signature?: string | null; quote_valid_days?: number | null; quote_cleanup_days?: number | null};
-const methodCopy: Record<string, string> = {tariff: 'Priced from your saved lane rate', mileage: 'Priced from your rate card and driving miles', unit_rates: 'Your unit rates (distance not measured)'};
+const methodCopy: Record<string, string> = {tariff: 'Priced from your saved lane rate', mileage: 'Priced from your rate card and driving miles', unit_rates: 'Your unit rates (distance not measured)', details_needed: 'Missing lane details; no price calculated'};
 
 function RateCardForm({settings, save, busy}: {settings: MailSettings; save: (s: MailSettings) => void; busy: boolean}) {
   const [card, setCard] = useState<RateCard>(settings.rate_card ?? {per_mile: 0, minimum: 0, fuel_pct: 0, accessorials: []});
@@ -735,7 +735,7 @@ function MailWork({s}: {s: Shared}) {
         {i.summary && <p>{i.summary}</p>}
         {i.needs_owner && <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> Needs you{i.owner_reason ? `: ${i.owner_reason}` : ''}</p>}
         {i.plan?.needs_review && (i.plan.quote_check
-          ? <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> Check this price before sending: {i.plan.quote_check}.</p>
+          ? <p className="rev-warn"><AlertTriangle size={14} aria-hidden/> {i.plan.quote_method === 'details_needed' ? 'Review the request for missing information' : 'Check this price before sending'}: {i.plan.quote_check}.</p>
           : <p className="rev-warn">No rates are set, so the reply says a rate will follow. Add your rates under “Rates and quote signature” below, or put the price in the reply.</p>)}
         {i.plan?.quote_method && <p className="rev-muted">{methodCopy[i.plan.quote_method] ?? ''}{i.plan.quote_note ? `: ${i.plan.quote_note}` : ''}</p>}
         {i.plan?.action === 'reply' && (tab === 'pending'
