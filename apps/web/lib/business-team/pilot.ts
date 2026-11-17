@@ -20,6 +20,8 @@ export async function executePilot(id:string,snapshot:PlanningSnapshot,transport
  const body=JSON.stringify({job_id:id,scope:'internal_daily_plan',snapshot});if(new TextEncoder().encode(body).length>pilotLimits.maxSnapshotBytes)throw Error('503:Planning snapshot exceeds the pilot limit.');
  const googleHeaders=await cloudRunHeaders(url,{transport});
  const response=await transport(new URL('/v1/plan',url),{method:'POST',headers:{...googleHeaders,Authorization:'Bearer '+token,'Content-Type':'application/json'},body,redirect:'error',cache:'no-store',signal:AbortSignal.timeout(pilotLimits.maxRunSeconds*1000)});
+ if(response.status===404)throw Error('503:Onixelia endpoint not found.');
+ if(response.status===401||response.status===403)throw Error('503:Onixelia request was rejected.');
  if(!response.ok)throw Error('503:Onixelia could not complete the planning job.');
  const raw=await response.text();if(new TextEncoder().encode(raw).length>pilotLimits.maxOutputBytes)throw Error('503:Onixelia returned an oversized result.');
  const result=JSON.parse(raw);if(result.job_id!==id||result.engine!=='hermes'||typeof result.version!=='string'||!result.version||result.scope!=='internal_daily_plan')throw Error('503:Onixelia returned an invalid execution receipt.');

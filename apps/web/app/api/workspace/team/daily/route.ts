@@ -4,6 +4,7 @@ import {requireBearer} from '@/lib/revenue/ingest';
 import {noStore} from '@/lib/revenue/server';
 import {teamRuntime} from '@/lib/business-team/catalog';
 import {planningSnapshot,executePilot} from '@/lib/business-team/pilot';
+import {dailyFailure} from '@/lib/business-team/daily-failure';
 export const maxDuration=60;
 export async function GET(request:Request){
  try{requireBearer(request,process.env.CRON_SECRET);}catch{return Response.json({error:'Unauthorized'},{status:401,headers:noStore});}
@@ -19,6 +20,7 @@ export async function GET(request:Request){
  const start=await db.rpc('workspace_team_daily_start',{p_workspace:workspace});
  if(start.error)return Response.json({error:'Daily claim failed'},{status:503,headers:noStore});
  const job=start.data;if(!job)return Response.json({started:0},{headers:noStore});
+ let stage:'context'|'worker'|'receipt'='context';
  try{
  const checkedAt=new Date().toISOString();
  const [dead,overdue,pending,failed,business,toolFailures]=await Promise.all([
@@ -33,9 +35,11 @@ export async function GET(request:Request){
  const metrics={failures:{dead_jobs:dead.count,failed_sends:failed.count,...(failures.count!==null?{agent_tool_failures:failures.count}:{})},commitments:{overdue:overdue.count},outreach:{awaiting_approval:pending.count}};
  const priorities=[...(overdue.count? [{kind:'overdue'}]:[]),...((dead.count||failed.count||failures.count)?[{kind:'failed'}]:[]),...(pending.count?[{kind:'approval'}]:[])];
  const snapshot=planningSnapshot(business.data.industry||'Business services',{generated_at:checkedAt,metrics},priorities);
+ stage='worker';
  const result=await executePilot(job.id,snapshot),at=new Date().toISOString();
  const receipts=[{member:'onyx',action:'Inspected recorded agent tool failures',status:failures.available?'completed':'unavailable',at:checkedAt,source:'workspace_business_events',...failures,detail:'Last 24 hours, scoped business only. Metadata excludes messages and credentials. Prioritize a reproducible regression, tested repair and deployment verification; a proposal is not a fix.'},{member:'onyx',action:'Checked daily business queues',status:'completed',at:snapshot.checked_at,source:'revenue_jobs,crm_tasks,revenue_messages',detail:'Exact scoped counts of overdue commitments, Mail drafts, failed sends and dead jobs. Other connectors are not audited by this run.'},{member:'onixelia',action:'Prepared daily improvement proposals',status:'completed',at,engine:result.engine,model:result.model,version:result.version,usage:result.usage},{member:'onyx',action:'Reviewed improvement proposals with Jev decision support',status:'completed',at,...result.review,detail:'Review only. Proposed work requires its own execution receipt.'}];
+ stage='receipt';
  const saved=await db.from('workspace_team_jobs').update({status:'completed',plan:result.tasks,receipts,finished_at:at}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');if(saved.error)throw Error('Receipt save failed');
  return Response.json({started:1,status:'completed',job_id:job.id},{headers:noStore});
- }catch{await db.from('workspace_team_jobs').update({status:'failed',failure:'Daily review failed. No external actions authorized.',finished_at:new Date().toISOString()}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');return Response.json({started:1,status:'failed',job_id:job.id},{headers:noStore});}
+ }catch(error){await db.from('workspace_team_jobs').update({status:'failed',failure:dailyFailure(stage,error),finished_at:new Date().toISOString()}).eq('workspace_id',workspace).eq('id',job.id).eq('status','running');return Response.json({started:1,status:'failed',job_id:job.id},{headers:noStore});}
 }
