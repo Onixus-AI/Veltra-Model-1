@@ -1,24 +1,18 @@
 import {usageActivity} from '@/lib/usage-activity';
 import { NextRequest } from "next/server";
-import { gatewayAuthorization, gatewayUrl } from "@/lib/gateway";
+import {workspaceAccountContext} from '@/lib/workspace-account';
+import {workspaceUsageReport} from '@/lib/workspace-usage-report';
+import {crmError} from '@/lib/crm/server';
 
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const authorization = gatewayAuthorization(request);
-
-  const query = new URLSearchParams();
-  for (const key of ["month", "day"]) { const value = request.nextUrl.searchParams.get(key); if (value) query.set(key,value); }
-  const upstream = await fetch(`${gatewayUrl()}/v1/usage?${query}`, {
-    headers: {
-      ...(authorization ? { Authorization: authorization } : {}),
-      Accept: "application/json",
-    },
-    cache: "no-store",
-  });
-
-  if(!upstream.ok)return new Response(upstream.body,{status:upstream.status,headers:{'Content-Type':upstream.headers.get('content-type')??'application/json','Cache-Control':'no-store'}});
-  const body=await upstream.json();
+ try{
+  const {db,organizationId}=await workspaceAccountContext(request);
+  const month=request.nextUrl.searchParams.get('month')??new Date().toISOString().slice(0,7);
+  const day=request.nextUrl.searchParams.get('day');
+  const body=await workspaceUsageReport(db,organizationId,month,day);
   const observed=await usageActivity(request,body);
   return Response.json({...body,...observed},{headers:{'Cache-Control':'no-store'}});
+ }catch(error){return crmError(error);}
 }
