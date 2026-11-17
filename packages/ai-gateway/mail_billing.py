@@ -7,6 +7,7 @@ import httpx
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 from model_routing import routing_options, ALLOWED
+from supabase_headers import service_headers
 
 class MailRequest(BaseModel):
     account_id: UUID
@@ -19,7 +20,7 @@ async def owner_organization(owner):
     if not url or not key:
         raise HTTPException(503, 'Mail wallet is not configured')
     async with httpx.AsyncClient(timeout=10) as client:
-        response = await client.get(url.rstrip('/')+'/auth/v1/admin/users/'+str(UUID(owner)), headers={'apikey':key,'Authorization':'Bearer '+key})
+        response = await client.get(url.rstrip('/')+'/auth/v1/admin/users/'+str(UUID(owner)), headers=service_headers(key))
         response.raise_for_status()
         user = response.json()
     metadata = user.get('app_metadata', {})
