@@ -2,7 +2,16 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {MailProviderError} from '../lib/revenue/mail-provider';
 import type {ThreadMessage} from '../lib/mail/gmail-actions';
-import {backlogQuery, cleanQuoteRequests} from '../lib/mail/quote-cleanup';
+import {backlogQuery, cleanQuoteRequests, isFridayQuoteCleanup} from '../lib/mail/quote-cleanup';
+
+test('Friday cleanup uses America/New_York at both daylight and standard time boundaries', () => {
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-20T04:59:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-20T05:00:00Z')), true);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-21T04:59:00Z')), true);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-11-21T05:00:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-07-17T03:59:00Z')), false);
+  assert.equal(isFridayQuoteCleanup(new Date('2026-07-17T04:00:00Z')), true);
+});
 
 const NOW = Date.parse('2026-11-20T15:00:00Z'), DAY = 86_400_000;
 const m = (id: string, daysAgo: number, o: Partial<ThreadMessage> = {}): ThreadMessage =>

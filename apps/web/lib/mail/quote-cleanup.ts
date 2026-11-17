@@ -2,7 +2,7 @@ import type {Rpc} from '../revenue/relay';
 import {MailProviderError} from '../revenue/mail-provider';
 import type {GmailActions, ThreadMessage} from './gmail-actions';
 
-// Quote request cleanup: once a rate request's thread has been quiet for the set number of days
+// Friday quote request cleanup: once a rate request's thread has been quiet for the set number of days
 // (Mail setting quote_cleanup_days), the other side's messages go to Gmail's Trash, which Gmail
 // empties after 30 days. Our sent quotes stay in Sent. Old rate requests from before Mail was
 // connected are found once by search and only listed: the owner approves them before any is trashed.
@@ -10,6 +10,10 @@ import type {GmailActions, ThreadMessage} from './gmail-actions';
 type Deps = {rpc: Rpc; accountId: string; token: string; gmail: Pick<GmailActions, 'thread' | 'trash' | 'searchThreads'>; deadline: number; now?: () => number};
 type Due = {days: number | null; search_backlog: boolean; threads: {id: string; thread_id: string}[]};
 const DAY = 86_400_000;
+
+/** Cleanup is a Friday maintenance job, using the business's Eastern schedule. */
+export const isFridayQuoteCleanup = (at: Date) =>
+  new Intl.DateTimeFormat('en-US', {weekday: 'long', timeZone: 'America/New_York'}).format(at) === 'Friday';
 
 /** The Gmail search for old rate requests (broker subjects and wording), used once per mailbox. */
 export const backlogQuery = (days: number) =>
