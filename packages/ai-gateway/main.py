@@ -16,6 +16,7 @@ import litellm
 import yaml
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Security
+from supabase_headers import service_headers
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.responses import Response, StreamingResponse
@@ -150,12 +151,9 @@ async def supabase_request(
                 f"{supabase_url.rstrip('/')}/rest/v1/{table}",
                 params=params,
                 json=payload,
-                headers={
-                    "apikey": service_role_key,
-                    "Authorization": f"Bearer {service_role_key}",
-                    "Content-Type": "application/json",
-                    "Prefer": "return=representation",
-                },
+                headers={**service_headers(service_role_key),
+                         "Content-Type": "application/json",
+                         "Prefer": "return=representation"},
             )
             response.raise_for_status()
             if not response.content:
@@ -203,11 +201,7 @@ async def deduct_credits(organization_id: str, credits: int, model: str, categor
                 f"{supabase_url.rstrip('/')}/rest/v1/rpc/deduct_credits_simple",
                 json={"p_org_id": organization_id, "p_credits_needed": credits,
                       "p_category": category, "p_model": model, "p_tokens": credits},
-                headers={
-                    "apikey": service_role_key,
-                    "Authorization": f"Bearer {service_role_key}",
-                    "Content-Type": "application/json",
-                },
+                headers={**service_headers(service_role_key), "Content-Type": "application/json"},
             )
             response.raise_for_status()
             deducted = response.json()
