@@ -19,4 +19,3 @@ export function trashCriteria(text:string,now=new Date()):TrashCriteria|null{
  return {instruction:text.trim(),mailbox,cutoff:cutoff.toISOString(),date_basis:'Strictly before cutoff (UTC). Gmail internal receipt time; Outlook receivedDateTime. Relative years/months use UTC calendar subtraction; dates mean 00:00 UTC.'};
 }
 
-export function cleanupReference(text:string){const match=/^(?:please )?(show|check|retry) (?:mail )?cleanup ([a-f0-9-]{36})[.!]?$/i.exec(text.trim());return match?{retry:match[1].toLowerCase()==='retry',id:match[2]}:null;}

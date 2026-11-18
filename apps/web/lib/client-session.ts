@@ -20,10 +20,6 @@ export async function gatewayAuthorizationHeaders(): Promise<HeadersInit> {
   return authorization ? { Authorization: authorization } : {};
 }
 
-export function readApiKey(): string {
-  return window.sessionStorage.getItem(API_KEY_STORAGE_KEY) ?? "";
-}
-
 export function saveApiKey(apiKey: string): void {
   if (apiKey) {
     window.sessionStorage.setItem(API_KEY_STORAGE_KEY, apiKey.trim());
