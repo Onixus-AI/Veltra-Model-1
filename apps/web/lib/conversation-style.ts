@@ -14,4 +14,3 @@ Keep code, documents, and other requested deliverables complete even when your s
 // Task access prompts are enforced by the host, separately from operation reviews.
 
 // Compatibility for existing imports during the Onyx naming rollout.
-export const VELOCITY_CONVERSATION_STYLE = ONYX_CONVERSATION_STYLE;
