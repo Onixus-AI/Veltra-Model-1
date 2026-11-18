@@ -45,7 +45,7 @@ async function database() {
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105210000_mail_second_mailbox.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261106090000_mail_outreach_autopilot.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261106150000_mail_quote_cleanup.sql', import.meta.url), 'utf8'));
-  await db.exec(await readFile(new URL('../../../supabase/migrations/20261109090000_mail_sender_name.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261118230000_mail_sender_name.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
