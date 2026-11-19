@@ -28,6 +28,7 @@ const actions: Record<string, string[]> = {
   revenue_create_proposal: ['p_customer', 'p_deal', 'p_title', 'p_amount_cents', 'p_currency', 'p_rule', 'p_deposit_percent', 'p_line_items'],
   revenue_mark_proposal_sent: ['p_proposal', 'p_checkout_reference', 'p_checkout_url'], revenue_cancel_proposal: ['p_proposal', 'p_reason'],
   revenue_score_prospects: [], revenue_stage_top_prospect: [],
+  revenue_outreach_staging_status: [], revenue_outreach_staging_set: ['p_enabled'],
   mail_items_list: ['p_status'], mail_google_status: [], mail_item_decide: ['p_id', 'p_decision', 'p_draft'], mail_settings: ['p_settings'],
   mail_outreach_status: [], mail_outreach_set: ['p_mailbox', 'p_enabled', 'p_daily_limit'],
   mail_quote_cleanup_list: [], mail_quote_cleanup_decide: ['p_ids', 'p_approve'],
