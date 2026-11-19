@@ -32,6 +32,7 @@ import {
 } from "@/lib/workspace-navigation";
 import {useWorkspaceSettings} from "./workspace-settings-provider";
 import WorkspaceAppearance from "./workspace-appearance";
+import { useNavigationCounts } from "@/lib/use-navigation-counts";
 const icons = {
   overview: LayoutDashboard,
   pathway: SlidersHorizontal,
@@ -62,6 +63,7 @@ export default function WorkspaceNavigation({
   onOpen?: (id: WorkspaceToolId) => boolean;
 }) {
   const settings=useWorkspaceSettings(),preferences=settings.layout;
+  const counts=useNavigationCounts(business);
   const [editing,setEditing]=useState(false),[saving,setSaving]=useState(false),[notice,setNotice]=useState('');
   const [draft,setDraft]=useState<WorkspacePreferences>(preferences);
   const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null),saveVersion=useRef(0);
@@ -121,6 +123,7 @@ export default function WorkspaceNavigation({
       >
         <Icon size={18} />
         <span>{tool.label}</span>
+        {counts[id] && <span className="ox-nav-count" data-tone={counts[id]!.tone} aria-label={counts[id]!.label}>{counts[id]!.value > 99 ? "99+" : counts[id]!.value}</span>}
       </Link>
     );
   }
