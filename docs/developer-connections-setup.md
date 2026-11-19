@@ -4,17 +4,17 @@ Clients connect their own GitHub, Vercel and Supabase accounts from Chat → Con
 
 ## Register provider applications
 
-Register applications owned by Veltra and configure these exact callbacks:
+Register applications owned by Onixus and configure these callbacks against the live Mail service origin used by production `VELTRA_MAIL_URL` (checked 2026-11-19). Do not use the retired Railway URL.
 
-| Provider | Callback | Railway Mail environment variables |
+| Provider | Callback | Mail service environment variables |
 | --- | --- | --- |
-| GitHub OAuth App | https://veltra-production-5b9c.up.railway.app/chat/oauth/github/callback | WORKSPACE_GITHUB_CLIENT_ID, WORKSPACE_GITHUB_CLIENT_SECRET |
-| Vercel integration | https://veltra-production-5b9c.up.railway.app/chat/oauth/vercel/callback | WORKSPACE_VERCEL_CLIENT_ID, WORKSPACE_VERCEL_CLIENT_SECRET, WORKSPACE_VERCEL_INTEGRATION_SLUG |
-| Supabase OAuth App | https://veltra-production-5b9c.up.railway.app/chat/oauth/supabase/callback | WORKSPACE_SUPABASE_CLIENT_ID, WORKSPACE_SUPABASE_CLIENT_SECRET |
+| GitHub OAuth App | https://veltra-mail-302557357656.us-central1.run.app/chat/oauth/github/callback | WORKSPACE_GITHUB_CLIENT_ID, WORKSPACE_GITHUB_CLIENT_SECRET |
+| Vercel integration | https://veltra-mail-302557357656.us-central1.run.app/chat/oauth/vercel/callback | WORKSPACE_VERCEL_CLIENT_ID, WORKSPACE_VERCEL_CLIENT_SECRET, WORKSPACE_VERCEL_INTEGRATION_SLUG |
+| Supabase OAuth App | https://veltra-mail-302557357656.us-central1.run.app/chat/oauth/supabase/callback | WORKSPACE_SUPABASE_CLIENT_ID, WORKSPACE_SUPABASE_CLIENT_SECRET |
 
 GitHub requests `repo` and `read:user` to read repositories and create branches and draft pull requests, including private repositories. Vercel needs read access to Projects and Deployments. Supabase needs read access to project metadata; this release does not query database contents or execute SQL. Configure provider application permissions accordingly.
 
-Enter secrets privately in Railway's Mail service environment. Keep the existing SESSION_SECRET stable; it encrypts stored connections. Restart/redeploy Mail after changing variables. Chat uses its existing VELTRA_MAIL_URL and Supabase session authorization.
+Enter secrets privately in the running Mail service environment. Keep the existing SESSION_SECRET stable; it encrypts stored connections. Restart/redeploy Mail after changing variables. Chat uses its existing VELTRA_MAIL_URL and Supabase session authorization. The current Mail `/health` endpoint returned HTTP 200 on 2026-11-19; OAuth consent still requires a separate end-to-end check.
 
 Until application credentials are configured, each provider card shows “Veltra setup required” and disables authorization. App registration and a real consent round trip are required before calling the integration live.
 

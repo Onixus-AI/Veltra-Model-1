@@ -13,7 +13,7 @@ test('a load is priced linehaul + fuel + accessorials asked for, never under the
   assert.equal(mileageQuote(CARD, 20, {accessorials: [], stops: 0}).total, 350);
 });
 
-test('every quote carries the disclaimers and the signature; nothing to quote from returns null', async () => {
+test('every quote carries the disclaimers and the signature; an unpriced request stays owner-fillable', async () => {
   const unit = (await writeQuote({lane: null, tms: null, card: CARD, distance: null, signature: 'Onixus Inc'}))!;
   assert.equal(unit.method, 'unit_rates');
   for (const s of ['valid for 3 days', 'not a confirmed all-in shipment total', 'no capacity is reserved', 'Liftgate: $75.00 per flat.', '10% fuel surcharge']) assert.ok(unit.body.includes(s), s);
@@ -22,7 +22,10 @@ test('every quote carries the disclaimers and the signature; nothing to quote fr
   assert.equal(total.method, 'mileage');
   assert.match(total.body, /valid for 5 days/);
   assert.match(total.body, /does not reserve capacity or confirm a booking/);
-  assert.equal(await writeQuote({lane: null, tms: null, card: null, distance: null, signature: 'S'}), null);
+  const owner = (await writeQuote({lane: null, tms: null, card: null, distance: null, signature: 'S'}))!;
+  assert.equal(owner.method, 'owner_rate');
+  assert.match(owner.body, /Quoted rate: \$\[ENTER RATE\]/);
+  assert.match(owner.body, /valid for 3 days[\s\S]*Additional services[\s\S]*equipment and service availability/);
   const failing = (await writeQuote({lane: {origin: 'a', destination: 'b'}, tms: null, card: CARD, distance: async () => { throw new Error('maps down'); }, signature: 'S'}))!;
   assert.equal(failing.method, 'unit_rates', 'a Maps failure falls back to unit rates');
   assert.equal(failing.note, 'maps down', 'and says why');

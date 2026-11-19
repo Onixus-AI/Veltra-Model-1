@@ -104,7 +104,7 @@ const TERMS_UNIT = (days: number) => `This quote is valid for ${days} days from 
 Assumptions: standard service within the stated rate conditions; quantities and shipment details as provided. Please include any changes when accepting.`;
 const AVAILABILITY = 'Subject to equipment and service availability. This quotation does not reserve capacity or confirm a booking.';
 
-export type WrittenQuote = {body: string; method: 'tariff' | 'mileage' | 'unit_rates' | 'details_needed'; total: number | null; miles: number | null;
+export type WrittenQuote = {body: string; method: 'tariff' | 'mileage' | 'unit_rates' | 'details_needed' | 'owner_rate'; total: number | null; miles: number | null;
   /** Why a person must check this quote before it goes out (miles look wrong, no delivery place). */
   check?: string;
   /** Why the quote fell back to unit rates, when it did (Maps not set up, address not found, Maps error). */
@@ -126,8 +126,8 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
     const missingDestination = destinations.length ? destinations.some(missingPlace) : missingPlace(o.lane.destination);
     if (missingOrigin || missingDestination) {
       const needed = [missingOrigin ? 'pickup' : '', missingDestination ? 'delivery' : ''].filter(Boolean).join(' and ');
-      return {method: 'details_needed', total: null, miles: null, check: `Missing ${needed} location`,
-        body: sign(`Please confirm the ${needed} address or city and ZIP code so we can prepare an accurate rate. No price or capacity is confirmed yet.`)};
+      return {method: 'details_needed', total: null, miles: null, check: `Missing ${needed} location and owner-confirmed rate`,
+        body: sign(`Quote (USD):\nQuoted rate: $[ENTER RATE] per load.\n\nPlease confirm the ${needed} address or city and ZIP code before this rate is sent.\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
     }
   }
   if (o.tms && typeof o.tms.total === 'number') {
@@ -137,7 +137,9 @@ export async function writeQuote(o: {lane: Lane | null; tms: Record<string, unkn
     return {method: 'tariff', total: t.total, miles: t.miles_estimated ?? null,
       body: sign(`Our quote${tmsLane ? ` for ${tmsLane}` : ''} (USD):\n${lines.join('\n')}${est}\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
   }
-  if (!o.card) return null;
+  if (!o.card) return {method: 'owner_rate', total: null, miles: null,
+    check: 'Owner must enter and verify the quoted rate before approval.',
+    body: sign(`Quote${tmsLane ? ` for ${tmsLane}` : ''} (USD):\nQuoted rate: $[ENTER RATE] per load.\n\n${TERMS_TOTAL(days)}\n${AVAILABILITY}`)};
   const card = o.card, l = o.lane;
   const drayage = !!l && isDrayage(l), roundTrip = drayage || !!l?.round_trip;
   // Several delivery points: each gets its own price.
