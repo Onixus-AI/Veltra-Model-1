@@ -14,7 +14,7 @@ function ctx(over: Partial<CustomerContext> = {}): CustomerContext {
   return {
     customer: {id: 'c1', company: 'Acme Dental', name: 'Pat Lee', email: 'pat@acme.test', phone: '', industry: '', job_title: '', website: '', source: 'form', owner_id: null, identity_review_required: false, created_at: iso(-20), link: '/revenue?view=customer&customer=c1'},
     contactability: {blocked_reason: null, marketing_blocked_reason: null, consents: []},
-    memory: {facts: [], inferences: []}, timeline: [], open_tasks: [], deals: [{id: 'd1', title: 'Website', stage: 'qualified', value_cents: 100000, currency: 'USD', owner_id: null, stage_changed_at: iso(-3), outcome: 'open'}],
+    memory: {facts: [], inferences: []}, timeline: [], open_tasks: [], deals: [{id: 'd1', title: 'Website', stage: 'contacted', value_cents: 100000, currency: 'USD', owner_id: null, stage_changed_at: iso(-3), outcome: 'open'}],
     meetings: [], proposals: [], payments: [], onboarding: [], threads: [], messages: [], generated_at: iso(0), ...over,
   };
 }

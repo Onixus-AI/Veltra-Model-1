@@ -32,7 +32,7 @@ export function replyRate(m: Metrics): number | null {
 }
 
 export type Stage = { name: string; count: number; value_cents: number; filled: number };
-const STAGE_ORDER = ["lead", "new", "qualified", "contacted", "proposal", "quote", "quoted", "negotiation", "won", "lost"];
+const STAGE_ORDER = ["lead", "new", "contacted", "replied", "meeting", "proposal", "quote", "quoted", "negotiation", "won", "lost"];
 /** Pipeline stages in sales order, each with how many of `segments` bar blocks it fills. */
 export function pipelineStages(m: Metrics, segments = 16): Stage[] {
   const entries = Object.entries(m.pipeline.open_by_stage);

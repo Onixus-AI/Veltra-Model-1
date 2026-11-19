@@ -3,7 +3,7 @@ export type CrmScope={workspace_id:string;customer_id?:string|null};
 export type CrmPlan={action:string;args:Record<string,unknown>};
 export type CrmReply={kind:'result'|'preview';reply:string;review_id?:string;details?:unknown;changed?:boolean;pagination?:{total:number|null;returned:number;limit:number;has_more:boolean};observed_at?:string};
 export const validId=(value:unknown):value is string=>typeof value==='string'&&/^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value);
-const stages=['new','qualified','meeting','proposal','won','lost'];
+const stages=['new','contacted','replied','meeting','proposal','won','lost'];
 const help='I can show customers, open or overdue tasks, pipeline and customer history; add customers, tasks, opportunities and proposed memories; complete tasks, update deal stages and suppress outreach. I can also show outreach campaigns and review campaign pause or activation. Select a workspace and, for customer work, a customer. Changes are previewed before confirmation.';
 const text=(value:unknown,max:number,required=true)=>{if(typeof value!=='string'||value.length>max||(required&&!value.trim()))throw new Error('400:Check the action details.');return value.trim();};
 export function validatePlan(raw:unknown):CrmPlan{
@@ -113,7 +113,7 @@ export async function runCrmChat(o:{client:SupabaseClient;user:string;scope:CrmS
   const base={id:review.record_id,workspace_id:scope.workspace_id,customer_id:scope.customer_id};
   if(plan.action==='create_customer')details=await rows(client.from('crm_customers').insert({id:review.record_id,workspace_id:scope.workspace_id,...plan.args,email:plan.args.email||null,source:'Veltra Chat'}).select('id,company').single());
   if(plan.action==='create_task')details=await rows(client.from('crm_tasks').insert({...base,...plan.args,action_key:review.id}).select('id,title').single());
-  if(plan.action==='create_deal')details=await rows(client.from('crm_deals').insert({...base,...plan.args,stage:'qualified'}).select('id,title').single());
+  if(plan.action==='create_deal')details=await rows(client.from('crm_deals').insert({...base,...plan.args,stage:'new'}).select('id,title').single());
   if(plan.action==='propose_memory')details=await rows(client.from('crm_memories').insert({...base,...plan.args,source:'Proposed in Veltra Chat',status:'proposed',action_key:review.id}).select('id,status').single());
   if(plan.action==='complete_task')details=await rows(client.from('crm_tasks').update({status:'done'}).eq('id',plan.args.id).eq('workspace_id',scope.workspace_id).eq('customer_id',scope.customer_id!).eq('status',(before as {status:string}).status).select('id,status').single());
   if(plan.action==='update_stage')details=await rows(client.from('crm_deals').update({stage:plan.args.stage}).eq('id',plan.args.id).eq('workspace_id',scope.workspace_id).eq('customer_id',scope.customer_id!).eq('stage',(before as {stage:string}).stage).select('id,stage').single());
