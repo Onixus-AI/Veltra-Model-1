@@ -49,7 +49,7 @@ with sync_playwright() as p:
  expect(page.get_by_role('region',name='Daily outreach KPIs')).to_contain_text('12')
  expect(page.get_by_text('1 messages await approval',exact=True)).to_be_visible()
  assert page.locator('.ops-toast').count()==0, 'Existing alerts must not flood popups on arrival'
- expect(page.get_by_text('Scheduled · 18 imported · 7 enriched',exact=True)).to_be_visible()
+ expect(page.get_by_text('Scheduled · 18 imported · 7 contacts added during import',exact=True)).to_be_visible()
  page.screenshot(path=str(out/'desktop.png'),full_page=True)
  state['research_error']=True;page.get_by_role('button',name='Refresh business activity').click()
  expect(page.locator('.ops-toast')).to_contain_text('Research needs attention')
