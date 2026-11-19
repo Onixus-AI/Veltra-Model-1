@@ -1,4 +1,4 @@
-export const stages = ['new','qualified','meeting','proposal','won','lost'] as const;
+export const stages = ['new','contacted','replied','meeting','proposal','won','lost'] as const;
 export type Stage = typeof stages[number];
 export type Customer = {id:string; workspace_id:string; company:string; name:string; email:string|null; industry:string; phone?:string;website?:string;location?:string;job_title?:string;record_type?:'company'|'person'|'influencer';identity_review_required?:boolean; source:string; suppressed:boolean; created_at:string};
 export type Deal = {id:string;workspace_id:string;customer_id:string;title:string;stage:Stage;value_cents:number;currency:string;created_at:string};

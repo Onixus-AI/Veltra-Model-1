@@ -37,7 +37,8 @@ class ChatRoutingTests(unittest.IsolatedAsyncioTestCase):
         for call in completion.call_args_list:
             self.assertEqual(call.kwargs['extra_body']['reasoning'], {'effort': 'low'})
         self.assertEqual(completion.call_args_list[1].kwargs['extra_body']['models'],
-                         ['cohere/north-mini-code:free', 'inception/mercury-3', 'qwen/qwen3.8-flash'])
+                         ['cohere/north-mini-code:free', 'nvidia/nemotron-3-ultra-550b-a55b:free'])
+        self.assertNotIn('data_collection', completion.call_args_list[1].kwargs['extra_body']['provider'])
         states = [kwargs['payload']['state'] for table, kwargs in calls if 'state' in kwargs.get('payload', {})]
         self.assertEqual(states[-1]['receipts'][0]['model'], 'backup/actual')
 

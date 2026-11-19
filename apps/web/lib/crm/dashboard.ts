@@ -1,5 +1,5 @@
 import {type Snapshot,type Stage,stages} from './domain';
-export const planningWeights:Record<Stage,number>={new:10,qualified:25,meeting:50,proposal:75,won:100,lost:0};
+export const planningWeights:Record<Stage,number>={new:10,contacted:20,replied:35,meeting:50,proposal:75,won:100,lost:0};
 export function dashboard(data:Snapshot,days:number,industry:string,weights=planningWeights,now=Date.now()){
  const cutoff=days?now-days*86400000:-Infinity;
  const customers=data.customers.filter(c=>(!industry||c.industry===industry)&&Date.parse(c.created_at)>=cutoff&&Date.parse(c.created_at)<=now);

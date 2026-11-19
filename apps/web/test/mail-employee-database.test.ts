@@ -40,6 +40,7 @@ async function database() {
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105110000_mail_quotes.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105190000_mail_rate_card_days.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105210000_mail_second_mailbox.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261119173000_mail_unpriced_quote_guard.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
@@ -84,6 +85,10 @@ test('nothing runs on the model\'s say-so: items wait for the owner unless the o
   assert.equal((await rec(item('j3', 'JUNK', {action: 'trash'}, {needs_owner: true}))).status, 'pending', 'never on autopilot when the owner was alerted');
   assert.equal((await rec(item('q2', 'QUOTE_REQUEST', {action: 'reply'}, {draft: 'Rate is $500.'}))).status, 'approved');
   assert.equal((await rec(item('q3', 'QUOTE_REQUEST', {action: 'reply', needs_review: true}, {draft: 'A rate will follow.'}))).status, 'pending', 'no price → a person reviews');
+  assert.equal((await rec(item('q5', 'QUOTE_REQUEST', {action: 'reply', needs_review: true}))).status, 'pending');
+  const unpriced = await one<string>(db, `select id r from crm_private.mail_items where provider_message_id='q5'`);
+  await assert.rejects(db.query('select public.mail_item_decide($1,$2,$3,$4)', [W, unpriced, 'approve', null]), /Add a priced reply/);
+  assert.equal((await one<{status: string}>(db, 'select public.mail_item_decide($1,$2,$3,$4) r', [W, unpriced, 'approve', 'Our quoted rate is $500 per load, subject to availability.'])).status, 'approved');
   assert.equal((await rec(item('q4', 'QUESTION', {action: 'reply'}, {draft: 'Yes.'}))).status, 'pending', 'questions were not put on autopilot');
   assert.equal((await rec(item('j2', 'NEWSLETTER', {action: 'archive'}))).duplicate, true, 'a sorted item is never re-sorted');
   await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({auto_clean: true, delete_junk: true, unsubscribe: false, auto_send: ['JUNK']})]), /Invalid/);

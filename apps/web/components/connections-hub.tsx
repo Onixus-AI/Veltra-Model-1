@@ -181,7 +181,7 @@ export default function ConnectionsHub() {
             <div className="cx-card-top"><ToolLogo name={c.logo} /><StatusPill state={status.state} /></div>
             <h3>{c.name}</h3>
             <p className="cx-desc">{c.description}</p>
-            <p className="cx-account">{status.state === "connected" ? (status.account ?? "Ready for Onyx") : status.note ?? (status.state === "unavailable" ? "Status could not be checked. Try again." : " ")}</p>
+            <p className="cx-account">{status.state === "connected" ? <>{status.account ?? "Connected; account name not reported"}{status.lastHealthy ? <> · Last healthy <time dateTime={status.lastHealthy}>{new Date(status.lastHealthy).toLocaleString()}</time></> : null}</> : status.note ?? (status.state === "unavailable" ? "Status could not be checked. Try again." : " ")}</p>
             {c.id === "n8n" && status.state === "available" && <input className="cx-input" type="url" inputMode="url" placeholder="https://yourname.app.n8n.cloud" aria-label="Your n8n address" value={n8nUrl} onChange={(e) => setN8nUrl(e.target.value)} />}
             {picker?.id === c.id && <div className="cx-picker"><select aria-label={`Choose what ${c.name} Onyx can use`} value={picker.chosen} onChange={(e) => setPicker({ ...picker, chosen: e.target.value })}>{picker.items.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}</select><button className="cx-primary" disabled={working} onClick={() => void saveChoice()}>Save</button></div>}
             <div className="cx-actions">

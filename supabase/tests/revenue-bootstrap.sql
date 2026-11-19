@@ -71,7 +71,7 @@ alter table public.crm_contact_evidence enable row level security;
 create table public.crm_deals(
  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, customer_id uuid not null,
  title text not null check(length(trim(title)) between 1 and 300),
- stage text not null default 'new' check(stage in ('new','qualified','meeting','proposal','won','lost')),
+ stage text not null default 'new' check(stage in ('new','contacted','replied','meeting','proposal','won','lost')),
  value_cents bigint not null default 0 check(value_cents between 0 and 10000000000),
  currency text not null default 'USD' check(currency ~ '^[A-Z]{3}$'),
  created_at timestamptz not null default now(),

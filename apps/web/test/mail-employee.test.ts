@@ -120,10 +120,12 @@ test('a rate request is answered with a rate written by code, with the disclaime
   assert.match(miles.recorded()[0]!.draft!, /Linehaul: 94 mi each way, round trip 188 mi × \$2\.50\/mi: \$470\.00\nChassis: \$35\.00\nTotal: \$505\.00 per load/);
   assert.match(miles.recorded()[0]!.draft!, /Drayage, priced round trip/);
 
-  // No rates at all: the model says a rate will follow and a person reviews it.
+  // No rates at all: keep the request for human pricing without inventing a quote.
   const none = harness({q1: msg('q1')}, {brain: fakeBrain({'Rate request': cls('QUOTE_REQUEST')}), quote: null});
   await sortSome(none.d);
   assert.equal(none.recorded()[0]!.plan.needs_review, true);
+  assert.equal(none.recorded()[0]!.draft, null);
+  assert.match(String((none.recorded()[0]!.plan as {quote_check?: string}).quote_check), /Set a rate before approving/);
 });
 
 test('without a model nothing is sorted: emails wait instead of being guessed', async () => {

@@ -279,7 +279,7 @@ function Overview(s: Shared) {
         <ul className="rev-list">
           {o.freshness.mail_sync.map((x: Json) => <li key={x.account_id}><Activity size={15} aria-hidden/><span>Mail {x.mailbox ?? 'account'}: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
           {(o.freshness.calendar_sync ?? []).map((x: Json) => <li key={`cal-${x.account_id}`}><Activity size={15} aria-hidden/><span>Google Calendar: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
-          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/><span>{x.label} ({x.provider}): <strong>{x.status}</strong>, last success {since(x.last_success_at)}</span></li>)}
+          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/><span>{x.label} ({x.provider}): <strong>{x.status === 'active' && !x.last_success_at ? 'Waiting for first event' : label(x.status)}</strong>{x.last_success_at ? `, last success ${since(x.last_success_at)}` : ''}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
           {!o.freshness.mail_sync.length && !(o.freshness.calendar_sync ?? []).length && !o.freshness.integrations.length && <li>No connected sources yet.</li>}
         </ul>
       </section>
@@ -744,7 +744,7 @@ function MailWork({s}: {s: Shared}) {
       <div className="rev-actions" role="tablist">{(['pending', 'done', 'info', 'failed'] as const).map(t => <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'primary' : undefined} onClick={() => setTab(t)}>
         {t === 'pending' ? 'Waiting for you' : t === 'done' ? 'Done' : t === 'info' ? 'For your information' : 'Needs a look'}</button>)}</div></div>
     <div className="rev-actions mail-boxes"><span className="rev-muted">Mailboxes: {boxes.filter(b => b.status === 'active').map(b => b.mailbox).join(' · ') || 'none connected'}</span>
-      <a className="button" href="/settings/connections?add_mail=1">Add another Gmail</a></div>
+      <a className="button" href="/settings/connections?add_mail=1">{boxes.some(b => b.status === 'active') ? 'Add another Gmail' : 'Connect Gmail'}</a></div>
     <SenderNames s={s}/>
     <MailOutreach s={s}/>
     <p className="rev-muted">Mail sorts each new email, labels it in Gmail (Onixus/…), drafts replies and quotes from your rates, and proposes clean-up. Nothing is sent, archived or deleted until you approve it, unless you turn that kind on below.</p>

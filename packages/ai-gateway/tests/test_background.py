@@ -58,10 +58,10 @@ class GroupTests(unittest.TestCase):
             self.assertEqual(body['provider']['data_collection'], 'deny')
 
     def test_free_models_are_filtered_by_tool_choice_support(self):
-        chain = ['thinkingmachines/inkling:free', 'poolside/laguna-s-2.1:free', 'cohere/north-mini-code:free',
+        chain = ['thinkingmachines/inkling:free', 'dots-studio/dots-3-note-preview:free', 'cohere/north-mini-code:free',
                  'inclusionai/ling-3.0-flash']
         auto = request_groups('nvidia/nemotron-3.5-lightning:free', chain, tools=True, route='veltra-free')
-        self.assertEqual(auto[0][1]['models'], ['nvidia/nemotron-3.5-lightning:free', 'poolside/laguna-s-2.1:free',
+        self.assertEqual(auto[0][1]['models'], ['nvidia/nemotron-3.5-lightning:free', 'dots-studio/dots-3-note-preview:free',
                                                 'cohere/north-mini-code:free'])
         self.assertTrue(auto[0][1]['provider']['require_parameters'])
         required = request_groups('nvidia/nemotron-3.5-lightning:free', chain, tools=True, tool_choice='required', route='veltra-free')

@@ -210,6 +210,34 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(receipt['finish_reason'], 'length')
         self.assertIn('planner returned no visible output', settlement['p_error'])
 
+    async def test_empty_output_tries_next_allowed_model_and_keeps_both_receipts(self):
+        from types import SimpleNamespace
+        calls = []
+        async def db(table, **kwargs):
+            calls.append((table, kwargs))
+            return True if table.startswith('rpc/') else [{'cancel_requested': False}]
+        empty = SimpleNamespace(model_dump=lambda: {'id': 'first', 'model': 'inclusionai/ling-3.0-flash',
+            'usage': {'total_tokens': 20}, 'choices': [{'finish_reason': 'length', 'message': {'content': ''}}]})
+        good = SimpleNamespace(model_dump=lambda: {'id': 'second', 'model': 'qwen/qwen3.8-flash',
+            'usage': {'total_tokens': 20}, 'choices': [{'finish_reason': 'stop', 'message': {'content': 'Plan'}}]})
+        code = SimpleNamespace(model_dump=lambda: {'id': 'code', 'model': 'qwen/qwen3.8-flash',
+            'usage': {'total_tokens': 20}, 'choices': [{'finish_reason': 'stop', 'message': {'content': json.dumps({'files': [{'path': 'index.html', 'content': '<h1>Site</h1>'}]})}}]})
+        review = SimpleNamespace(model_dump=lambda: {'id': 'review', 'model': 'qwen/qwen3.8-flash',
+            'usage': {'total_tokens': 20}, 'choices': [{'finish_reason': 'stop', 'message': {'content': '{"approved":true,"issues":[]}'}}]})
+        with patch.dict(os.environ, {'OPENROUTER_API_KEY': 'test-only'}), \
+             patch('agent_runs.litellm.token_counter', return_value=10), \
+             patch('agent_runs.litellm.acompletion', new=AsyncMock(side_effect=[empty, good, code, review])) as provider:
+            await execute_run({'id': str(uuid4()), 'payload': {'task': 'Build'}, 'credits_reserved': 6000},
+                              str(uuid4()), db, {'planner': 'inclusionai/ling-3.0-flash',
+                              'coder': 'qwen/qwen3.8-flash', 'reviewer': 'qwen/qwen3.8-flash'},
+                              {'planner': ['qwen/qwen3.8-flash']})
+        self.assertEqual(provider.await_count, 4)
+        self.assertEqual(provider.await_args_list[1].kwargs['model'], 'openrouter/qwen/qwen3.8-flash')
+        settlements = [kwargs['payload'] for table, kwargs in calls if table == 'rpc/finish_agent_run']
+        self.assertTrue(settlements[0]['p_success'])
+        self.assertEqual(settlements[0]['p_used'], 80)
+        self.assertEqual([r['provider_request_id'] for r in settlements[0]['p_state']['receipts']], ['first', 'second', 'code', 'review'])
+
     async def test_explicit_provider_rejection_settles_unused_credits(self):
         class Rejected(Exception):
             status_code = 402
@@ -222,6 +250,8 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         settlement=next(kwargs['payload'] for table, kwargs in calls if table=='rpc/finish_agent_run')
         self.assertEqual(settlement['p_used'],0)
         self.assertFalse(settlement['p_success'])
+        self.assertEqual(settlement['p_state']['provider_errors'][0]['status'], 402)
+        self.assertIn('HTTP 402', settlement['p_error'])
 
 
 class AccessTests(unittest.TestCase):

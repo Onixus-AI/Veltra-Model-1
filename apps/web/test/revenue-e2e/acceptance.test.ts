@@ -278,7 +278,9 @@ test('6. a meeting booked in Google Calendar is recorded through the relay and l
   assert.ok(health.signals.some(s => s.evidence?.kind === 'meeting.scheduled'));
   assert.ok(!health.signals.some(s => /open/i.test(s.label)), 'opens are never health evidence');
   const pipeline = await viewer.rpc<any>('revenue_pipeline', {p_workspace: W});
-  assert.deepEqual(pipeline.stages.map((s: any) => s.key), ['new', 'qualified', 'meeting', 'proposal', 'won', 'lost']);
+  assert.deepEqual(pipeline.stages.map((s: any) => s.key), ['new', 'contacted', 'replied', 'meeting', 'proposal', 'won', 'lost']);
+  assert.equal((await one<{count: string}>('select count(*) from public.revenue_pipeline_stages where workspace_id=$1 and not archived', [W])).count, '7');
+  assert.equal((await one<{count: string}>('select count(*) from public.revenue_templates where workspace_id=$1 and not archived', [W])).count, '2');
   assert.equal(pipeline.deals.find((d: any) => d.id === deal).stage, 'meeting');
 });
 

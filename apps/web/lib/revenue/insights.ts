@@ -65,7 +65,7 @@ export function nextBestActions(ctx: CustomerContext, now = Date.now()): Recomme
     const hasProposal = ctx.proposals.some(p => p.status !== 'cancelled');
     if (meetingDone && !hasProposal) recs.push({kind: 'proposal', action: `Prepare a proposal for "${d.title}"`, reason: 'A meeting has taken place and no proposal is recorded.', sources: [{label: 'Opportunity', link: customerLink}], requires_approval: true});
     const meeting = ctx.meetings.find(m => m.deal_id === d.id && m.status === 'scheduled');
-    if (meeting && ['new', 'qualified'].includes(d.stage)) recs.push({kind: 'stage', action: `Consider moving "${d.title}" to Meeting`, reason: `A meeting is booked (${meeting.starts_at.slice(0, 10)}). Stage changes are your decision.`, sources: [{label: 'Meeting', link: customerLink}], requires_approval: true});
+    if (meeting && ['new', 'contacted', 'replied'].includes(d.stage)) recs.push({kind: 'stage', action: `Consider moving "${d.title}" to Meeting`, reason: `A meeting is booked (${meeting.starts_at.slice(0, 10)}). Stage changes are your decision.`, sources: [{label: 'Meeting', link: customerLink}], requires_approval: true});
   }
   const unpaid = ctx.proposals.find(p => p.status === 'sent' && p.sent_at && now - Date.parse(p.sent_at) > 5 * day);
   if (unpaid) recs.push({kind: 'proposal_follow_up', action: `Follow up on proposal "${unpaid.title}"`, reason: `Sent ${unpaid.sent_at!.slice(0, 10)} and no verified payment is recorded.`, sources: [{label: 'Proposal', link: customerLink}], requires_approval: true});

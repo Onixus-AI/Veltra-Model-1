@@ -12,12 +12,13 @@ const C1 = '00000000-0000-4000-8000-0000000000c1', C2 = '00000000-0000-4000-8000
 const D1 = '00000000-0000-4000-8000-0000000000d1', D2 = '00000000-0000-4000-8000-0000000000d2', D3 = '00000000-0000-4000-8000-0000000000d3';
 
 const stages = [
-  {key: 'new', label: 'New inquiry', position: 0, outcome: 'open', probability: 10},
-  {key: 'qualified', label: 'Qualified', position: 1, outcome: 'open', probability: 25},
-  {key: 'meeting', label: 'Meeting booked', position: 2, outcome: 'open', probability: 40},
-  {key: 'proposal', label: 'Proposal sent', position: 3, outcome: 'open', probability: 65},
-  {key: 'won', label: 'Won', position: 4, outcome: 'won', probability: 100},
-  {key: 'lost', label: 'Lost', position: 5, outcome: 'lost', probability: 0},
+  {key: 'new', label: 'New lead', position: 0, outcome: 'open', probability: 10},
+  {key: 'contacted', label: 'Contacted', position: 1, outcome: 'open', probability: 20},
+  {key: 'replied', label: 'Replied', position: 2, outcome: 'open', probability: 35},
+  {key: 'meeting', label: 'Meeting', position: 3, outcome: 'open', probability: 50},
+  {key: 'proposal', label: 'Proposal', position: 4, outcome: 'open', probability: 70},
+  {key: 'won', label: 'Won', position: 5, outcome: 'won', probability: 100},
+  {key: 'lost', label: 'Lost', position: 6, outcome: 'lost', probability: 0},
 ];
 
 const context: CustomerContext = {
@@ -63,7 +64,7 @@ export function previewData(view: string, params: Record<string, string> = {}): 
         freshness: {latest_event_at: ago(6), mail_sync: [{account_id: A, status: 'healthy', last_synced_at: ago(0.2), last_error: null, mailbox: 'team@sample.example'}], calendar_sync: [{account_id: A, status: 'healthy', last_synced_at: ago(0.2), last_error: null}], integrations: [{provider: 'form', label: 'Website form', status: 'active', last_success_at: ago(120), last_error: null}]},
         metrics: {
           leads: {definition: 'Customers created in the period from inquiries, forms, Mail or manual entry (merged duplicates excluded; bulk discovery imports listed separately).', total: 3, discovery_imports: 0, by_source: {website_form: 2, mail: 1}, inquiries: 2, drill: '/revenue?view=customers'},
-          pipeline: {definition: 'Open opportunities now, by stage; conversion = won / (won + lost) among opportunities closed in the period.', open_by_stage: {meeting: {count: 1, value_cents: 420000}, qualified: {count: 1, value_cents: 180000}, proposal: {count: 1, value_cents: 650000}}, currencies: ['USD'], won: 0, lost: 0, drill: '/revenue?view=pipeline'},
+          pipeline: {definition: 'Open opportunities now, by stage; conversion = won / (won + lost) among opportunities closed in the period.', open_by_stage: {meeting: {count: 1, value_cents: 420000}, contacted: {count: 1, value_cents: 180000}, proposal: {count: 1, value_cents: 650000}}, currencies: ['USD'], won: 0, lost: 0, drill: '/revenue?view=pipeline'},
           outreach: {definition: 'Messages sent through Onixus Mail in the period by actual status. Opens are excluded: they are not evidence of a person reading. Reply rate = threads with a customer reply after our message / threads we sent to.', by_status: {drafted: 1, replied: 1, failed: 1}, replies_received: 1, threads_sent: 2, threads_replied: 1, awaiting_approval: 1, drill: '/revenue?view=mail'},
           bookings: {definition: 'Meetings booked in the period (cancelled shown separately).', scheduled: 1, cancelled: 0, upcoming: 1},
           proposals: {definition: 'Proposals created in the period by current status.', by_status: {sent: {count: 1, amount_cents: 650000}}},
@@ -82,7 +83,7 @@ export function previewData(view: string, params: Record<string, string> = {}): 
       ]};
     case 'pipeline': return {stages, deals: [
       {id: D1, customer_id: C1, company: 'Harbor Dental Studio', title: 'Online booking setup', stage: 'meeting', value_cents: 420000, currency: 'USD', owner_id: null, expected_close_at: null, stage_changed_at: ago(48), created_at: ago(120), next_task: {id: 'k1', title: 'Reply to Maya about the March start', due_at: ago(1)}, last_customer_reply_at: ago(6)},
-      {id: D2, customer_id: C2, company: 'Northwind Logistics', title: 'Dispatch automation', stage: 'qualified', value_cents: 180000, currency: 'USD', owner_id: null, expected_close_at: null, stage_changed_at: ago(200), created_at: ago(260), next_task: null, last_customer_reply_at: null},
+      {id: D2, customer_id: C2, company: 'Northwind Logistics', title: 'Dispatch automation', stage: 'contacted', value_cents: 180000, currency: 'USD', owner_id: null, expected_close_at: null, stage_changed_at: ago(200), created_at: ago(260), next_task: null, last_customer_reply_at: null},
       {id: D3, customer_id: C3, company: 'Blue Fern Studio', title: 'Brand site rebuild', stage: 'proposal', value_cents: 650000, currency: 'USD', owner_id: null, expected_close_at: null, stage_changed_at: ago(150), created_at: ago(400), next_task: null, last_customer_reply_at: ago(160)},
     ]};
     case 'prospects': return {counts: {ready: 1, good: 1, research: 1, do_not_contact: 1}, outreach_ready: 1, scored_at: ago(0.5), rows: [
