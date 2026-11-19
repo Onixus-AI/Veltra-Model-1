@@ -100,10 +100,10 @@ coding_team:
 # Every other route is background work: free-only groups first (no deny; the
 # account allows training on free endpoints), then paid groups with deny.
 chat_fallbacks:
-  veltra-free: [nvidia/nemotron-3-ultra-550b-a55b:free, recursive/flint-v1.0:free, poolside/laguna-s-2.1:free, xingchen-agi/xing4.0-29b-a4b:free, dots-studio/dots-3-note-preview:free, inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
-  veltra-fast-free: [recursive/flint-v1.0:free, liquid/lfm-2.5-2.6b:free, inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
-  veltra-code-free: [poolside/laguna-s-2.1:free, recursive/flint-v1.0:free, inception/mercury-3, qwen/qwen3.8-flash]
-  veltra-dev: [poolside/laguna-xs-2.1:free, nvidia/nemotron-3.5-lightning:free, inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
+  veltra-free: [nvidia/nemotron-3-ultra-550b-a55b:free, recursive/flint-v1.0:free, dots-studio/dots-3-note-preview:free, inclusionai/ling-3.0-flash, xiaomi/mimo-v2.6-flash]
+  veltra-fast-free: [recursive/flint-v1.0:free, cohere/north-mini-code:free, inclusionai/ling-3.0-flash, nvidia/nemotron-3.5-lightning]
+  veltra-code-free: [recursive/flint-v1.0:free, nvidia/nemotron-3-ultra-550b-a55b:free, qwen/qwen3.8-flash]
+  veltra-dev: [nvidia/nemotron-3.5-lightning:free, recursive/flint-v1.0:free, inclusionai/ling-3.0-flash, qwen/qwen3.8-flash]
   veltra-fast: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
   veltra-logic: [z-ai/glm-5.3, minimax/minimax-m3.1-flash]
   veltra-agent: [moonshotai/kimi-k3.1-pro, xiaomi/mimo-v2.6-flash]
@@ -113,7 +113,7 @@ chat_fallbacks:
 
 coding_fallbacks:
   planner: [minimax/minimax-m3.1-flash, deepseek/deepseek-v4.1-flash-1017]
-  coder: [inception/mercury-3, qwen/qwen3.8-flash]
+  coder: [nvidia/nemotron-3-ultra-550b-a55b:free, qwen/qwen3.8-flash]
   reviewer: [xiaomi/mimo-v2.6-flash, qwen/qwen3.8-flash]
   vision: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]
   design: [inclusionai/ling-3.0-flash-vl, nvidia/nemotron-3.5-super-vl]

@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 import httpx
 import litellm
-from model_routing import routing_options, image_provider
+from model_routing import request_groups, image_provider
 from fastapi import APIRouter, HTTPException, Security
 from langgraph.graph import StateGraph, START, END
 from pydantic import BaseModel, Field, field_validator
@@ -296,6 +296,8 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
     identifier = row['id']
     payload = row['payload']
     budget = row['credits_reserved']
+    provider_receipts = []
+    provider_errors = []
 
     async def live(stage):
         rows = await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}',
@@ -306,19 +308,25 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
 
     async def checkpoint(stage, value):
         nonlocal state
-        state = value
+        merged = list(provider_receipts)
+        for receipt in value.get('receipts', []):
+            if receipt not in merged:
+                merged.append(receipt)
+        state = {**value, 'receipts': merged, 'provider_errors': provider_errors}
         await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}',
-            'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'state': value, 'credits_used': used})
+            'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'state': state, 'credits_used': used})
         await live(stage)
 
-    async def call(role, instructions, content, limit):
+    async def call(role, instructions, content, limit, retry_models=None, attempted=()):
         nonlocal used, state
         await live(role)
         route = 'design' if role == 'coder' and payload.get('mode') == 'design' else role
         override = os.environ.get(f'VELTRA_{route.upper()}_MODEL')
-        model = models.get(route, models[role])
-        candidates = [*(fallbacks or {}).get(route, []), *([override] if override else [])]
-        options = routing_options(model, candidates)
+        model = retry_models[0] if retry_models else models.get(route, models[role])
+        candidates = retry_models[1:] if retry_models else [*(fallbacks or {}).get(route, []), *([override] if override else [])]
+        groups = request_groups(model, candidates)
+        options = groups[0][1]
+        model = options['models'][0]
         # Mandatory-reasoning fallbacks reject disabled reasoning. Keep their
         # reasoning effort low so bounded steps can return visible text/JSON.
         options['reasoning'] = {'enabled': False} if route == 'design' else {'effort': 'low'}
@@ -338,9 +346,23 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
         except Cancelled:
             raise
         except Exception as exc:
-            logger.warning('Coding provider step rejected: role=%s model=%s status=%s', role, model, getattr(exc, 'status_code', 'unknown'))
-            if getattr(exc, 'status_code', None) in (400, 401, 402, 403, 404, 422, 429):
-                raise ValueError('The model provider rejected this step. Check provider availability, funding, or rate limits; unused task credits are returned.') from exc
+            status = getattr(exc, 'status_code', None)
+            logger.warning('Coding provider step rejected: role=%s model=%s status=%s', role, model, status or 'unknown')
+            # Keep a safe diagnostic without storing provider response bodies,
+            # which can contain prompt text or account information.
+            state = {**state, 'provider_errors': state.get('provider_errors', []) + [{
+                'role': role, 'requested_model': model,
+                'status': status if type(status) is int else 'unknown'}]}
+            provider_errors[:] = state['provider_errors']
+            await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}',
+                'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'state': state, 'credits_used': used})
+            if status in (400, 401, 402, 403, 404, 422, 429):
+                remaining = [candidate for _, group in groups for candidate in group['models']
+                             if candidate not in (*attempted, model)]
+                if remaining:
+                    return await call(role, instructions, content, limit, remaining,
+                                      (*attempted, model))
+                raise ValueError(f'The model provider rejected {role} (HTTP {status}). Check availability, funding, or rate limits; unused task credits are returned.') from exc
             raise UncertainUsage('Provider call failed; usage must be reconciled before releasing the reservation.') from exc
         result = response.model_dump()
         tokens = result.get('usage', {}).get('total_tokens')
@@ -363,8 +385,15 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
             receipt.update({'outcome': 'empty_output', 'finish_reason': finish})
         # Store the receipt before HTML/JSON validation can fail in the graph.
         state = {**state, 'receipts': state.get('receipts', []) + [receipt]}
+        provider_receipts.append(receipt)
         await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}', 'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'state': state, 'credits_used': used})
         if empty:
+            served = str(result.get('model') or '').removeprefix('openrouter/')
+            remaining = [candidate for _, group in groups for candidate in group['models']
+                         if candidate not in (*attempted, model, served)]
+            if remaining:
+                return await call(role, instructions, content, limit, remaining,
+                                  (*attempted, model, served))
             raise ValueError(f'{role} returned no visible output (finish: {finish}). Usage was recorded; no successful build is claimed.')
         return text, receipt
 
@@ -389,11 +418,18 @@ async def execute_run(row, worker_id, database, models, fallbacks=None):
             raise UncertainUsage('Image tool failed; provider usage needs reconciliation.') from exc
         used += 100
         await database('agent_runs', method='PATCH', params={'id': f'eq.{identifier}', 'worker_id': f'eq.{worker_id}', 'status': 'eq.running'}, payload={'credits_used': used})
-        return f'data:{mime};base64,{encoded}', {'role': 'image', 'model': 'recraft/recraft-v4.1-flash', 'credits': 100}
+        receipt = {'role': 'image', 'model': 'recraft/recraft-v4.1-flash', 'credits': 100}
+        provider_receipts.append(receipt)
+        return f'data:{mime};base64,{encoded}', receipt
 
     try:
         await live('starting')
         state = await build_graph(call, checkpoint, payload, make_image).ainvoke({}, {'recursion_limit': 10})
+        receipts = list(provider_receipts)
+        for receipt in state.get('receipts', []):
+            if receipt not in receipts:
+                receipts.append(receipt)
+        state = {**state, 'receipts': receipts, 'provider_errors': provider_errors}
         success = state.get('review', {}).get('approved') is True
         error = None if success else 'The generated result did not pass review. Your current website or project has not been replaced.'
     except UncertainUsage as exc:

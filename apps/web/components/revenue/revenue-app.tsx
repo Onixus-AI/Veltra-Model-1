@@ -279,7 +279,7 @@ function Overview(s: Shared) {
         <ul className="rev-list">
           {o.freshness.mail_sync.map((x: Json) => <li key={x.account_id}><Activity size={15} aria-hidden/><span>Mail {x.mailbox ?? 'account'}: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
           {(o.freshness.calendar_sync ?? []).map((x: Json) => <li key={`cal-${x.account_id}`}><Activity size={15} aria-hidden/><span>Google Calendar: <strong>{label(x.status)}</strong>, synced {since(x.last_synced_at)}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
-          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/><span>{x.label} ({x.provider}): <strong>{x.status}</strong>, last success {since(x.last_success_at)}</span></li>)}
+          {o.freshness.integrations.map((x: Json, i: number) => <li key={i}><Activity size={15} aria-hidden/><span>{x.label} ({x.provider}): <strong>{x.status === 'active' && !x.last_success_at ? 'Waiting for first event' : label(x.status)}</strong>{x.last_success_at ? `, last success ${since(x.last_success_at)}` : ''}{x.last_error ? ` — ${x.last_error}` : ''}</span></li>)}
           {!o.freshness.mail_sync.length && !(o.freshness.calendar_sync ?? []).length && !o.freshness.integrations.length && <li>No connected sources yet.</li>}
         </ul>
       </section>
