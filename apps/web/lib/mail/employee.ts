@@ -96,7 +96,12 @@ export async function sortSome(d: EmployeeDeps): Promise<{sorted: number; skippe
         const card = validRateCard(d.settings.rate_card) ? d.settings.rate_card : null;
         const q = await writeQuote({lane: freight, tms, card, distance: d.distance ?? null, estimate: d.estimate === undefined ? estimateMiles : d.estimate, signature: signatureOf(d), validDays: d.settings.quote_valid_days ?? undefined, greeting: greeting(m)});
         if (q) { draft = q.body; plan.price = q.total; plan.quote_method = q.method; plan.needs_review = !!q.check; if (q.note) plan.quote_note = q.note; if (q.check) plan.quote_check = q.check; }
-        else { plan.needs_review = true; draft = await d.brain.draft('QUOTE', email, d.business, {business: d.business.name, request: c.quote?.request ?? null, lane: freight, price: null, pricing: 'no price available: say a rate will follow'}); }
+        else {
+          // There is no price to quote. Keep the request in review until a person
+          // supplies a rate; a generated promise to send a rate is not a quote.
+          plan.needs_review = true;
+          plan.quote_check = 'No TMS lane rate or valid rate card is available. Set a rate before approving a reply.';
+        }
       } else if (plan.action === 'reply') {
         draft = await d.brain.draft(plan.purpose, email, d.business, {business: d.business.name, signature: signatureOf(d)});
       }
