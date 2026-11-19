@@ -461,6 +461,7 @@ function Customers(s: Shared) {
   const {data, loading, reload, at} = useLoad<{customers: Json[]}>(s, 'customers', term ? {q: term} : {});
   return <>
     <Heading title="Customers" sub="One record per person or business across CRM, Mail, forms and payments." onRefresh={reload} loading={loading} at={at}/>
+    <OutreachStaging key={s.w} s={s}/>
     <label className="rev-field rev-search"><span>Search customers</span><input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Company, name or email"/></label>
     <div className="rev-table-wrap"><table className="rev-table">
       <thead><tr><th scope="col">Customer</th><th scope="col">Contact</th><th scope="col">Source</th><th scope="col">Added</th><th scope="col">Flags</th></tr></thead>
@@ -471,6 +472,29 @@ function Customers(s: Shared) {
       </tr>)}</tbody>
     </table>{data && !data.customers.length && <Empty>No customers match.</Empty>}</div>
   </>;
+}
+
+type StagingStatus = {enabled: boolean; available: boolean; daily_limit?: number; last_run_at?: string | null; last_result?: {drafted?: number; items?: {status: string; reason?: string}[]}; reason?: string};
+function OutreachStaging({s}: {s: Shared}) {
+  const [status, setStatus] = useState<StagingStatus | null>(null);
+  useEffect(() => { let live = true; void s.post<StagingStatus>('rpc/revenue_outreach_staging_status', {args: {}})
+    .then(value => { if (live) setStatus(value); })
+    .catch(e => { if (live) s.setError(e instanceof Error ? e.message : 'Could not load outreach staging.'); });
+    return () => { live = false; };
+  }, [s.post, s.tick]);
+  const change = async () => {
+    if (!status) return;
+    const next = !status.enabled;
+    const saved = await s.act('revenue_outreach_staging_set', {p_enabled: next},
+      next ? 'Daily draft staging is on. Every draft still needs review.' : 'Daily draft staging is off.');
+    if (saved) setStatus({...status, enabled: next});
+  };
+  return <section className="rev-panel" aria-label="Outreach draft staging">
+    <div className="rev-heading"><div><h2>Outreach</h2><p>Stage up to five top-ranked prospects as drafts each day. Nothing is approved or sent automatically.</p></div>
+      {s.isOwner && status?.available && !s.preview && <button type="button" role="switch" aria-checked={status.enabled} disabled={s.busy} onClick={() => void change()}>{status.enabled ? 'Daily staging on' : 'Daily staging off'}</button>}
+    </div>
+    <p className="rev-muted">{!status ? 'Loading schedule…' : !status.available ? status.reason : `Last run: ${when(status.last_run_at)} · ${status.last_result?.drafted ?? 0} drafts staged. Review them in Mail before any send.`}</p>
+  </section>;
 }
 
 function Customer(s: Shared) {
