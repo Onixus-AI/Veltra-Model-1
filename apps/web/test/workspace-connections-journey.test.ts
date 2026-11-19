@@ -7,33 +7,58 @@ import {createRoot} from 'react-dom/client';
 import Connections from '../app/settings/connections/page';
 import {rememberBusiness} from '../lib/workspace-business';
 
-test('Connections retains business context, returns to Overview and shows Signal status for the selected business',async t=>{
- dom.reconfigure({url:'https://workspace.test/settings/connections?workspace=business-a&mode=business'});
+const settle=()=>new Promise(resolve=>setTimeout(resolve,0));
+
+test('Connections lists every connector with its live status and one action, inside the selected business',async t=>{
+ dom.reconfigure({url:'https://workspace.test/settings/connections?workspace=business-a'});
  Object.assign(globalThis,{location:dom.window.location,history:dom.window.history,CustomEvent:dom.window.CustomEvent,self:dom.window});
  const values=new Map<string,string>();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>values.set(k,v)}});
- Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=>null,removeItem:()=>{}}});
+ Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:()=>null,setItem:()=>{},removeItem:()=>{}}});
  process.env.NEXT_PUBLIC_SUPABASE_URL='';process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='';
  t.mock.method(globalThis,'fetch',async(input:unknown)=>{
-  if(input==='/api/workspace/signal')return Response.json({connections:[{workspace_id:'business-a'}]});
-  if(input==='/api/crm/connection'||input==='/api/mail/link')return Response.json({connected:true});
-  if(input==='/api/bee/status')return Response.json({connected:false,tools:[]});
-  return Response.json({error:'Not connected in fixture'},{status:503});
+  switch(input){
+   case '/api/workspace/signal':return Response.json({connections:[{workspace_id:'business-a'}]});
+   case '/api/crm/connection':return Response.json({connected:true,available:true,has_workspace:true});
+   case '/api/mail/link':return Response.json({connected:true,mailboxes:['info@onixus.xyz']});
+   case '/api/google/status':return Response.json({configured:true,connected:true,account:{email:'info@onixus.xyz'}});
+   case '/api/google-calendar/status':return Response.json({configured:true,connected:false});
+   case '/api/connections/status':return Response.json({connections:[{provider:'github',connected:true,configured:true,account:{},selection:{name:'Veltra-Model-1'}},{provider:'vercel',connected:true,configured:true,account:{},selection:{}},{provider:'supabase',connected:false,configured:true,account:{},selection:{}},{provider:'n8n',connected:false,configured:true,account:{},selection:{}}]});
+   case '/api/integrations/status':return Response.json({firecrawl:{connected:true}});
+   case '/api/bee/status':return Response.json({connected:false,tools:[]});
+   default:return Response.json({error:'Not connected in fixture'},{status:503});
+  }
  });
  const host=document.body.appendChild(document.createElement('div')),root=createRoot(host);
  t.after(()=>{act(()=>root.unmount());host.remove();});
- await act(async()=>root.render(createElement(Connections)));
- function check(business:string){
-  const links=Array.from(host.querySelectorAll('a')).filter(link=>/Open Website Builder|Open Google files|Open Google Calendar|Open CRM|Open Mail|Open Signal|Connect Signal|Connection settings|Back to Workspace/.test(link.textContent??''));
-  assert.ok(links.length>=8);
-  for(const link of links)assert.equal(new URL(link.href).searchParams.get('workspace'),business,link.textContent??'link');
-  const back=host.querySelector('.hub-back') as HTMLAnchorElement;assert.equal(new URL(back.href).pathname,'/workspace');
+ await act(async()=>{root.render(createElement(Connections));await settle();await settle();});
+ const card=(name:string)=>Array.from(host.querySelectorAll('.cx-card')).find(c=>c.querySelector('h3')?.textContent===name) as HTMLElement;
+ const state=(name:string)=>card(name)?.dataset.state;
+
+ assert.equal(host.querySelectorAll('.cx-card').length,12,'every connector is listed');
+ assert.equal(state('Gmail'),'connected');assert.match(card('Gmail').textContent!,/info@onixus\.xyz/);
+ assert.equal(state('Firecrawl'),'connected');assert.match(card('Firecrawl').textContent!,/Included with Onixus/);
+ assert.equal(state('GitHub'),'connected');assert.match(card('GitHub').textContent!,/Veltra-Model-1/);
+ assert.equal(state('Signal'),'connected');
+ assert.equal(state('Shopify'),'unavailable','a service that does not answer is never shown as connected');
+ for(const name of ['Google Calendar','Supabase','LiveAskew / Bee']){
+  assert.equal(state(name),'available',name);
+  assert.ok(Array.from(card(name).querySelectorAll('button')).some(b=>b.textContent?.trim()==='Connect'),`${name} has a Connect button`);
  }
- check('business-a');assert.match(host.textContent!,/Business linked/);
- const personal=Array.from(host.querySelectorAll('.connector-mode-pills button')).find(button=>button.textContent==='Personal') as HTMLButtonElement;
- await act(async()=>personal.click());assert.equal(new URL(location.href).searchParams.get('workspace'),'business-a');
- const businessMode=Array.from(host.querySelectorAll('.connector-mode-pills button')).find(button=>button.textContent==='Business') as HTMLButtonElement;
- await act(async()=>businessMode.click());
- await act(async()=>rememberBusiness('business-b'));
- check('business-b');assert.equal(host.textContent!.includes('Business linked'),false,'another business link must not count for the selected business');
+ assert.ok(card('n8n').querySelector('input[aria-label="Your n8n address"]'),'n8n asks for its address before connecting');
+ assert.match(host.querySelector('.cx-summary')!.textContent!,/7 of 12 connected/);
+
+ const back=host.querySelector('.cx-back') as HTMLAnchorElement;
+ assert.equal(new URL(back.href).pathname,'/workspace');assert.equal(new URL(back.href).searchParams.get('workspace'),'business-a');
+ const crmOpen=Array.from(card('Onixus CRM').querySelectorAll('a')).find(a=>/Open/.test(a.textContent??'')) as HTMLAnchorElement;
+ assert.equal(new URL(crmOpen.href).searchParams.get('workspace'),'business-a');
+
+ const connected=Array.from(host.querySelectorAll('.cx-segments button')).find(b=>b.textContent==='Connected') as HTMLButtonElement;
+ await act(async()=>connected.click());
+ assert.ok(Array.from(host.querySelectorAll('.cx-card')).every(c=>(c as HTMLElement).dataset.state==='connected'));
+
+ await act(async()=>{rememberBusiness('business-b');await settle();await settle();});
+ const all=Array.from(host.querySelectorAll('.cx-segments button')).find(b=>b.textContent==='All') as HTMLButtonElement;
+ await act(async()=>all.click());
+ assert.equal(state('Signal'),'available','another business link must not count for the selected business');
 });

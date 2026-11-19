@@ -1,4 +1,4 @@
-import { CalendarDays, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
+import { CalendarDays, Flame, Plug, Scissors, Sparkles, Truck, Users } from "lucide-react";
 
 const brandAssets: Record<string, string> = {
   "Website Builder": "onixus-websites-icon-v1.png",
@@ -20,7 +20,7 @@ const brandAssets: Record<string, string> = {
 const workspaceIcons = {
   Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
   Barber: Scissors, "Community Manager": Users,
-  "Custom MCP Server": Plug,
+  "Custom MCP Server": Plug, Firecrawl: Flame,
 };
 
 export default function ToolLogo({ name }: { name: string }) {
