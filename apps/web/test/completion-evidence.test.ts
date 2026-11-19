@@ -53,3 +53,9 @@ test('approval queue receipts preserve partial counts rather than an all-sent cl
  const receipt={review_id:'review',action:'send_approval_queue',status:'partial',processed:1,skipped:1,unverified:1,remaining:2,items:[{id:'a',status:'processed'},{id:'b',status:'skipped'},{id:'c',status:'unverified'}]};
  const answer=verifiedAnswer('I sent everything.',[{tool:'mail_health',content:JSON.stringify(receipt)}]);assert.match(answer,/"unverified":1/);assert.doesNotMatch(answer,/I sent everything/);
 });
+test('Workspace Mail bulk approval receipt proves only approved items, never delivery',()=>{
+ const receipt={review_id:'review',action:'workspace_mail_bulk_approve',status:'partial',approved:1,skipped:1,failed:0,items:[{id:'a',status:'approved'},{id:'b',status:'skipped'}]};
+ const answer=verifiedAnswer('I approved everything.',[{tool:'mail_work',content:JSON.stringify(receipt)}]);
+ assert.match(answer,/"approved":1/);assert.match(answer,/"skipped":1/);assert.doesNotMatch(answer,/I approved everything/);
+ assert.match(verifiedAnswer('I approved everything.',[{tool:'mail_work',content:JSON.stringify({...receipt,items:[]})}]),/cannot verify/);
+});

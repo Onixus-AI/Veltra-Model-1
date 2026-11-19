@@ -12,6 +12,7 @@ import {brainPlan,runBrain,type BrainScope} from './shared-brain';
 import {reviewedActionReceipt} from './completion-evidence';
 import {formatCrmReply} from './crm/chat-format';
 import {executeMailTool} from './mail-chat';
+import {workspaceMailItems,workspaceMailList,workspaceMailBatch,confirmWorkspaceMailBatch} from './workspace-mail-review';
 import {browserEnabled,inspectBrowserPage} from './browser/inspect';
 import type {ToolOutcome} from './chat-tools';
 
@@ -50,6 +51,18 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
  if(o.name==='signal_creative'||o.confirm?.target==='signal')return signalAgentAction(o);
  if(o.name.startsWith('google_')||o.name.startsWith('calendar_')||o.confirm?.target==='google'||o.confirm?.target==='calendar')return googleAgentAction(o);
  if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
+ if(o.name==='mail_work'&&!o.confirm){
+  if(!scope.workspace_id||scope.customer_id)throw Error('400:Select the business conversation to review Workspace Mail.');
+  if(Object.keys(args).some(k=>k!=='action')||!['list','prepare_bulk'].includes(String(args.action)))throw Error('400:Choose list or prepare_bulk.');
+  const items=await workspaceMailItems(client,scope.workspace_id);
+  if(args.action==='list')return {content:JSON.stringify(workspaceMailList(items))};
+  const batch=workspaceMailBatch(items);
+  if(!batch.snapshots.length)return {content:JSON.stringify({source:'Workspace Mail → Waiting for you',ready:0,excluded:batch.review.excluded,notice:'No complete unflagged replies are ready for bulk approval. No mail was approved or sent.'})};
+  const id=crypto.randomUUID(),expires_at=Date.now()+600000;
+  const saved=await client.from('crm_conversations').insert({id,user_id:user,workspace_id:scope.workspace_id,customer_id:null,title:'Workspace Mail bulk review',revision:0,messages:[{role:'assistant',content:JSON.stringify({type:'workspace_mail_bulk',expires_at,snapshots:batch.snapshots})}]}).select('id').single();
+  if(saved.error)throw Error('503:Mail review could not be saved. Nothing was approved.');
+  return {content:'Review the exact Workspace Mail drafts. Nothing approved or sent.',proposal:{id,summary:JSON.stringify({...batch.review,expires_at},null,2),agent_review:{target:'mail' as const,id}}};
+ }
  const crm=async(plan?:unknown,review_id?:string)=>{
   if(!scope.workspace_id)throw Error('400:Select a business conversation to control CRM.');
   return runCrmChat({client,user,scope:scope as CrmScope,message:plan?'model tool request':undefined,review_id,plan:plan?async()=>validatePlan(plan):undefined,outreach:o.mailOrigin?async(body?:Record<string,unknown>)=>{
@@ -73,6 +86,21 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   if(!validId(o.confirm.id))throw Error('400:Invalid action review.');
   if(o.confirm.target==='crm')return {content:JSON.stringify(reviewedActionReceipt('crm',o.confirm.id,await crm(undefined,o.confirm.id)))};
   if(o.confirm.target==='brain')return {content:JSON.stringify(reviewedActionReceipt('brain',o.confirm.id,await runBrain({client,user,scope,review_id:o.confirm.id,app})))};
+  if(o.confirm.target==='mail'){
+   const found=await client.from('crm_conversations').select('workspace_id,customer_id,revision,messages').eq('id',o.confirm.id).eq('user_id',user).eq('title','Workspace Mail bulk review').maybeSingle();
+   if(found.error)throw Error('503:Mail review could not be read.');
+   if(found.data&&(()=>{try{return JSON.parse(found.data.messages?.[0]?.content??'{}').type==='workspace_mail_bulk';}catch{return false;}})()){
+    const review=found.data;
+    if(!scope.workspace_id||review.workspace_id!==scope.workspace_id||review.customer_id||review.revision!==0)throw Error('409:Mail review used or business context changed.');
+    let payload:{type?:string;expires_at?:number;snapshots?:unknown};try{payload=JSON.parse(review.messages?.[0]?.content??'{}');}catch{throw Error('409:Invalid Mail review.');}
+    if(payload.type!=='workspace_mail_bulk'||!Number.isFinite(payload.expires_at)||Number(payload.expires_at)<=Date.now()||!Array.isArray(payload.snapshots)||payload.snapshots.length<1||payload.snapshots.length>20)throw Error('409:Mail review expired or invalid.');
+    const claim=await client.from('crm_conversations').update({revision:1}).eq('id',o.confirm.id).eq('user_id',user).eq('revision',0).select('id').maybeSingle();
+    if(claim.error||!claim.data)throw Error('409:Mail review already used.');
+    const result=await confirmWorkspaceMailBatch(client,scope.workspace_id,payload.snapshots as Parameters<typeof confirmWorkspaceMailBatch>[2]);
+    await client.from('crm_conversations').update({revision:2,messages:[{role:'assistant',content:JSON.stringify({type:'workspace_mail_bulk',receipt:result})}]}).eq('id',o.confirm.id).eq('user_id',user);
+    return {content:JSON.stringify({...result,review_id:o.confirm.id})};
+   }
+  }
   const {data:review,error}=await client.from('crm_conversations').select('workspace_id,customer_id,revision,messages').eq('id',o.confirm.id).eq('user_id',user).eq('title','Mail tool review').maybeSingle();
   if(error||!review||review.revision!==0||(review.workspace_id??null)!==(scope.workspace_id??null)||(review.customer_id??null)!==(scope.customer_id??null))throw Error('409:Mail review used or scope changed.');
   const p=JSON.parse(review.messages[0].content);if(!['prepare_quote_followups','mail_action','mail_queue'].includes(p.type)||!p.identity||typeof p.identity.account_id!=='string'||!Number.isInteger(p.identity.link_version)||!Number.isFinite(p.expires_at)||p.expires_at<=Date.now())throw Error('409:Mail review expired.');

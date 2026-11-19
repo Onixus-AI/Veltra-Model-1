@@ -9,6 +9,7 @@ export function verificationPreflight(messages:unknown,tools:unknown,choice:unkn
  const names=new Set(tools.map(t=>t?.function?.name));
  let name:string|null=null;
  if(names.has('signal_creative')&&/\b(?:signal|saved brand|approved logo|brand assets?|artwork)\b/i.test(content))name='signal_creative';
+ else if(names.has('mail_work')&&/\b(?:waiting for you|waiting for human|mail.?s work|workspace mail|bulk approv|approve all (?:mail|repl|quote))\b/i.test(content))name='mail_work';
  else if(/\b(?:signal|capabilit(?:y|ies)|connected tools?|available tools?)\b/i.test(content))name='onyx_capabilities';
  else if(/\b(?:gmail|mailbox|inbox|email queue|mail approval|mail processing)\b/i.test(content))name='mail_health';
  else if(/\b(?:google calendar|my calendar|calendar connection)\b/i.test(content))name='calendar_status';
@@ -29,6 +30,7 @@ export function isPreflightCall(call:unknown,name:string):boolean{
  try{const a=JSON.parse(c.function.arguments??'{}');if(!a||typeof a!=='object'||Array.isArray(a))return false;
   if(name==='signal_creative')return Object.keys(a).length===1&&a.action==='context';
   if(name==='mail_health')return Object.keys(a).every(k=>k==='action')&&(a.action===undefined||a.action==='status');
+  if(name==='mail_work')return Object.keys(a).length===1&&a.action==='list';
   return Object.keys(a).length===0;
  }catch{return false;}
 }
