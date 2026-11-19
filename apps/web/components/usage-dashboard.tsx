@@ -3,7 +3,7 @@ import type {SignalMetering} from '@/lib/usage-activity';
 import {useEffect,useMemo,useState,type CSSProperties} from 'react';
 import {gatewayAuthorizationHeaders} from '@/lib/client-session';
 import './usage-dashboard.css';
-const APP_COLORS:Record<string,string>={chat:'#00e5ef',crm:'#8ee080',mail:'#b798ff',signal:'#ff75b8',business_os:'#f5ff3d',code:'#6d9fff',images:'#ffb467',voice:'#ff7d72',unassigned:'#99a7ad'};
+const APP_COLORS:Record<string,string>={chat:'#00e5ef',crm:'#e9e6f2',mail:'#b798ff',signal:'#ff75b8',business_os:'#f5ff3d',code:'#6d9fff',images:'#ffb467',voice:'#ff7d72',unassigned:'#6b6873'};
 const appColor=(app:string)=>({'--usage-color':APP_COLORS[app]??APP_COLORS.unassigned} as CSSProperties);
 type UsageEvent={id:string;app:string;task:string;status:string;credits:number;tokens:number|null;model:string|null;at:string};
 type AppActivity={metering?:SignalMetering;status:string;wallet_metered?:boolean;published?:number;provider_cost_cents?:number|null;provider_cost_receipts?:number|null;image_provider_cost_usd?:number;image_cost_receipts?:number;signal_credits_used?:number|null;signal_credits_returned?:number|null;operations?:number;records_created?:number;model_requests?:number;known_tokens?:number;note?:string};
