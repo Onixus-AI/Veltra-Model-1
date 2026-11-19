@@ -29,9 +29,12 @@ begin
  return new;
 end $$;
 
-drop trigger if exists revenue_seed_sales_workspace on public.crm_workspaces;
-create trigger revenue_seed_sales_workspace after insert on public.crm_workspaces
-for each row execute function revenue_private.seed_sales_workspace();
+do $$ begin
+ if not exists (select 1 from pg_trigger where tgrelid='public.crm_workspaces'::regclass and tgname='revenue_seed_sales_workspace') then
+  create trigger revenue_seed_sales_workspace after insert on public.crm_workspaces
+  for each row execute function revenue_private.seed_sales_workspace();
+ end if;
+end $$;
 
 -- Seed existing businesses once. Do not replace a workspace's chosen stages.
 insert into public.revenue_pipeline_stages(workspace_id,key,label,position,outcome,probability)
