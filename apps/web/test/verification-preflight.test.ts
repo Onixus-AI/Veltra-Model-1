@@ -30,4 +30,10 @@ test('a required preflight accepts only reads, including the action on multiplex
  assert.equal(isPreflightCall(call('signal_creative',{action:'propose',brief:{}}),'signal_creative'),false);
  assert.equal(isPreflightCall(call('mail_health',{action:'reconcile'}),'mail_health'),false);
  assert.equal(isPreflightCall(call('mail_health',{action:'status'}),'mail_health'),true);
+ assert.equal(isPreflightCall(call('mail_work',{action:'list'}),'mail_work'),true);
+ assert.equal(isPreflightCall(call('mail_work',{action:'prepare_bulk'}),'mail_work'),false);
+});
+test('Workspace Mail waiting list routes to its own read tool',()=>{
+ const available=[...tools,{type:'function',function:{name:'mail_work'}}];
+ assert.equal(verificationPreflight([{role:'user',content:'Show me Mail work waiting for you'}],available,'auto'),'mail_work');
 });
