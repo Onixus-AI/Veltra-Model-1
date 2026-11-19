@@ -1,5 +1,13 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {companyUrl,publicAddress,robotAllows,publishedContacts,publishedWebsiteEmail,researchCompanyWebsite} from '../lib/crm/contact-research';
+import {companyUrl,publicAddress,robotAllows,publishedContacts,publishedWebsiteEmail,researchCompanyWebsite,sameCompanyHost} from '../lib/crm/contact-research';
+test('www canonical redirects stay on the company host, other domains do not',async()=>{
+ assert.equal(sameCompanyHost('example.com','www.example.com'),true);
+ assert.equal(sameCompanyHost('example.com.evil.test','example.com'),false);
+ const read=async(url:string)=>({url:url.replace('https://example.com','https://www.example.com'),status:200,html:url.endsWith('robots.txt')?'User-agent: *':'<a href="/contact">Contact</a> info@example.com'});
+ const result=await researchCompanyWebsite('https://example.com',read);
+ assert.equal(result.contacts[0].source_url,'https://www.example.com/');
+ await assert.rejects(researchCompanyWebsite('https://example.com',async url=>({url:url.replace('example.com','other.test'),status:200,html:''})),/another domain/);
+});
 test('website research excludes local addresses and unsafe URLs',()=>{
  for(const u of ['http://example.com','https://127.0.0.1','https://[::1]','https://user:pass@example.com','https://example.com:444','https://metadata.internal'])assert.throws(()=>companyUrl(u));
  for(const ip of ['127.0.0.1','10.0.0.1','169.254.169.254','172.16.0.1','192.168.0.1','100.64.0.1','198.18.0.1','::1','203.0.113.1'])assert.equal(publicAddress(ip),false);

@@ -10,8 +10,12 @@ export function publicAddress(ip:string){
  if(isIP(ip)!==4)return false;const [a,b,c]=ip.split('.').map(Number);
  return !(a===0||a===10||a===127||a>=224||a===169&&b===254||a===172&&b>=16&&b<=31||a===192&&(b===168||b===0||b===88&&c===99)||a===100&&b>=64&&b<=127||a===198&&(b===18||b===19||b===51&&c===100)||a===203&&b===0&&c===113);
 }
+export function sameCompanyHost(a:string,b:string){
+ const bare=(host:string)=>host.toLowerCase().replace(/^www\./,'');
+ return bare(a)===bare(b);
+}
 export async function readCompanyPage(value:string):Promise<{url:string;status:number;html:string}>{
- let url=companyUrl(value);const origin=url.origin;
+ let url=companyUrl(value);const originalHost=url.hostname;
  for(let hop=0;hop<2;hop++){
   let dnsTimer:ReturnType<typeof setTimeout>|undefined;
   const addresses=await Promise.race([lookup(url.hostname,{all:true,family:4}),new Promise<never>((_,reject)=>{dnsTimer=setTimeout(()=>reject(Error('Website DNS timed out.')),3000);})]).finally(()=>clearTimeout(dnsTimer));
@@ -26,7 +30,7 @@ export async function readCompanyPage(value:string):Promise<{url:string;status:n
     res.on('error',reject);res.on('end',()=>resolve({status,html:Buffer.concat(chunks).toString('utf8')}));
    });req.on('error',reject);req.setTimeout(6000,()=>req.destroy(Error('Website request timed out.')));req.end();
   });
-  if(result.location){const next=companyUrl(new URL(result.location,url).href);if(next.origin!==origin)throw Error('Website redirects to another domain; review its official website first.');url=next;continue;}
+  if(result.location){const next=companyUrl(new URL(result.location,url).href);if(!sameCompanyHost(next.hostname,originalHost))throw Error('Website redirects to another domain; review its official website first.');url=next;continue;}
   return {url:url.href,status:result.status,html:result.html};
  }
  throw Error('Website redirect limit reached.');
@@ -75,7 +79,9 @@ export async function researchCompanyWebsite(website:string,read=readCompanyPage
  const policy=robots.status===200?robots.html:'';
  if(!robotAllows(policy,root.pathname+root.search))throw Error('Website does not permit this crawler.');
  const home=await read(root.href);if(home.status!==200)throw Error('Company website is unavailable.');
- const links=[...home.html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)].flatMap(m=>{try{const u=companyUrl(new URL(m[1].replaceAll('&amp;','&'),root).href);return u.origin===root.origin&&/contact|about/i.test(u.pathname)&&robotAllows(policy,u.pathname+u.search)?[u.href]:[];}catch{return [];}});
+ const canonical=companyUrl(home.url);
+ if(!sameCompanyHost(canonical.hostname,root.hostname))throw Error('Website redirects to another domain; review its official website first.');
+ const links=[...home.html.matchAll(/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi)].flatMap(m=>{try{const u=companyUrl(new URL(m[1].replaceAll('&amp;','&'),canonical).href);return sameCompanyHost(u.hostname,canonical.hostname)&&/contact|about/i.test(u.pathname)&&robotAllows(policy,u.pathname+u.search)?[u.href]:[];}catch{return [];}});
  const pages=[home],failures:string[]=[];
  for(const url of [...new Set(links)].slice(0,2)){try{const p=await read(url);if(p.status===200)pages.push(p);else failures.push('Contact page unavailable.');}catch{failures.push('Contact page unavailable.');}}
  return {contacts:pages.flatMap(p=>publishedContacts(p.html,p.url)),pages:pages.map(p=>p.url),failures,observed_at:new Date().toISOString(),limitation:'Addresses the business publishes on its own website only (own domain or a personal provider); company identity, mailbox deliverability and outreach eligibility still require review.'};
