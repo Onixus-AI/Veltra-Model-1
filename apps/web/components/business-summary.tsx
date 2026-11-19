@@ -103,16 +103,11 @@ function TrendCard({data,metrics,period,setPeriod}:{data:Summary;metrics:Metrics
   <dl className="ox-trend-stats"><div><dt>Emails sent</dt><dd><i data-series="sent"/>{totals.sent.toLocaleString()}</dd></div><div><dt>Work completed</dt><dd><i data-series="completed"/>{totals.completed.toLocaleString()}</dd></div><div><dt>New contacts</dt><dd><i data-series="contacts"/>{totals.contacts.toLocaleString()}</dd></div><div><dt>Replies</dt><dd className="ox-gradient-text">+{metrics.outreach.replies_received}</dd></div></dl>
   {trend.length?<div className="ox-trend-plot" onMouseLeave={()=>setHover(null)}>
    <svg viewBox={`0 0 ${g.width} ${g.height}`} role="img" aria-label={`Emails sent ${totals.sent}, work completed ${totals.completed}, new contacts ${totals.contacts}`} preserveAspectRatio="none">
-    <defs>
-     <linearGradient id={`${id}-sent`} x1="0" x2="1"><stop offset="0" stopColor="#c86bff"/><stop offset="1" stopColor="#c86bff"/></linearGradient>
-     <linearGradient id={`${id}-fill`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#c86bff" stopOpacity=".16"/><stop offset="1" stopColor="#c86bff" stopOpacity="0"/></linearGradient>
-     <linearGradient id={`${id}-col`} x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#ffffff" stopOpacity=".09"/><stop offset="1" stopColor="#ffffff" stopOpacity=".02"/></linearGradient>
-    </defs>
     {[0,1,2,3].map(i=><line key={i} className="ox-grid-line" x1="0" x2={g.width} y1={14+i*((g.height-40)/3)} y2={14+i*((g.height-40)/3)}/>)}
-    {g.columns.map((c,i)=><rect key={i} x={c.x} y={g.height-26-c.height} width={c.width} height={c.height} rx="5" fill={hover===i?'rgba(255,255,255,.08)':`url(#${id}-col)`}/>)}
-    {g.sent.length>1&&<path d={`${sent} L${g.sent[g.sent.length-1][0]},${g.height-26} L${g.sent[0][0]},${g.height-26} Z`} fill={`url(#${id}-fill)`}/>}
+    {g.columns.map((c,i)=><rect key={i} x={c.x} y={g.height-26-c.height} width={c.width} height={c.height} rx="5" fill={hover===i?'#23232a':'#16161a'}/>)}
+    {g.sent.length>1&&<path d={`${sent} L${g.sent[g.sent.length-1][0]},${g.height-26} L${g.sent[0][0]},${g.height-26} Z`} fill="#1d1426"/>}
     <path d={completed} fill="none" stroke="rgba(255,255,255,.55)" strokeWidth="1.6" strokeDasharray="4 5" vectorEffect="non-scaling-stroke"/>
-    <path d={sent} fill="none" stroke={`url(#${id}-sent)`} strokeWidth="2.6" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
+    <path d={sent} fill="none" stroke="#c86bff" strokeWidth="2.6" strokeLinecap="round" vectorEffect="non-scaling-stroke"/>
     {hover!=null&&<g><line x1={g.sent[hover][0]} x2={g.sent[hover][0]} y1="10" y2={g.height-26} stroke="rgba(255,255,255,.2)" strokeDasharray="2 4"/><circle cx={g.sent[hover][0]} cy={g.sent[hover][1]} r="4.5" fill="#07060b" stroke="#ff5fcf" strokeWidth="2"/><circle cx={g.completed[hover][0]} cy={g.completed[hover][1]} r="4" fill="#07060b" stroke="#fff" strokeWidth="1.6"/></g>}
     {trend.map((b,i)=><rect key={b.at} x={(g.sent[i]?.[0]??0)-g.width/trend.length/2} y="0" width={g.width/trend.length} height={g.height} fill="transparent" onMouseEnter={()=>setHover(i)} onFocus={()=>setHover(i)} tabIndex={-1}/>)}
    </svg>

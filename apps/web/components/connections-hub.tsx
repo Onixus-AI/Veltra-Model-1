@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Check, CircleAlert, Loader2, RefreshCw, Search, X } from "lucide-react";
 import ToolLogo from "@/components/tool-logo";
+import { ConfirmDialog } from "@/components/ui";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
 import { connectionRequest, type Provider } from "@/lib/connections-client";
 import { crmConnection, setCrmConnection } from "@/lib/crm-connection";
@@ -38,6 +39,7 @@ export default function ConnectionsHub() {
   const [notice, setNotice] = useState("");
   const [n8nUrl, setN8nUrl] = useState("");
   const [picker, setPicker] = useState<{ id: Provider; items: Resource[]; chosen: string } | null>(null);
+  const [pendingDisconnect, setPendingDisconnect] = useState<Connector | null>(null);
 
   const refresh = useCallback(async () => {
     setStatuses({});
@@ -103,7 +105,6 @@ export default function ConnectionsHub() {
   }
 
   function disconnect(c: Connector) {
-    if (!confirm(`Disconnect ${c.name}? Onyx will stop using it until you connect it again.`)) return;
     return run(c.id, async () => {
       if (c.id === "gmail") await getJson("/api/mail/link", { method: "DELETE" });
       else if (c.id === "drive") await getJson("/api/google/disconnect", { method: "DELETE" });
@@ -190,7 +191,7 @@ export default function ConnectionsHub() {
                   {dev && picker?.id !== c.id && <button className="cx-secondary" disabled={working} onClick={() => void choose(c.id as Provider)}>{c.id === "github" ? "Choose repository" : c.id === "n8n" ? "Choose workflow" : "Choose project"}</button>}
                   {manage && !dev && <Link className="cx-secondary" href={manage}>Open <ArrowUpRight size={14} /></Link>}
                   {c.kind === "included" && <span className="cx-hint">Always on for every workspace</span>}
-                  {c.kind !== "included" && c.id !== "shopify" && c.id !== "signal" && <button className="cx-quiet" disabled={working} onClick={() => void disconnect(c)}>Disconnect</button>}
+                  {c.kind !== "included" && c.id !== "shopify" && c.id !== "signal" && <button className="cx-quiet" disabled={working} onClick={() => setPendingDisconnect(c)}>Disconnect</button>}
                 </>
                 : status.state === "available" ? <button className="cx-primary" disabled={working} onClick={() => void connect(c)}>{working ? <Loader2 size={15} className="cx-spin" /> : null}Connect</button>
                 : status.state === "unavailable" ? <button className="cx-secondary" onClick={() => void refresh()}>Check again</button>
@@ -201,6 +202,7 @@ export default function ConnectionsHub() {
       </section>;
     })}
     {!visible.length && <div className="cx-empty"><Search size={22} /><p>No connections match.</p><button className="cx-secondary" onClick={() => { setQuery(""); setFilter("all"); }}>Show all</button></div>}
+    <ConfirmDialog open={!!pendingDisconnect} title={`Disconnect ${pendingDisconnect?.name ?? "connection"}?`} description="Onyx will stop using this connection until you reconnect it. Your data in the other app stays there." confirmLabel="Disconnect" danger onClose={() => setPendingDisconnect(null)} onConfirm={() => { const connection = pendingDisconnect; setPendingDisconnect(null); if (connection) void disconnect(connection); }} />
   </main>;
 }
 

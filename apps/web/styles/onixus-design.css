@@ -1,7 +1,7 @@
 /*
  * Onixus design system (dark). One palette, one set of surfaces and controls.
- * Brand: the Onixus logo gradient, violet → magenta → cyan. No green anywhere:
- * success reads in cyan, warnings in amber, urgent items in magenta.
+ * The approved Onixus logo is left intact. UI surfaces are flat; violet is
+ * reserved for active work, while status colors communicate actual state.
  * Light theme keeps its existing styles; everything here is scoped to dark.
  */
 :root {
@@ -12,33 +12,30 @@
   --ox-cyan: #00e5ef;
   --ox-cyan-soft: #6ff4fa;
   --ox-amber: #ffb547;
-  --ox-gradient: linear-gradient(100deg, #b300ff 0%, #ff00b8 48%, #00e5ef 100%);
-  --ox-gradient-soft: linear-gradient(100deg, rgba(179, 0, 255, .22), rgba(255, 0, 184, .14) 50%, rgba(0, 229, 239, .16));
-
-  --ox-bg: #09090b;
+  --ox-bg: #050506;
   --ox-card: #111114;
-  --ox-card-hi: #1a1a1f;
+  --ox-card-hi: #16161a;
   --ox-accent: #c86bff;
   --ox-accent-hover: #d68bff;
   --ox-on-accent: #0b0a12;
-  --ox-bg-raised: #0d0c14;
+  --ox-bg-raised: #0b0b0d;
   --ox-panel: rgba(255, 255, 255, .028);
   --ox-panel-strong: rgba(255, 255, 255, .045);
   --ox-panel-hover: rgba(255, 255, 255, .06);
-  --ox-line: rgba(255, 255, 255, .075);
-  --ox-line-strong: rgba(255, 255, 255, .13);
-  --ox-text: #f3f1f8;
-  --ox-text-2: #c8c4d4;
-  --ox-dim: #938ea3;
+  --ox-line: #16161a;
+  --ox-line-strong: #23232a;
+  --ox-text: #f2f2f4;
+  --ox-text-2: #c8c8ce;
+  --ox-dim: #8a8a93;
   --ox-faint: #635e73;
 
   --ox-radius-sm: 8px;
   --ox-radius: 14px;
   --ox-radius-lg: 18px;
-  --ox-shadow: 0 1px 0 rgba(255, 255, 255, .04) inset, 0 18px 50px rgba(0, 0, 0, .45);
-  --ox-font: "DM Sans", system-ui, sans-serif;
-  --ox-display: "Manrope", "DM Sans", sans-serif;
-  --ox-mono: "DM Mono", ui-monospace, monospace;
+  --ox-shadow: none;
+  --ox-font: var(--font-ui);
+  --ox-display: var(--font-ui);
+  --ox-mono: var(--font-system);
 }
 
 /* ---------- Page canvas ---------- */
@@ -64,8 +61,8 @@ html:not([data-workspace-theme="light"]) .workspace-frame-header {
   box-shadow: 0 1px 0 rgba(255, 255, 255, .02);
 }
 html:not([data-workspace-theme="light"]) .workspace-frame-header > button {
-  width: 36px; height: 36px; display: grid; place-items: center;
-  border-radius: 10px; border: 1px solid var(--ox-line); background: var(--ox-panel); color: var(--ox-dim);
+  width: 44px; height: 44px; display: grid; place-items: center;
+  border-radius: 999px; border: 1px solid var(--ox-line); background: var(--ox-panel); color: var(--ox-dim);
 }
 html:not([data-workspace-theme="light"]) .workspace-frame-header > button:hover { color: var(--ox-text); border-color: var(--ox-line-strong); }
 html:not([data-workspace-theme="light"]) .workspace-frame-brand span {
@@ -95,7 +92,7 @@ html:not([data-workspace-theme="light"]) .workspace-navigation-group-name {
 html:not([data-workspace-theme="light"]) .workspace-tool-navigation a,
 html:not([data-workspace-theme="light"]) .workspace-tool-navigation .workspace-navigation-settings button {
   position: relative; display: flex; align-items: center; gap: 11px;
-  min-height: 36px; padding: 8px 12px; border-radius: 10px; border: 1px solid transparent;
+  min-height: 44px; padding: 8px 12px; border-radius: 999px; border: 1px solid transparent;
   color: var(--ox-dim); font: 500 13px var(--ox-font); text-decoration: none; background: transparent;
   transition: background .15s, color .15s, border-color .15s;
 }
@@ -154,17 +151,17 @@ html:not([data-workspace-theme="light"]) .workspace-navigation-settings { margin
 .ox-pill[data-tone="urgent"] { color: #ff9fe0; background: rgba(255, 0, 184, .09); border-color: rgba(255, 0, 184, .28); }
 
 .ox-btn, .ox-btn-primary, .ox-btn-ghost {
-  display: inline-flex; align-items: center; justify-content: center; gap: 7px; height: 36px; padding: 0 15px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; padding: 0 18px;
   border-radius: 999px; font: 600 13px var(--ox-font); cursor: pointer; text-decoration: none; white-space: nowrap;
   transition: transform .15s, box-shadow .2s, background .15s, border-color .15s, color .15s;
 }
 .ox-btn { border: 1px solid var(--ox-line-strong); background: var(--ox-panel-strong); color: var(--ox-text); }
 .ox-btn:hover { border-color: rgba(255, 255, 255, .22); background: var(--ox-panel-hover); }
 .ox-btn-primary {
-  position: relative; border: 0; color: var(--ox-on-accent); background: var(--ox-accent);
+  position: relative; border: 0; color: #050506; background: #f2f2f4;
   box-shadow: none;
 }
-.ox-btn-primary:hover { background: var(--ox-accent-hover); }
+.ox-btn-primary:hover { background: #dedee5; }
 .ox-btn-primary:disabled, .ox-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
 .ox-btn-ghost { border: 0; background: transparent; color: var(--ox-dim); padding: 0 8px; }
 .ox-btn-ghost:hover { color: var(--ox-text); }
@@ -189,12 +186,12 @@ html:not([data-workspace-theme="light"]) .workspace-navigation-settings { margin
 .ox-table .ox-primary-cell strong { display: block; color: var(--ox-text); font-weight: 600; }
 .ox-table .ox-primary-cell small { display: block; margin-top: 2px; font: 500 10.5px var(--ox-mono); color: var(--ox-faint); }
 
-.ox-skeleton { border-radius: 10px; background: linear-gradient(90deg, rgba(255, 255, 255, .03), rgba(255, 255, 255, .07), rgba(255, 255, 255, .03)); background-size: 200% 100%; animation: ox-shimmer 1.3s linear infinite; }
-@keyframes ox-shimmer { to { background-position: -200% 0; } }
+.ox-skeleton { border-radius: 10px; background: #16161a; animation: ox-skeleton-breathe 2.6s ease-in-out infinite; }
+@keyframes ox-skeleton-breathe { 50% { opacity: .55; } }
 .ox-spin { animation: ox-spin 1s linear infinite; }
 @keyframes ox-spin { to { transform: rotate(360deg); } }
 
-:where(.ox-card, .ox-page) :is(a, button, input, select):focus-visible { outline: 2px solid var(--ox-cyan); outline-offset: 2px; }
+:where(.ox-card, .ox-page) :is(a, button, input, select):focus-visible { outline: 2px solid var(--ox-accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .ox-skeleton, .ox-spin { animation: none; } .ox-btn-primary:hover { transform: none; } }
 
 /* ---------- Overview ---------- */
@@ -351,9 +348,9 @@ html:not([data-workspace-theme="light"]) .workspace-frame .ox-tabs button { heig
 html:not([data-workspace-theme="light"]) .workspace-frame .ox-tabs button[aria-selected="true"] { color: var(--ox-text); background: none; }
 html:not([data-workspace-theme="light"]) .workspace-frame :is(.ox-btn, .ox-btn-primary, .ox-btn-ghost) { min-height: 0; height: 34px; font: 600 12.5px var(--ox-font); border-radius: 999px; }
 html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn { border: 1px solid var(--ox-line-strong); background: var(--ox-panel-strong); color: var(--ox-text); }
-html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary { background: var(--ox-accent); color: var(--ox-on-accent); border: 0; }
-html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary:hover { background: var(--ox-accent-hover); }
-.ox-orb { -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 71%); mask-image: radial-gradient(circle, #000 52%, transparent 71%); }
+html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary { background: #f2f2f4; color: #050506; border: 0; min-height: 44px; height: auto; }
+html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary:hover { background: #dedee5; }
+.ox-orb { border-radius: 50%; overflow: hidden; }
 .ox-row-more { align-items: start; }
 .ox-live .business-live-scroll { max-height: 260px; }
 html:not([data-workspace-theme="light"]) .ox-page .suite-business { white-space: nowrap; }

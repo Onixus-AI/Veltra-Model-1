@@ -9,6 +9,7 @@ import PlanPackages from "@/components/plan-packages";
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import {AlertTriangle,Check,Copy,CreditCard,KeyRound,LoaderCircle,Sparkles,TrendingDown,Wallet,X} from "lucide-react";
 import { gatewayAuthorizationHeaders } from "@/lib/client-session";
+import { ConfirmDialog } from "@/components/ui";
 
 type SettingsTab = "usage" | "keys" | "subscription" | "account";
 
@@ -68,6 +69,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [revokingId, setRevokingId] = useState("");
+  const [pendingRevoke, setPendingRevoke] = useState<ApiKey | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [accountError, setAccountError] = useState("");
@@ -127,7 +129,6 @@ export default function SettingsPage() {
   }
 
   async function revokeKey(key: ApiKey) {
-    if (!window.confirm(`Revoke the "${key.name}" API key? This cannot be undone.`)) return;
     setRevokingId(key.id);
     setError("");
     try {
@@ -260,7 +261,7 @@ export default function SettingsPage() {
                             type="button"
                             aria-label={key.is_current ? `${key.name} authorizes this browser session` : `Revoke ${key.name}`}
                             disabled={key.is_current || revokingId === key.id}
-                            onClick={() => void revokeKey(key)}
+                            onClick={() => setPendingRevoke(key)}
                           >
                             {revokingId === key.id ? <LoaderCircle size={15} className="spin" /> : key.is_current ? <Check size={15} /> : <X size={16} />}
                           </button>
@@ -301,6 +302,7 @@ export default function SettingsPage() {
           </>
         )}
       </section>
+      <ConfirmDialog open={!!pendingRevoke} title="Revoke API key?" description={`The key “${pendingRevoke?.name ?? ""}” will stop working. This cannot be undone.`} confirmLabel="Revoke key" danger onClose={() => setPendingRevoke(null)} onConfirm={() => { const key = pendingRevoke; setPendingRevoke(null); if (key) void revokeKey(key); }} />
     </main>
   );
 }

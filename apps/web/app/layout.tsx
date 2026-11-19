@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import "@/styles/tokens.css";
 import "./globals.css";
 import "@/styles/workspace.css";
 import "@/styles/veltra-theme.css";
@@ -7,6 +8,7 @@ import {WorkspaceAppearanceSync} from "@/components/workspace-appearance";
 import WorkspaceFrame from "@/components/workspace-frame";
 import "@/styles/workspace-foundation.css";
 import "@/styles/onixus-design.css";
+import "@/styles/ui.css";
 import WorkspaceSettingsProvider from "@/components/workspace-settings-provider";
 import AuthGate from "@/components/auth-gate";
 

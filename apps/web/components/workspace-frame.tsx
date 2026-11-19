@@ -22,6 +22,7 @@ const publicPages = [
   "/revenue/paid",
   "/revenue/preview",
   "/workspace/join",
+  "/design/system",
 ];
 export default function WorkspaceFrame({ children }: { children: ReactNode }) {
   const pathname = usePathname(),
