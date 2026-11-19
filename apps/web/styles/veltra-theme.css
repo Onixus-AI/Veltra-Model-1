@@ -1,20 +1,20 @@
 /* Canonical workspace palette; legacy aliases keep existing tools compatible. */
 :root {
   color-scheme: dark;
-  --veltra-bg: #000;
-  --veltra-sidebar: #111214;
-  --veltra-panel: #111214;
-  --veltra-line: #343434;
-  --veltra-text: #f4f4f5;
-  --veltra-muted: #b8b8bf;
+  --veltra-bg: #09090b;
+  --veltra-sidebar: #09090b;
+  --veltra-panel: #111114;
+  --veltra-line: #232328;
+  --veltra-text: #f3f1f8;
+  --veltra-muted: #a3a0ad;
   --veltra-cyan: #00e5ef;
   --veltra-magenta: #ff4bda;
   --veltra-lemon: #f5ff3d;
-  --veltra-purple: #be80ff;
-  --veltra-lime: #baff32;
+  --veltra-purple: #c86bff;
+  --veltra-lime: #6ff4fa;
   --veltra-orange: #ff8a1f;
   --veltra-red: #ff718a;
-  --veltra-accent: var(--veltra-cyan);
+  --veltra-accent: var(--veltra-purple);
   --veltra-tint: color-mix(
     in srgb,
     var(--veltra-accent) 12%,
@@ -74,4 +74,8 @@ html[data-workspace-density="compact"] {
   :root {
     --workspace-control-height: 44px;
   }
+}
+
+html[data-workspace-accent="cyan"] {
+  --veltra-accent: var(--veltra-cyan);
 }

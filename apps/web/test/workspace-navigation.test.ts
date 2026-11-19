@@ -73,6 +73,6 @@ test("appearance migrates previous accents and safely rejects malformed preferen
   );
   assert.deepEqual(
     readAppearance({ theme: "invalid", accent: "url()", density: 20 }),
-    { version: 1, theme: "dark", accent: "cyan", density: "comfortable" },
+    { version: 1, theme: "dark", accent: "purple", density: "comfortable" },
   );
 });
