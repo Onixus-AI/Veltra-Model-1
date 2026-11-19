@@ -27,6 +27,7 @@ test('Google, Shopify and developer tools show the account or chosen project whe
  assert.equal(developerStatus(rows,'n8n').state,'setup');
  assert.equal(developerStatus(rows,'supabase').state,'unavailable');
  assert.equal(developerStatus(undefined,'github').state,'unavailable');
+ assert.equal(developerStatus([{provider:'n8n',connected:true,configured:true,version:0,account:{}}],'n8n').state,'available');
 });
 
 test('CRM, Signal and included services read their own answers',()=>{

@@ -35,7 +35,7 @@ export const CONNECTORS: Connector[] = [
 
 export const GROUP_ORDER: ConnectorGroup[] = ["Email & calendar", "Files", "Build & deploy", "Research", "Business"];
 
-export type ConnectorStatus = { state: ConnectorState; account?: string; note?: string };
+export type ConnectorStatus = { state: ConnectorState; account?: string; note?: string; lastHealthy?: string };
 
 type Raw = Record<string, unknown> | null | undefined;
 const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : undefined);
@@ -67,7 +67,11 @@ export function developerStatus(connections: unknown, provider: string): Connect
   if (!row) return { state: "unavailable" };
   const selection = text((row.selection as Raw)?.name);
   const account = text((row.account as Raw)?.name);
-  if (row.connected) return { state: "connected", account: selection ?? account };
+  if (row.connected && row.version !== 0 && (selection || account)) {
+    const health = (row.account as Raw)?.health as Raw;
+    const lastHealthy = health?.status === "healthy" ? text(health.at) : undefined;
+    return { state: "connected", account: selection ?? account, ...(lastHealthy ? { lastHealthy } : {}) };
+  }
   if (!row.configured) return { state: "setup", note: "Onixus still needs to finish setting this up." };
   return { state: "available" };
 }
