@@ -5,7 +5,7 @@
 export type ConnectorState = "checking" | "connected" | "available" | "setup" | "unavailable";
 export type ConnectorGroup = "Email & calendar" | "Files" | "Build & deploy" | "Research" | "Business";
 export type ConnectorId =
-  | "gmail" | "calendar" | "drive" | "github" | "vercel" | "supabase" | "n8n"
+  | "gmail" | "mail" | "calendar" | "drive" | "github" | "vercel" | "supabase" | "n8n"
   | "firecrawl" | "crm" | "shopify" | "signal" | "bee";
 
 export type Connector = {
@@ -19,7 +19,8 @@ export type Connector = {
 };
 
 export const CONNECTORS: Connector[] = [
-  { id: "gmail", name: "Gmail", logo: "Gmail", group: "Email & calendar", description: "Onyx reads, sorts, drafts and sends mail you approve." },
+  { id: "gmail", name: "Gmail", logo: "Gmail", group: "Email & calendar", description: "Mailbox access for Workspace Mail sync and processing." },
+  { id: "mail", name: "Onixus Mail", logo: "Onixus Mail", group: "Email & calendar", description: "Link Onyx to your Onixus Mail account for mailbox search, drafts and reviewed actions." },
   { id: "calendar", name: "Google Calendar", logo: "Google Calendar", group: "Email & calendar", description: "Meetings, availability and reviewed invitations." },
   { id: "drive", name: "Google Drive", logo: "Google Drive", group: "Files", description: "Find files and create or edit Docs and Sheets after review." },
   { id: "github", name: "GitHub", logo: "GitHub", group: "Build & deploy", description: "Read code, propose changes and open pull requests." },
@@ -55,6 +56,14 @@ export function gmailStatus(raw: Raw): ConnectorStatus {
   const boxes = Array.isArray(raw.mailboxes) ? raw.mailboxes.filter((m): m is string => typeof m === "string") : [];
   const single = text((raw.mailbox as Raw)?.email);
   return { state: "connected", account: boxes.length ? boxes.join(" · ") : single };
+}
+
+/** Onyx's Mail link lives in the Mail service and is separate from Workspace's Gmail grant. */
+export function onyxMailStatus(raw: Raw): ConnectorStatus {
+  if (!raw || typeof raw.connected !== "boolean") return { state: "unavailable" };
+  return raw.connected
+    ? { state: "connected", account: text((raw.mailbox as Raw)?.email) ?? text(raw.mailbox) ?? "Onyx Mail tools ready" }
+    : { state: "available", note: "Gmail access alone does not link Onyx to Onixus Mail." };
 }
 
 export function googleStatus(raw: Raw): ConnectorStatus {
