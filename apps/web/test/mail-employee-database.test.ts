@@ -41,6 +41,7 @@ async function database() {
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105190000_mail_rate_card_days.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261105210000_mail_second_mailbox.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../../../supabase/migrations/20261119173000_mail_unpriced_quote_guard.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../../../supabase/migrations/20261119190000_mail_quote_amount_guard.sql', import.meta.url), 'utf8'));
   await as(db, OWNER);
   const begun = await one<{state: string}>(db, `select public.mail_google_begin($1,null) r`, [W]);
   await db.query(`select public.mail_google_complete($1,$2,'dispatch@hampton.test')`, [begun.state, 'refresh-'.repeat(4)]);
@@ -83,12 +84,12 @@ test('nothing runs on the model\'s say-so: items wait for the owner unless the o
   await db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({auto_clean: true, delete_junk: true, unsubscribe: false, auto_send: ['QUOTE_REQUEST']})]);
   assert.equal((await rec(item('j2', 'JUNK', {action: 'trash', unsubscribe: false}))).status, 'approved', 'cleanup on autopilot');
   assert.equal((await rec(item('j3', 'JUNK', {action: 'trash'}, {needs_owner: true}))).status, 'pending', 'never on autopilot when the owner was alerted');
-  assert.equal((await rec(item('q2', 'QUOTE_REQUEST', {action: 'reply'}, {draft: 'Rate is $500.'}))).status, 'approved');
+  assert.equal((await rec(item('q2', 'QUOTE_REQUEST', {action: 'reply'}, {draft: 'Quoted rate: $500 per load.'}))).status, 'approved');
   assert.equal((await rec(item('q3', 'QUOTE_REQUEST', {action: 'reply', needs_review: true}, {draft: 'A rate will follow.'}))).status, 'pending', 'no price → a person reviews');
   assert.equal((await rec(item('q5', 'QUOTE_REQUEST', {action: 'reply', needs_review: true}))).status, 'pending');
   const unpriced = await one<string>(db, `select id r from crm_private.mail_items where provider_message_id='q5'`);
   await assert.rejects(db.query('select public.mail_item_decide($1,$2,$3,$4)', [W, unpriced, 'approve', null]), /Add a priced reply/);
-  assert.equal((await one<{status: string}>(db, 'select public.mail_item_decide($1,$2,$3,$4) r', [W, unpriced, 'approve', 'Our quoted rate is $500 per load, subject to availability.'])).status, 'approved');
+  assert.equal((await one<{status: string}>(db, 'select public.mail_item_decide($1,$2,$3,$4) r', [W, unpriced, 'approve', 'Quoted rate: $500 per load, subject to availability.'])).status, 'approved');
   assert.equal((await rec(item('q4', 'QUESTION', {action: 'reply'}, {draft: 'Yes.'}))).status, 'pending', 'questions were not put on autopilot');
   assert.equal((await rec(item('j2', 'NEWSLETTER', {action: 'archive'}))).duplicate, true, 'a sorted item is never re-sorted');
   await assert.rejects(db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({auto_clean: true, delete_junk: true, unsubscribe: false, auto_send: ['JUNK']})]), /Invalid/);
@@ -106,11 +107,11 @@ test('the owner approves (with an edited reply) or skips; the pass carries out a
   await as(db, OWNER);
   assert.equal((await one<unknown[]>(db, `select public.mail_items_list($1,'pending') r`, [W])).length, 2);
   assert.equal((await one<unknown[]>(db, `select public.mail_items_list($1,null) r`, [OTHER])).length, 0, 'each workspace sees only its own mail');
-  await db.query(`select public.mail_item_decide($1,$2,'approve','Edited: $650 all-in.')`, [W, q.id]);
+  await db.query(`select public.mail_item_decide($1,$2,'approve','Quoted rate: $650 all-in.')`, [W, q.id]);
   await db.query(`select public.mail_item_decide($1,$2,'skip',null)`, [W, j.id]);
   await assert.rejects(db.query(`select public.mail_item_decide($1,$2,'approve',null)`, [W, j.id]), /already handled/);
   const due = await one<{id: string; draft: string}[]>(db, 'select public.mail_items_due($1,$2,10) r', a);
-  assert.deepEqual(due.map(d => [d.id, d.draft]), [[q.id, 'Edited: $650 all-in.']]);
+  assert.deepEqual(due.map(d => [d.id, d.draft]), [[q.id, 'Quoted rate: $650 all-in.']]);
   assert.equal((await one<{ok: boolean}>(db, 'select public.mail_item_done($1,$2,$3,true,$4) r', [...a, q.id, '{"sent":{}}'])).ok, true);
   assert.equal((await one<{ok: boolean}>(db, 'select public.mail_item_done($1,$2,$3,true,$4) r', [...a, q.id, '{}'])).ok, false, 'done only once');
   assert.deepEqual(await one<unknown[]>(db, 'select public.mail_items_due($1,$2,10) r', a), []);
@@ -118,6 +119,17 @@ test('the owner approves (with an edited reply) or skips; the pass carries out a
   await assert.rejects(db.query('select * from crm_private.mail_items'), /permission denied/);
   await assert.rejects(db.query(`select public.mail_items_list($1,null)`, [W]), /permission denied/);
   await db.exec('reset role');
+  await db.close();
+});
+
+test('quote approval requires an actual rate at or above the mailbox floor', async () => {
+  const {db, pass} = await database();
+  await db.query('select public.mail_settings($1,$2)', [W, JSON.stringify({auto_clean:false,delete_junk:true,unsubscribe:false,auto_send:[],rate_card:{minimum:600}})]);
+  const q = await one<{id:string}>(db, 'select public.mail_item_record($1,$2,$3) r', [pass.account_id,pass.crm_token,
+    JSON.stringify(item('floor-quote','QUOTE_REQUEST',{action:'reply',needs_review:true},{draft:'Quoted rate: $[ENTER RATE] per load.'}))]);
+  await assert.rejects(db.query('select public.mail_item_decide($1,$2,$3,$4)',[W,q.id,'approve',null]),/Enter the actual rate/);
+  await assert.rejects(db.query('select public.mail_item_decide($1,$2,$3,$4)',[W,q.id,'approve','Quoted rate: $550 per load.']),/below the configured floor/);
+  assert.equal((await one<{status:string}>(db,'select public.mail_item_decide($1,$2,$3,$4) r',[W,q.id,'approve','Quoted rate: $650 per load.'])).status,'approved');
   await db.close();
 });
 
