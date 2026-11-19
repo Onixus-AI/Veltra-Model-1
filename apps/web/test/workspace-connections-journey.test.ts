@@ -21,6 +21,7 @@ test('Connections lists every connector with its live status and one action, ins
    case '/api/workspace/signal':return Response.json({connections:[{workspace_id:'business-a'}]});
    case '/api/crm/connection':return Response.json({connected:true,available:true,has_workspace:true});
    case '/api/mail/link':return Response.json({connected:true,mailboxes:['info@onixus.xyz']});
+   case '/api/mail/onyx-link':return Response.json({connected:true,mailbox:{email:'info@onixus.xyz'}});
    case '/api/google/status':return Response.json({configured:true,connected:true,account:{email:'info@onixus.xyz'}});
    case '/api/google-calendar/status':return Response.json({configured:true,connected:false});
    case '/api/connections/status':return Response.json({connections:[{provider:'github',connected:true,configured:true,account:{},selection:{name:'Veltra-Model-1'}},{provider:'vercel',connected:true,configured:true,account:{},selection:{}},{provider:'supabase',connected:false,configured:true,account:{},selection:{}},{provider:'n8n',connected:false,configured:true,account:{},selection:{}}]});
@@ -35,8 +36,9 @@ test('Connections lists every connector with its live status and one action, ins
  const card=(name:string)=>Array.from(host.querySelectorAll('.cx-card')).find(c=>c.querySelector('h3')?.textContent===name) as HTMLElement;
  const state=(name:string)=>card(name)?.dataset.state;
 
- assert.equal(host.querySelectorAll('.cx-card').length,12,'every connector is listed');
+ assert.equal(host.querySelectorAll('.cx-card').length,13,'every connector is listed');
  assert.equal(state('Gmail'),'connected');assert.match(card('Gmail').textContent!,/info@onixus\.xyz/);
+ assert.equal(state('Onixus Mail'),'connected');assert.match(card('Onixus Mail').textContent!,/Use in Onyx/);
  assert.equal(state('Firecrawl'),'connected');assert.match(card('Firecrawl').textContent!,/Included with Onixus/);
  assert.equal(state('GitHub'),'connected');assert.match(card('GitHub').textContent!,/Veltra-Model-1/);
  assert.equal(state('Signal'),'connected');
@@ -46,7 +48,7 @@ test('Connections lists every connector with its live status and one action, ins
   assert.ok(Array.from(card(name).querySelectorAll('button')).some(b=>b.textContent?.trim()==='Connect'),`${name} has a Connect button`);
  }
  assert.ok(card('n8n').querySelector('input[aria-label="Your n8n address"]'),'n8n asks for its address before connecting');
- assert.match(host.querySelector('.cx-summary')!.textContent!,/6 of 12 connected/);
+ assert.match(host.querySelector('.cx-summary')!.textContent!,/7 of 13 connected/);
 
  const back=host.querySelector('.cx-back') as HTMLAnchorElement;
  assert.equal(new URL(back.href).pathname,'/workspace');assert.equal(new URL(back.href).searchParams.get('workspace'),'business-a');

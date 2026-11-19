@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {CONNECTORS,GROUP_ORDER,crmStatus,developerStatus,gmailStatus,googleStatus,includedStatus,shopifyStatus,signalStatus,summarize} from '../lib/connector-status';
+import {CONNECTORS,GROUP_ORDER,crmStatus,developerStatus,gmailStatus,onyxMailStatus,googleStatus,includedStatus,shopifyStatus,signalStatus,summarize} from '../lib/connector-status';
 
 test('every connector has a group shown on the page and a unique id',()=>{
  assert.equal(new Set(CONNECTORS.map(c=>c.id)).size,CONNECTORS.length);
@@ -15,6 +15,14 @@ test('Gmail lists every connected mailbox, asks for the owner, and fails closed'
  assert.equal(gmailStatus({connected:false,choose_workspace:true}).state,'setup');
  assert.equal(gmailStatus(null).state,'unavailable');
  assert.equal(gmailStatus({error:'down'}).state,'unavailable');
+});
+
+test('Onyx Mail status follows the Mail service link, independently of Gmail',()=>{
+ assert.equal(CONNECTORS.find(c=>c.id==='mail')?.name,'Onixus Mail');
+ assert.deepEqual(onyxMailStatus({connected:true,mailbox:{email:'info@onixus.xyz'}}),{state:'connected',account:'info@onixus.xyz'});
+ assert.equal(onyxMailStatus({connected:true,mailbox:null}).state,'setup');
+ assert.equal(onyxMailStatus({connected:false}).state,'available');
+ assert.equal(onyxMailStatus(null).state,'unavailable');
 });
 
 test('Google, Shopify and developer tools show the account or chosen project when connected',()=>{

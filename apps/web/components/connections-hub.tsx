@@ -10,7 +10,7 @@ import { crmConnection, setCrmConnection } from "@/lib/crm-connection";
 import { useWorkspaceBusiness } from "@/lib/workspace-business";
 import { workspaceHref } from "@/lib/workspace-navigation";
 import {
-  CONNECTORS, GROUP_ORDER, crmStatus, developerStatus, gmailStatus, googleStatus, includedStatus,
+  CONNECTORS, GROUP_ORDER, crmStatus, developerStatus, gmailStatus, onyxMailStatus, googleStatus, includedStatus,
   shopifyStatus, signalStatus, summarize, type Connector, type ConnectorId, type ConnectorStatus,
 } from "@/lib/connector-status";
 
@@ -19,6 +19,7 @@ type Filter = "all" | "connected" | "available";
 type Resource = { id: string; name: string };
 const DEV: Provider[] = ["github", "vercel", "supabase", "n8n"];
 const MAIL_STATE = "veltra-mail-link-state";
+const ONYX_MAIL_STATE = "onixus-onyx-mail-link-state";
 
 async function getJson(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
   const response = await fetch(path, { ...init, cache: "no-store", headers: { ...(await gatewayAuthorizationHeaders()), "Content-Type": "application/json", ...(init?.headers ?? {}) } });
@@ -43,8 +44,9 @@ export default function ConnectionsHub() {
 
   const refresh = useCallback(async () => {
     setStatuses({});
-    const [mail, drive, calendar, dev, included, crm, shopify, signal, bee] = await Promise.all([
+    const [mail, onyxMail, drive, calendar, dev, included, crm, shopify, signal, bee] = await Promise.all([
       settle(() => getJson("/api/mail/link")),
+      settle(() => getJson("/api/mail/onyx-link")),
       settle(() => getJson("/api/google/status")),
       settle(() => getJson("/api/google-calendar/status")),
       settle(() => getJson("/api/connections/status")),
@@ -55,7 +57,7 @@ export default function ConnectionsHub() {
       settle(() => getJson("/api/bee/status")),
     ]);
     const next: Statuses = {
-      gmail: gmailStatus(mail), drive: googleStatus(drive), calendar: googleStatus(calendar),
+      gmail: gmailStatus(mail), mail: onyxMailStatus(onyxMail), drive: googleStatus(drive), calendar: googleStatus(calendar),
       firecrawl: includedStatus(included, "firecrawl"), crm: crmStatus(crm), shopify: shopifyStatus(shopify),
       signal: signalStatus(signal, business), bee: bee && typeof bee.connected === "boolean" ? { state: bee.connected ? "connected" : "available" } : { state: "unavailable" },
     };
@@ -68,7 +70,12 @@ export default function ConnectionsHub() {
     const q = new URLSearchParams(location.search);
     const check = (key: string, value: string | null) => { const expected = sessionStorage.getItem(key); sessionStorage.removeItem(key); return !!expected && expected === value; };
     const mail = q.get("mail"), dev = q.get("developer"), bee = q.get("bee");
-    if (mail) { if (!check(MAIL_STATE, q.get("state"))) setError("That sign-in started in another tab. Check Gmail's status below."); else if (mail === "connected") setNotice("Gmail is connected."); else setError(mail === "cancelled" ? "Gmail sign-in was cancelled." : "Gmail could not finish connecting. Try again and allow the Mail permissions."); }
+    if (mail) {
+      const onyx = sessionStorage.getItem(ONYX_MAIL_STATE) !== null;
+      if (!check(onyx ? ONYX_MAIL_STATE : MAIL_STATE, q.get("state"))) setError(`That sign-in started in another tab. Check ${onyx ? "Onixus Mail + Onyx" : "Gmail"} below.`);
+      else if (mail === "connected") setNotice(`${onyx ? "Onixus Mail is linked to Onyx" : "Gmail is connected"}.`);
+      else setError(mail === "cancelled" ? "Mail sign-in was cancelled." : "Mail could not finish connecting. Try again.");
+    }
     if (dev) { const p = q.get("provider") ?? ""; if (!check(`veltra-connect-${p}`, q.get("state"))) setError("That sign-in expired. Check its status below."); else if (dev === "connected") setNotice("Connected. Choose what Onyx can use from the card below."); else setError(dev === "cancelled" ? "Connection cancelled." : "That connection did not finish. Try again."); }
     if (bee) { if (!check("veltra-bee-state", q.get("state"))) setError("That Bee sign-in expired. Check Bee's status below."); else if (bee === "connected") setNotice("Bee is connected."); else setError(bee === "cancelled" ? "Bee sign-in was cancelled." : "Bee could not connect. Try again."); }
     if (mail || dev || bee) history.replaceState(null, "", "/settings/connections" + (business ? "?workspace=" + encodeURIComponent(business) : ""));
@@ -87,6 +94,7 @@ export default function ConnectionsHub() {
   function connect(c: Connector) {
     return run(c.id, async () => {
       if (c.id === "gmail") return signIn(MAIL_STATE, async (browser) => (await getJson("/api/mail/link", { method: "POST", body: JSON.stringify({ browser }) })).url);
+      if (c.id === "mail") return signIn(ONYX_MAIL_STATE, async (browser) => (await getJson("/api/mail/onyx-link", { method: "POST", body: JSON.stringify({ browser }) })).url);
       if (c.id === "drive") return signIn("onixus-google-state", async (browser) => (await getJson("/api/google/start", { method: "POST", body: JSON.stringify({ browser }) })).url);
       if (c.id === "calendar") {
         if (!business) throw new Error("Choose a business first. Calendar connects to one business at a time.");
@@ -107,6 +115,7 @@ export default function ConnectionsHub() {
   function disconnect(c: Connector) {
     return run(c.id, async () => {
       if (c.id === "gmail") await getJson("/api/mail/link", { method: "DELETE" });
+      else if (c.id === "mail") await getJson("/api/mail/onyx-link", { method: "DELETE" });
       else if (c.id === "drive") await getJson("/api/google/disconnect", { method: "DELETE" });
       else if (c.id === "calendar") await getJson("/api/google-calendar/disconnect", { method: "DELETE" });
       else if (c.id === "bee") await getJson("/api/bee/status", { method: "DELETE" });
@@ -131,6 +140,7 @@ export default function ConnectionsHub() {
 
   function manageHref(c: Connector): string | null {
     if (c.id === "gmail") return workspaceHref("mail", business);
+    if (c.id === "mail") return workspaceHref("mail", business);
     if (c.id === "drive") return workspaceHref("files", business);
     if (c.id === "calendar") return "/settings/calendar" + (business ? "?workspace=" + encodeURIComponent(business) : "");
     if (c.id === "crm") return workspaceHref("crm", business);
@@ -190,6 +200,7 @@ export default function ConnectionsHub() {
                 : status.state === "connected" ? <>
                   {dev && picker?.id !== c.id && <button className="cx-secondary" disabled={working} onClick={() => void choose(c.id as Provider)}>{c.id === "github" ? "Choose repository" : c.id === "n8n" ? "Choose workflow" : "Choose project"}</button>}
                   {manage && !dev && <Link className="cx-secondary" href={manage}>Open <ArrowUpRight size={14} /></Link>}
+                  {c.id === "mail" && <Link className="cx-secondary" href={workspaceHref("chat", business)}>Use in Onyx <ArrowUpRight size={14} /></Link>}
                   {c.kind === "included" && <span className="cx-hint">Always on for every workspace</span>}
                   {c.kind !== "included" && c.id !== "shopify" && c.id !== "signal" && <button className="cx-quiet" disabled={working} onClick={() => setPendingDisconnect(c)}>Disconnect</button>}
                 </>
