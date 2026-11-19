@@ -34,7 +34,7 @@ with sync_playwright() as p:
  deal.click();expect(page.get_by_role('button',name='Close customer details')).to_be_focused()
  page.get_by_role('button',name='Close customer details',exact=True).click()
  expect(stage).to_have_value('proposal');expect(deal).to_be_focused()
- stage.select_option('all');expect(page.locator('.crm-pipeline-stage')).to_have_count(6)
+ stage.select_option('all');expect(page.locator('.crm-pipeline-stage')).to_have_count(7)
  assert len(page.locator('.crm-pipeline-grid').evaluate('(el)=>getComputedStyle(el).gridTemplateColumns').split())==3
  page.screenshot(path=str(out/'crm-pipeline-desktop.png'),full_page=True)
  for width,columns in [(590,2),(390,1)]:
