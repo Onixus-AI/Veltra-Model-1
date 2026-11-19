@@ -6,6 +6,7 @@ import "@/styles/spatial-workspace.css";
 import {WorkspaceAppearanceSync} from "@/components/workspace-appearance";
 import WorkspaceFrame from "@/components/workspace-frame";
 import "@/styles/workspace-foundation.css";
+import "@/styles/onixus-design.css";
 import WorkspaceSettingsProvider from "@/components/workspace-settings-provider";
 import AuthGate from "@/components/auth-gate";
 
