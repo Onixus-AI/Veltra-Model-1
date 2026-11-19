@@ -1,0 +1,16 @@
+.ui-gallery { max-width: 1240px; margin: 0 auto; padding: 40px; color: var(--color-text); font-family: var(--font-ui); }
+.ui-gallery nav { margin-bottom: 32px; }.ui-gallery nav a { color: var(--color-muted); text-decoration: none; }.ui-gallery nav a:hover { color: var(--color-text); }
+.ui-gallery-section { padding: 28px 0; border-top: 1px solid var(--color-divider); }
+.ui-gallery-section > .ui-mono-label { display: block; margin-bottom: 20px; }
+.ui-gallery-swatches { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.ui-gallery-swatches > div { display: grid; gap: 8px; color: var(--color-muted); font-size: 12px; }
+.ui-gallery-swatch { display: block; height: 60px; border: 1px solid var(--color-border); border-radius: 14px; }
+.ui-gallery-swatch-canvas { background: var(--color-canvas); }.ui-gallery-swatch-surface { background: var(--color-surface); }.ui-gallery-swatch-raised { background: var(--color-raised); }.ui-gallery-swatch-card { background: var(--color-card); }.ui-gallery-swatch-accent { background: var(--color-accent); }.ui-gallery-swatch-text { background: var(--color-text); }
+.ui-gallery-display { font-size: clamp(36px, 5vw, 56px); font-weight: 300; letter-spacing: -2px; margin: 28px 0 12px; }
+.ui-gallery-body { font-size: 16px; color: var(--color-muted); }
+.ui-gallery-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+.ui-gallery-caption { margin: 14px 0 0; color: var(--color-muted); font-size: 13px; }
+.ui-gallery-agents, .ui-gallery-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 16px; }
+.ui-gallery-grid h2 { font-size: 19px; font-weight: 400; margin: 0 0 12px; }.ui-gallery-grid p { color: var(--color-muted); }
+.ui-gallery-skeleton { max-width: 260px; margin-top: 24px; }.ui-gallery-conversation { display: grid; gap: 30px; max-width: 800px; }
+@media (max-width: 700px) { .ui-gallery { padding: 20px; }.ui-gallery-swatches { grid-template-columns: repeat(3, 1fr); }.ui-gallery-agents, .ui-gallery-grid { grid-template-columns: 1fr; } }
