@@ -61,8 +61,10 @@ export function gmailStatus(raw: Raw): ConnectorStatus {
 /** Onyx's Mail link lives in the Mail service and is separate from Workspace's Gmail grant. */
 export function onyxMailStatus(raw: Raw): ConnectorStatus {
   if (!raw || typeof raw.connected !== "boolean") return { state: "unavailable" };
+  const mailbox = text((raw.mailbox as Raw)?.email) ?? text(raw.mailbox);
+  if (raw.connected && !mailbox) return { state: "setup", note: "The Onyx link has no active mailbox. Connect a mailbox in Onixus Mail." };
   return raw.connected
-    ? { state: "connected", account: text((raw.mailbox as Raw)?.email) ?? text(raw.mailbox) ?? "Onyx Mail tools ready" }
+    ? { state: "connected", account: mailbox }
     : { state: "available", note: "Gmail access alone does not link Onyx to Onixus Mail." };
 }
 

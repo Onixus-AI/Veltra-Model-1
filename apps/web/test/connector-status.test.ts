@@ -20,6 +20,7 @@ test('Gmail lists every connected mailbox, asks for the owner, and fails closed'
 test('Onyx Mail status follows the Mail service link, independently of Gmail',()=>{
  assert.equal(CONNECTORS.find(c=>c.id==='mail')?.name,'Onixus Mail');
  assert.deepEqual(onyxMailStatus({connected:true,mailbox:{email:'info@onixus.xyz'}}),{state:'connected',account:'info@onixus.xyz'});
+ assert.equal(onyxMailStatus({connected:true,mailbox:null}).state,'setup');
  assert.equal(onyxMailStatus({connected:false}).state,'available');
  assert.equal(onyxMailStatus(null).state,'unavailable');
 });
