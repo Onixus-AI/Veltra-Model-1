@@ -3,8 +3,7 @@ FROM python:3.11-slim
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     HOME=/tmp \
-    XDG_CACHE_HOME=/tmp/.cache \
-    VELTRA_CODING_TEAM_ENABLED=false
+    XDG_CACHE_HOME=/tmp/.cache
 
 WORKDIR /app
 COPY requirements.txt ./
