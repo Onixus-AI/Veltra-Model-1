@@ -89,7 +89,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   if(o.confirm.target==='mail'){
    const found=await client.from('crm_conversations').select('workspace_id,customer_id,revision,messages').eq('id',o.confirm.id).eq('user_id',user).eq('title','Workspace Mail bulk review').maybeSingle();
    if(found.error)throw Error('503:Mail review could not be read.');
-   if(found.data){
+   if(found.data&&(()=>{try{return JSON.parse(found.data.messages?.[0]?.content??'{}').type==='workspace_mail_bulk';}catch{return false;}})()){
     const review=found.data;
     if(!scope.workspace_id||review.workspace_id!==scope.workspace_id||review.customer_id||review.revision!==0)throw Error('409:Mail review used or business context changed.');
     let payload:{type?:string;expires_at?:number;snapshots?:unknown};try{payload=JSON.parse(review.messages?.[0]?.content??'{}');}catch{throw Error('409:Invalid Mail review.');}
