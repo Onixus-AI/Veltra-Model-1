@@ -19,6 +19,19 @@ test('tenant selection, unsupported direct generation and customer-contact scope
  await assert.rejects(signalAgentAction({...opts,args:{action:'generate',id:ID}},net),/reviewed Signal proposal/);
  await assert.rejects(signalAgentAction({...opts,scope:{workspace_id:W,customer_id:ID},args:{action:'context'}},net),/client’s own linked/);
 });
+test('Onixa inspects production and advances only the selected queue with a matching read-back',async t=>{
+ setup(t);const calls:any[]=[];
+ const net=async(_url:RequestInfo|URL,init?:RequestInit)=>{const body=JSON.parse(String(init?.body));calls.push(body);return Response.json({ok:true,scope:{workspace_id:W,client_id:C,business_name:'Onixus'},receipt:body.action==='production'?{owner:'Onixa',queue:[{id:ID,status:'awaiting_media'}]}:{queue_id:ID,step:{id:ID,step:'video_awaiting_review'},queue:{id:ID,status:'awaiting_media'}}});};
+ const observed=await signalAgentAction({...opts,args:{action:'production'}},net as typeof fetch);
+ assert.match(observed.content,/awaiting_media/);
+ const advanced=await signalAgentAction({...opts,args:{action:'advance_queue',id:ID}},net as typeof fetch);
+ assert.match(advanced.content,/video_awaiting_review/);
+ assert.deepEqual(calls.map(x=>x.action),['production','advance_queue']);
+ assert.deepEqual(calls[1],{workspace:W,action:'advance_queue',id:ID});
+ await assert.rejects(signalAgentAction({...opts,args:{action:'advance_queue',id:'not-an-id'}},net as typeof fetch),/returned Signal request or queue ID/);
+ const wrong=async()=>Response.json({ok:true,scope:{workspace_id:W,client_id:C},receipt:{queue_id:ID,queue:{id:'20000000-0000-4000-8000-000000000002'}}});
+ await assert.rejects(signalAgentAction({...opts,args:{action:'advance_queue',id:ID}},wrong as typeof fetch),/different production queue item/);
+});
 test('task-scoped Signal catalog stays within 32 tools and retains explicitly requested infrastructure tools',()=>{
  assert.ok(CHAT_TOOLS.length<=32);
  for(const text of ['Use Signal to read my saved brand','Create campaign images and inspect n8n','Check Signal and Supabase']){
