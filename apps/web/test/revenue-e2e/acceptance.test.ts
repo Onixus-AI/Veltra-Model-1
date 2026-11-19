@@ -921,3 +921,28 @@ test('reply threading: follow-ups thread on our last send, forged ids are droppe
   assert.deepEqual([fb.inReplyTo, fb.references, fb.subject], [null, null, 'Opening hours'], 'no threading headers without a stored Message-ID, as before');
   assert.equal((await message(d.message_id)).status, 'provider_accepted');
 });
+
+test('ranked prospect becomes one review-only draft; a verified reply advances its deal', {skip}, async () => {
+  const candidate = await newCustomer('ranked@harness.test', 'Pat Smith', 'Ranked Studio');
+  await q('update public.crm_prospect_scores set outreach_ready=false where workspace_id=$1', [W]);
+  await q(`insert into public.crm_prospect_scores(workspace_id,customer_id,score,tier,outreach_ready,reasons,missing)
+    values($1,$2,95,'ready',true,'[]','[]')`, [W, candidate]);
+  await rejects(viewer.rpc('revenue_stage_top_prospect', {p_workspace: W}), 403);
+  const staged = await owner.rpc<{status: string; message_id: string; deal_id: string; requires_approval: boolean}>('revenue_stage_top_prospect', {p_workspace: W});
+  assert.deepEqual([staged.status, staged.requires_approval], ['drafted', true]);
+  const draft = await message(staged.message_id);
+  assert.equal(draft.status, 'drafted');
+  assert.equal(draft.purpose, 'marketing');
+  assert.equal(draft.customer_id, candidate);
+  assert.equal((await one('select stage from public.crm_deals where id=$1', [staged.deal_id])).stage, 'new');
+  assert.equal((await one('select count(*)::integer n from public.revenue_jobs where message_id=$1', [draft.id])).n, 0);
+
+  // The harness simulates provider acceptance and a reply to that exact Message-ID.
+  await q(`update public.revenue_messages set status='provider_accepted',provider_message_id='<ranked-1@harness.test>',provider_accepted_at=now()
+    where id=$1`, [draft.id]);
+  await q(`insert into public.revenue_messages(workspace_id,customer_id,account_id,direction,purpose,status,to_email,from_email,
+    subject,body,in_reply_to,provider_message_id,idempotency_key)
+    values($1,$2,$3,'inbound','inbound','received',$4,$5,'Re: clearer path','Please tell me more.',
+    '<ranked-1@harness.test>','inbound-ranked-1','inbound-ranked-1')`, [W, candidate, A, MAILBOX, 'ranked@harness.test']);
+  assert.equal((await one('select stage from public.crm_deals where id=$1', [staged.deal_id])).stage, 'replied');
+});

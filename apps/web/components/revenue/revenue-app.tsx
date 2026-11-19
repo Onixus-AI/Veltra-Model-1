@@ -429,6 +429,10 @@ function Prospects(s: Shared) {
   return <>
     <Heading title="Prospects" sub={<>Every business ranked by the evidence on its record. {data?.scored_at ? <>Scored {since(data.scored_at)}; rescored hourly.</> : 'Not scored yet.'}</>} onRefresh={reload} loading={loading} at={at}>
       {s.canEdit && !s.preview && <button type="button" disabled={s.busy} onClick={() => void s.act('revenue_score_prospects', {}, 'Prospects rescored.')}>Rescore now</button>}
+      {s.isOwner && !s.preview && <button type="button" disabled={s.busy} onClick={() => void (async () => {
+        const result = await s.act('revenue_stage_top_prospect', {}, 'Top-ranked outreach draft saved for approval in Mail.');
+        if (result && result.status !== 'drafted') { s.setNotice(''); s.setError(String(result.reason ?? 'No eligible prospect is available.')); }
+      })()}>Stage top prospect draft</button>}
       <button type="button" disabled={exporting || !data || s.preview} onClick={() => void download()}>{exporting ? 'Preparing…' : 'Download list (CSV)'}</button>
     </Heading>
     <div className="rev-chips" role="group" aria-label="Filter by tier">
