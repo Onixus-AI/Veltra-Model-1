@@ -10,7 +10,7 @@
 .task-center-compact .task-expand svg{transition:transform .15s ease}.task-center-compact .task-expand svg.is-expanded{transform:rotate(180deg)}
 .task-center-compact button.task-stop{min-height:30px;padding:4px 7px;font-size:11px;border-color:#534047;color:#ffb4bd}
 .task-center-details{max-height:36vh;overflow:auto;padding:6px 0 12px}
-.task-center-actions{display:flex;align-items:center;gap:12px;padding:0 0 8px;flex-wrap:wrap}.task-center-actions>span{color:#96a4ac;max-width:52ch}
+.task-center-actions{display:flex;align-items:center;gap:12px;padding:0 0 8px;flex-wrap:wrap}.task-center-actions>span{color:#a1a1a1;max-width:52ch}
 .task-center-compact .task-purpose{font-size:13px;font-weight:500;margin:6px 0 8px;overflow-wrap:anywhere}
 .task-center-compact .task-note{margin:6px 0 10px;font-size:12px}.task-center-compact footer{padding:0;gap:8px}.task-center-compact footer:empty{display:none}
 .task-center-compact .workspace-activity-drawer{margin-top:8px;border:0}.task-center-compact .workspace-activity-drawer>summary{padding:8px 0}

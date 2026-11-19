@@ -4,7 +4,7 @@ import {ChevronRight} from 'lucide-react';
 import {stages,type Snapshot,type Stage} from '@/lib/crm/domain';
 export type PipelineFilter='all'|Stage;
 const labels:Record<Stage,string>={new:'New',qualified:'Qualified',meeting:'Meeting',proposal:'Proposal',won:'Won',lost:'Lost'};
-const accents:Record<Stage,string>={new:'#00e5ef',qualified:'#be80ff',meeting:'#f5ff3d',proposal:'#ff4bda',won:'#baff32',lost:'#ff8a1f'};
+const accents:Record<Stage,string>={new:'#e9e6f2',qualified:'#c86bff',meeting:'#f5ff3d',proposal:'#ff4bda',won:'#6ff4fa',lost:'#ff8a1f'};
 function money(cents:number,currency:string){try{return new Intl.NumberFormat('en-US',{style:'currency',currency,maximumFractionDigits:0}).format(cents/100)+' '+currency;}catch{return (cents/100).toLocaleString('en-US')+' '+currency;}}
 export default function PipelineBoard({data,filter,onFilter,onCustomer}:{data:Snapshot;filter:PipelineFilter;onFilter:(value:PipelineFilter)=>void;onCustomer:(id:string)=>void}){
  const visible=stages.filter(stage=>filter==='all'||stage===filter);
