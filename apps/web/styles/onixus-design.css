@@ -18,8 +18,9 @@
   --ox-bg: #09090b;
   --ox-card: #111114;
   --ox-card-hi: #1a1a1f;
-  --ox-accent: #9b1fe8;
-  --ox-accent-hover: #ad3cf5;
+  --ox-accent: #c86bff;
+  --ox-accent-hover: #d68bff;
+  --ox-on-accent: #0b0a12;
   --ox-bg-raised: #0d0c14;
   --ox-panel: rgba(255, 255, 255, .028);
   --ox-panel-strong: rgba(255, 255, 255, .045);
@@ -51,7 +52,7 @@ html:not([data-workspace-theme="light"]) .workspace-frame {
   --veltra-muted: var(--ox-dim);
   --veltra-line: var(--ox-line);
   --veltra-panel: var(--ox-panel);
-  --veltra-accent: var(--ox-cyan);
+  --veltra-accent: var(--ox-accent);
   background: var(--ox-bg);
   color: var(--ox-text);
 }
@@ -160,7 +161,7 @@ html:not([data-workspace-theme="light"]) .workspace-navigation-settings { margin
 .ox-btn { border: 1px solid var(--ox-line-strong); background: var(--ox-panel-strong); color: var(--ox-text); }
 .ox-btn:hover { border-color: rgba(255, 255, 255, .22); background: var(--ox-panel-hover); }
 .ox-btn-primary {
-  position: relative; border: 0; color: #fff; background: var(--ox-accent);
+  position: relative; border: 0; color: var(--ox-on-accent); background: var(--ox-accent);
   box-shadow: none;
 }
 .ox-btn-primary:hover { background: var(--ox-accent-hover); }
@@ -350,7 +351,7 @@ html:not([data-workspace-theme="light"]) .workspace-frame .ox-tabs button { heig
 html:not([data-workspace-theme="light"]) .workspace-frame .ox-tabs button[aria-selected="true"] { color: var(--ox-text); background: none; }
 html:not([data-workspace-theme="light"]) .workspace-frame :is(.ox-btn, .ox-btn-primary, .ox-btn-ghost) { min-height: 0; height: 34px; font: 600 12.5px var(--ox-font); border-radius: 999px; }
 html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn { border: 1px solid var(--ox-line-strong); background: var(--ox-panel-strong); color: var(--ox-text); }
-html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary { background: var(--ox-accent); color: #fff; border: 0; }
+html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary { background: var(--ox-accent); color: var(--ox-on-accent); border: 0; }
 html:not([data-workspace-theme="light"]) .workspace-frame .ox-btn-primary:hover { background: var(--ox-accent-hover); }
 .ox-orb { -webkit-mask-image: radial-gradient(circle, #000 52%, transparent 71%); mask-image: radial-gradient(circle, #000 52%, transparent 71%); }
 .ox-row-more { align-items: start; }
@@ -373,7 +374,7 @@ html:not([data-workspace-theme="light"]) .workspace-frame .ox-overview p.ox-labe
 .cx-card { background: var(--ox-card); box-shadow: none; }
 .cx-card:hover { border-color: var(--ox-line-strong); transform: none; box-shadow: none; }
 .cx-card[data-state=connected] { border-color: var(--ox-line); }
-.cx-primary { background: var(--ox-accent); box-shadow: none; }
+.cx-primary { background: var(--ox-accent); color: var(--ox-on-accent); box-shadow: none; }
 .cx-primary:hover { background: var(--ox-accent-hover); box-shadow: none; transform: none; }
 .cx-meter:after { background: var(--ox-violet-soft); }
 .cx-search:focus-within { border-color: var(--ox-line-strong); }

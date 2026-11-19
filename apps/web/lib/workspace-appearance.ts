@@ -6,7 +6,7 @@ export type Appearance = {
 };
 export const defaultAppearance: Appearance = {
   version: 1,
-  accent: "cyan",
+  accent: "purple",
   density: "comfortable",
   theme: "dark",
 };
@@ -31,7 +31,7 @@ export function readAppearance(value: unknown): Appearance {
       "red",
     ].includes(String(accent))
       ? accent
-      : "cyan") as Appearance["accent"],
+      : "purple") as Appearance["accent"],
     density: saved.density === "compact" ? "compact" : "comfortable",
     theme: saved.theme === "light" ? "light" : "dark",
   };

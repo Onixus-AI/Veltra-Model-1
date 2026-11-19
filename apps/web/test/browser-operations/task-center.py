@@ -33,7 +33,7 @@ with sync_playwright() as p:
  center=page.get_by_role('region',name='Onixus Workspace task center');expect(center.get_by_role('button',name='Expand task center')).to_be_visible();assert center.bounding_box()['height']<65
  center.get_by_role('button',name='Expand task center').click();start=center.get_by_role('button',name='Prepare follow-ups',exact=True)
  start.click();expect(center.get_by_role('status')).to_have_text('Working');page.wait_for_function('document.querySelectorAll(".task-step").length===2');assert counts['writes']==0
- assert center.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
+ assert center.evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(9, 9, 11)'
  assert 'sans-serif' in center.evaluate('(el)=>getComputedStyle(el).fontFamily')
  page.screenshot(path=str(out/'task-center-working.png'))
  center.get_by_role('button',name='Collapse task center').click();expect(center.get_by_role('button',name='Stop pending work')).to_be_visible();expect(center.locator('.task-center-details')).to_have_count(0)

@@ -19,7 +19,7 @@ with sync_playwright() as p:
  preset=page.get_by_role('combobox',name='Workspace preset',exact=True)
  expect(nav).to_be_visible()
  expect(page.get_by_role('button',name='Collapse sidebar',exact=True)).to_be_visible()
- assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(0, 0, 0)'
+ assert page.locator('.workspace').evaluate('(el)=>getComputedStyle(el).backgroundColor')=='rgb(9, 9, 11)'
  assert page.locator('.workspace-topbar').evaluate('(el)=>getComputedStyle(el).backgroundImage')=='none'
  for name in ['Overview','Build & Growth','Business team','Onyx','CRM','Mail','Calendar','Signal','Docs & Sheets','Websites','Connections','Settings']:
   link=nav.get_by_role('link',name=name,exact=True)
