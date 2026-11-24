@@ -11,7 +11,7 @@ import { useWorkspaceBusiness } from "@/lib/workspace-business";
 import { workspaceHref } from "@/lib/workspace-navigation";
 import {
   CONNECTORS, GROUP_ORDER, crmStatus, developerStatus, gmailStatus, onyxMailStatus, googleStatus, includedStatus,
-  shopifyStatus, signalStatus, summarize, type Connector, type ConnectorId, type ConnectorStatus,
+  shopifyStatus, signalStatus, zeeStatus, summarize, type Connector, type ConnectorId, type ConnectorStatus,
 } from "@/lib/connector-status";
 
 type Statuses = Partial<Record<ConnectorId, ConnectorStatus>>;
@@ -44,7 +44,7 @@ export default function ConnectionsHub() {
 
   const refresh = useCallback(async () => {
     setStatuses({});
-    const [mail, onyxMail, drive, calendar, dev, included, crm, shopify, signal, bee] = await Promise.all([
+    const [mail, onyxMail, drive, calendar, dev, included, crm, shopify, signal, bee, zee] = await Promise.all([
       settle(() => getJson("/api/mail/link")),
       settle(() => getJson("/api/mail/onyx-link")),
       settle(() => getJson("/api/google/status")),
@@ -55,11 +55,12 @@ export default function ConnectionsHub() {
       settle(() => getJson("/api/mail/shopify")),
       settle(() => getJson("/api/workspace/signal")),
       settle(() => getJson("/api/bee/status")),
+      settle(() => getJson("/api/zee/status?workspace=" + encodeURIComponent(business))),
     ]);
     const next: Statuses = {
       gmail: gmailStatus(mail), mail: onyxMailStatus(onyxMail), drive: googleStatus(drive), calendar: googleStatus(calendar),
       firecrawl: includedStatus(included, "firecrawl"), crm: crmStatus(crm), shopify: shopifyStatus(shopify),
-      signal: signalStatus(signal, business), bee: bee && typeof bee.connected === "boolean" ? { state: bee.connected ? "connected" : "available" } : { state: "unavailable" },
+      signal: signalStatus(signal, business), zee: zeeStatus(zee), bee: bee && typeof bee.connected === "boolean" ? { state: bee.connected ? "connected" : "available" } : { state: "unavailable" },
     };
     for (const p of DEV) next[p] = developerStatus(dev?.connections, p);
     setStatuses(next);
@@ -108,6 +109,7 @@ export default function ConnectionsHub() {
       }
       if (c.id === "crm") { await setCrmConnection(true); setNotice("Onixus CRM is connected."); return refresh(); }
       if (c.id === "shopify") { location.assign("/?canvas=shopify"); return; }
+      if (c.id === "zee") { window.open("https://zeevents.xyz", "_blank", "noopener"); setNotice("Sign up or sign in on Zee with this same email, then choose Check again."); return; }
       if (c.id === "signal") { location.assign("/crm?view=Connections" + (business ? "&workspace=" + encodeURIComponent(business) : "")); return; }
     });
   }
@@ -146,6 +148,7 @@ export default function ConnectionsHub() {
     if (c.id === "crm") return workspaceHref("crm", business);
     if (c.id === "shopify") return "/?canvas=shopify";
     if (c.id === "signal") return workspaceHref("signal", business);
+    if (c.id === "zee") return workspaceHref("zee", business);
     if ((DEV as string[]).includes(c.id)) return `/?canvas=code&tool=${c.id}`;
     return null;
   }
@@ -200,9 +203,9 @@ export default function ConnectionsHub() {
                 : status.state === "connected" ? <>
                   {dev && picker?.id !== c.id && <button className="cx-secondary" disabled={working} onClick={() => void choose(c.id as Provider)}>{c.id === "github" ? "Choose repository" : c.id === "n8n" ? "Choose workflow" : "Choose project"}</button>}
                   {manage && !dev && <Link className="cx-secondary" href={manage}>Open <ArrowUpRight size={14} /></Link>}
-                  {c.id === "mail" && <Link className="cx-secondary" href={workspaceHref("chat", business)}>Use in Onyx <ArrowUpRight size={14} /></Link>}
+                  {(c.id === "mail" || c.id === "zee") && <Link className="cx-secondary" href={workspaceHref("chat", business)}>Use in Onyx <ArrowUpRight size={14} /></Link>}
                   {c.kind === "included" && <span className="cx-hint">Always on for every workspace</span>}
-                  {c.kind !== "included" && c.id !== "shopify" && c.id !== "signal" && <button className="cx-quiet" disabled={working} onClick={() => setPendingDisconnect(c)}>Disconnect</button>}
+                  {c.kind !== "included" && c.id !== "shopify" && c.id !== "signal" && c.id !== "zee" && <button className="cx-quiet" disabled={working} onClick={() => setPendingDisconnect(c)}>Disconnect</button>}
                 </>
                 : status.state === "available" ? <button className="cx-primary" disabled={working} onClick={() => void connect(c)}>{working ? <Loader2 size={15} className="cx-spin" /> : null}Connect</button>
                 : status.state === "unavailable" ? <button className="cx-secondary" onClick={() => void refresh()}>Check again</button>

@@ -27,6 +27,7 @@ test('Connections lists every connector with its live status and one action, ins
    case '/api/connections/status':return Response.json({connections:[{provider:'github',connected:true,configured:true,account:{},selection:{name:'Veltra-Model-1'}},{provider:'vercel',connected:true,configured:true,account:{},selection:{}},{provider:'supabase',connected:false,configured:true,account:{},selection:{}},{provider:'n8n',connected:false,configured:true,account:{},selection:{}}]});
    case '/api/integrations/status':return Response.json({firecrawl:{connected:true}});
    case '/api/bee/status':return Response.json({connected:false,tools:[]});
+   case '/api/zee/status?workspace=business-a':return Response.json({linked:false,reason:'no_zee_account'});
    default:return Response.json({error:'Not connected in fixture'},{status:503});
   }
  });
@@ -36,19 +37,19 @@ test('Connections lists every connector with its live status and one action, ins
  const card=(name:string)=>Array.from(host.querySelectorAll('.cx-card')).find(c=>c.querySelector('h3')?.textContent===name) as HTMLElement;
  const state=(name:string)=>card(name)?.dataset.state;
 
- assert.equal(host.querySelectorAll('.cx-card').length,13,'every connector is listed');
+ assert.equal(host.querySelectorAll('.cx-card').length,14,'every connector is listed');
  assert.equal(state('Gmail'),'connected');assert.match(card('Gmail').textContent!,/info@onixus\.xyz/);
  assert.equal(state('Onixus Mail'),'connected');assert.match(card('Onixus Mail').textContent!,/Use in Onyx/);
  assert.equal(state('Firecrawl'),'connected');assert.match(card('Firecrawl').textContent!,/Included with Onixus/);
  assert.equal(state('GitHub'),'connected');assert.match(card('GitHub').textContent!,/Veltra-Model-1/);
  assert.equal(state('Signal'),'connected');
  assert.equal(state('Shopify'),'unavailable','a service that does not answer is never shown as connected');
- for(const name of ['Google Calendar','Supabase','LiveAskew / Bee']){
+ for(const name of ['Google Calendar','Supabase','LiveAskew / Bee','Zee AI']){
   assert.equal(state(name),'available',name);
   assert.ok(Array.from(card(name).querySelectorAll('button')).some(b=>b.textContent?.trim()==='Connect'),`${name} has a Connect button`);
  }
  assert.ok(card('n8n').querySelector('input[aria-label="Your n8n address"]'),'n8n asks for its address before connecting');
- assert.match(host.querySelector('.cx-summary')!.textContent!,/7 of 13 connected/);
+ assert.match(host.querySelector('.cx-summary')!.textContent!,/7 of 14 connected/);
 
  const back=host.querySelector('.cx-back') as HTMLAnchorElement;
  assert.equal(new URL(back.href).pathname,'/workspace');assert.equal(new URL(back.href).searchParams.get('workspace'),'business-a');

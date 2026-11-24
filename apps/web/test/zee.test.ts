@@ -77,3 +77,18 @@ test('event questions bring in the Zee tool under its own Zee AI permission',()=
  assert.ok(tools.length<=32);assert.ok(tools.some(x=>x.function.name==='zee_events'));
  assert.deepEqual(appsForTool('zee_events',{action:'upcoming'}),['zee']);assert.ok((ACCESS_APPS as readonly string[]).includes('zee'));
 });
+
+test('Connections: Zee AI card reads linked, needs a Zee account, or owner-only',async t=>{
+ const {zeeStatus,CONNECTORS}=await import('../lib/connector-status');const {zeeLinkStatus}=await import('../lib/zee-agent');
+ assert.ok(CONNECTORS.some(c=>c.id==='zee'&&c.group==='Business'));
+ assert.deepEqual(zeeStatus({linked:true,admin:true}),{state:'connected',account:'Zee admin'});
+ assert.equal(zeeStatus({linked:false,reason:'no_zee_account'}).state,'available');
+ assert.equal(zeeStatus({linked:false,reason:'not_owner'}).state,'setup');
+ assert.equal(zeeStatus(null).state,'unavailable');
+ const old=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY='ws-anon';t.after(()=>{if(old===undefined)delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;else process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY=old;});
+ const ok=(async()=>Response.json({jsonrpc:'2.0',id:1,result:{content:[{type:'text',text:JSON.stringify({scope:'All Zee events (admin)',count:0})}]}})) as typeof fetch;
+ assert.deepEqual(await zeeLinkStatus(W,'Bearer s',ok),{linked:true,admin:true});
+ const none=(async()=>Response.json({error:'No confirmed Zee account uses your Workspace email.'},{status:403})) as typeof fetch;
+ assert.deepEqual(await zeeLinkStatus(W,'Bearer s',none),{linked:false,reason:'no_zee_account'});
+ assert.deepEqual(await zeeLinkStatus('',`Bearer s`,ok),{linked:false,reason:'choose_business'});
+});
