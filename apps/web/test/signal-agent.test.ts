@@ -40,3 +40,10 @@ test('task-scoped Signal catalog stays within 32 tools and retains explicitly re
  }
  assert.deepEqual(appsForTool('signal_creative'),['signal']);assert.deepEqual(appsForTool('confirm',{}, {target:'signal'}),['signal']);
 });
+
+test('research forwards an explicit decision and verifies saved project identity',async t=>{
+ setup(t);const decision='Which buyer pain should lead the first campaign?';
+ const net=async(_url:RequestInfo|URL,init?:RequestInit)=>{assert.deepEqual(JSON.parse(String(init?.body)),{workspace:W,action:'research',id:ID,decision});return Response.json({ok:true,scope:{workspace_id:W,client_id:C},receipt:{project_id:ID,run_id:ID,status:'running'}});};
+ const r=await signalAgentAction({...opts,args:{action:'research',id:ID,decision}},net as typeof fetch);assert.match(r.content,/running/);
+ await assert.rejects(signalAgentAction({...opts,args:{action:'research',id:ID,decision:'short'}},net as typeof fetch),/commercial research decision/);
+});
