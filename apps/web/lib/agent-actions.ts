@@ -3,6 +3,7 @@ import {webSearch,searchQuery} from './web-search';
 import {prepareImport,csvImportRows} from './crm/bulk-import';
 import {signalAgentAction} from './signal-agent';
 import {designStudioAction} from './design-studio-agent';
+import {zeeAction} from './zee-agent';
 import {ONYX_ACTION_CAPABILITIES} from './onyx-action-capabilities';
 import {googleAgentAction} from './google-agent';
 import {taskAccessEnabled} from './task-access-config';
@@ -51,6 +52,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
  }
  if(o.name==='signal_creative'||o.confirm?.target==='signal')return signalAgentAction(o);
  if(o.name==='design_studio'||o.confirm?.target==='design')return designStudioAction(o);
+ if(o.name==='zee_events'&&!o.confirm)return zeeAction(o);
  if(o.name.startsWith('google_')||o.name.startsWith('calendar_')||o.confirm?.target==='google'||o.confirm?.target==='calendar')return googleAgentAction(o);
  if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
  if(o.name==='mail_work'&&!o.confirm){

@@ -81,7 +81,7 @@ test('Business OS platforms: Design Studio opens the live studio and Zee AI asks
  const {platforms,DESIGN_STUDIO_URL}=await import('../lib/business-os-platforms');
  assert.equal(DESIGN_STUDIO_URL,'https://www.onixus.xyz/workspace/design-studio');
  assert.equal(platforms.design.action.href,DESIGN_STUDIO_URL);
- assert.equal(platforms.zee.name,'Zee AI');assert.match(platforms.zee.action.href,/^mailto:info@onixus\.xyz/);
+ assert.equal(platforms.zee.name,'Zee AI');assert.equal(platforms.zee.action.href,'https://zeevents.xyz');assert.match(platforms.zee.secondary!.href,/^mailto:info@onixus\.xyz/);
  const {readFileSync}=await import('node:fs');
  assert.match(readFileSync(new URL('../components/business-os-canvas.tsx',import.meta.url),'utf8'),/Onixus Design Studio/);
 });

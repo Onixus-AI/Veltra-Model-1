@@ -34,7 +34,7 @@ const TOOL_CATALOG = [
   { type: "function", function: { name: "supabase_project", description: "Read the selected Supabase project summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
   { type: "function", function: { name: "n8n_project", description: "Read the selected n8n workflow summary.", parameters: { type: "object", properties: {}, additionalProperties: false } } },
 ] as const;
-export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['signal_creative','design_studio','web_search','crm_bulk_import','business_team','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
+export const CHAT_TOOLS=TOOL_CATALOG.filter(tool=>!['signal_creative','design_studio','zee_events','web_search','crm_bulk_import','business_team','mail_send','mail_trash','mail_reply','mail_archive'].includes(tool.function.name));
 
 export function toolsForMessages(messages:{role:string;content?:unknown;tool_calls?:ToolCall[]}[]){
  const userText=messages.filter(m=>m.role==='user'&&typeof m.content==='string').slice(-3).map(m=>m.content).join(' ');
@@ -42,6 +42,7 @@ export function toolsForMessages(messages:{role:string;content?:unknown;tool_cal
  const wanted=[
   'mail_send','mail_trash','mail_reply','mail_archive',
   'signal_creative',
+  ...(/\b(?:zee|events?|wedding|vendors?|venue|planning|planner|timeline|deposit)\b/i.test(userText)||called.has('zee_events')?['zee_events']:[]),
   ...(/\b(?:designs?|designing|fashion|apparel|garments?|clothing|merch|colou?rways?|tech flats?|flat sketch|inspiration|capsule|collection)\b/i.test(userText)||called.has('design_studio')?['design_studio']:[]),
   ...(/\b(?:team|report|schedule|daily|standup|meeting)\b/i.test(userText)||called.has('business_team')?['business_team']:[]),
   ...(/\b(?:web|search|research|find|look up|latest|current)\b/i.test(userText)||called.has('web_search')?['web_search']:[]),
