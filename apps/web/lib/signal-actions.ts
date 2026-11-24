@@ -10,8 +10,8 @@ export function signalAction(input:unknown):SignalAction|null{
  if(x.action==='google'&&['doc','sheet'].includes(String(x.kind))&&typeof x.title==='string'&&x.title.trim().length>0&&x.title.length<=200&&typeof x.content==='string'&&x.content.length<=200000)return {...base,action:x.action,kind:x.kind as 'doc'|'sheet',title:x.title.trim(),content:x.content};
  return null;
 }
-/** Existing Onixus administrator login and its original business have distinct IDs.
- * Only this verified workspace/account pair resolves to that existing brand. Other clients use their linked ID. */
-export function signalBusinessClient(workspace:string,linkedClient:string){
- return workspace==='8350462c-2cca-4541-b299-acbc4c5f1162'&&linkedClient==='cf7fd56a-ef84-48f4-8049-36282dec583b'?'679cae69-806e-4691-9ef3-241a7ab86501':linkedClient;
+/** Every workspace acts on the Signal business it is linked to. Onixus became one
+ * Signal account on 2026-11-24 (Onixus Ai), so the old Onixus remapping is gone. */
+export function signalBusinessClient(_workspace:string,linkedClient:string){
+ return linkedClient;
 }

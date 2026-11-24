@@ -11,9 +11,9 @@ test('Signal actions reject missing tenant identity, arbitrary routes and oversi
  assert.deepEqual(signalAction({...base,action:'signature',signature:' Name ',extra:'discard'}),{...base,action:'signature',signature:'Name'});
  assert.equal(signalAction({...base,action:'google',kind:'sheet',title:'Brand',content:'Field,Value'})?.action,'google');
 });
-test('original Onixus account resolves only for its exact Workspace; other clients stay isolated',()=>{
+test('every workspace acts on its own linked Signal business (Onixus is one account)',()=>{
  const admin='cf7fd56a-ef84-48f4-8049-36282dec583b',workspace='8350462c-2cca-4541-b299-acbc4c5f1162';
- assert.equal(signalBusinessClient(workspace,admin),'679cae69-806e-4691-9ef3-241a7ab86501');
+ assert.equal(signalBusinessClient(workspace,admin),admin);
  assert.equal(signalBusinessClient(id,admin),admin);assert.equal(signalBusinessClient(workspace,client),client);
 });
 test('calendar reminders require a real post ID and parseable date',()=>{
