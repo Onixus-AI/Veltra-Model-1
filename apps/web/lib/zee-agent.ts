@@ -20,6 +20,18 @@ async function workspaceFor(o:Options){
  return workspace;
 }
 
+/** Asks the Zee connector whether this business is linked. Never throws for expected answers. */
+export async function zeeLinkStatus(workspace:string,authorization:string,net:typeof fetch=fetch){
+ if(!uuid(workspace))return {linked:false,reason:'choose_business'};
+ const key=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;if(!key)return {linked:false,reason:'unavailable'};
+ const r=await net(ZEE_MCP_URL,{method:'POST',headers:{Authorization:authorization,'x-workspace-public-key':key,'x-workspace-id':workspace,'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'list_events',arguments:{}}}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(15000)}).catch(()=>null);
+ if(!r)return {linked:false,reason:'unavailable'};
+ const data=await r.json().catch(()=>null);
+ if(r.ok&&!data?.result?.isError){let scope='';try{scope=String(JSON.parse(data.result.content[0].text).scope??'');}catch{}return {linked:true,admin:scope.includes('admin')};}
+ const error=String(data?.error??'');
+ return {linked:false,reason:/No confirmed Zee account/.test(error)?'no_zee_account':/business owner/.test(error)?'not_owner':/Choose a business/.test(error)?'choose_business':'unavailable'};
+}
+
 export async function zeeAction(o:Options,net:typeof fetch=fetch):Promise<ToolOutcome>{
  const action=String(o.args.action??'upcoming') as Action;
  if(!(action in ACTIONS))throw Error('400:Use list_events, event_overview or upcoming.');

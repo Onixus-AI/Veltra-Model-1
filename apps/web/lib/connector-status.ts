@@ -6,7 +6,7 @@ export type ConnectorState = "checking" | "connected" | "available" | "setup" | 
 export type ConnectorGroup = "Email & calendar" | "Files" | "Build & deploy" | "Research" | "Business";
 export type ConnectorId =
   | "gmail" | "mail" | "calendar" | "drive" | "github" | "vercel" | "supabase" | "n8n"
-  | "firecrawl" | "crm" | "shopify" | "signal" | "bee";
+  | "firecrawl" | "crm" | "shopify" | "signal" | "bee" | "zee";
 
 export type Connector = {
   id: ConnectorId;
@@ -31,6 +31,7 @@ export const CONNECTORS: Connector[] = [
   { id: "crm", name: "Onixus CRM", logo: "Onixus CRM", group: "Business", description: "Customers, deals, tasks and campaigns beside Chat." },
   { id: "shopify", name: "Shopify", logo: "Shopify", group: "Business", description: "Store catalog and reviewed product edits." },
   { id: "signal", name: "Signal", logo: "Signal", group: "Business", description: "Your linked marketing business inside Workspace." },
+  { id: "zee", name: "Zee AI", logo: "Zee AI", group: "Business", description: "Event planning: Onyx reads your Zee events, tasks, vendors and budgets." },
   { id: "bee", name: "LiveAskew / Bee", logo: "LiveAskew / Bee", group: "Business", description: "Your stylist, saved looks and Honey calendar." },
 ];
 
@@ -104,6 +105,16 @@ export function signalStatus(raw: Raw, business: string): ConnectorStatus {
   return rows.some((r) => r && typeof r === "object" && (r as Raw)!.workspace_id === business && business)
     ? { state: "connected" }
     : { state: "available" };
+}
+
+/** Zee links by matching your verified Workspace email to a confirmed Zee login; there is no separate sign-in. */
+export function zeeStatus(raw: Raw): ConnectorStatus {
+  if (!raw || typeof raw.linked !== "boolean") return { state: "unavailable" };
+  if (raw.linked) return { state: "connected", account: raw.admin === true ? "Zee admin" : "Zee planner" };
+  if (raw.reason === "no_zee_account") return { state: "available", note: "Sign up on Zee with this same email, then check again." };
+  if (raw.reason === "choose_business") return { state: "setup", note: "Choose your business first." };
+  if (raw.reason === "not_owner") return { state: "setup", note: "Only the business owner can link Zee." };
+  return { state: "unavailable" };
 }
 
 export function includedStatus(raw: Raw, key: string): ConnectorStatus {
