@@ -76,3 +76,10 @@ test('design requests bring the tool into the 32-tool catalog and ask under the 
  assert.deepEqual(appsForTool('design_studio',{action:'context'}),['signal']);
  assert.deepEqual(appsForTool('design_studio',{},{target:'design'}),['signal']);
 });
+
+test('Business OS shows an Onixus Design Studio link to the live studio',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const src=readFileSync(new URL('../components/business-os-canvas.tsx',import.meta.url),'utf8');
+ assert.match(src,/https:\/\/www\.onixus\.xyz\/workspace\/design-studio/);
+ assert.match(src,/Onixus Design Studio/);
+});
