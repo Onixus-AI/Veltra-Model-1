@@ -45,7 +45,7 @@ const icons = {
   tms: Truck,
   calendar: CalendarDays,
   signal: Radio,
-  zee: CalendarDays,
+  zee: ZeeMark,
   design: Shirt,
   bee: Sparkles,
   files: FolderOpen,
@@ -56,6 +56,10 @@ const icons = {
   connections: Plug,
   settings: Settings,
 };
+/** Zee AI uses its own logo in the menu; the other platforms use line icons. */
+function ZeeMark({ size = 18 }: { size?: number }) {
+  return <img src="/brands/zee.png" alt="" width={size} height={size} style={{ borderRadius: 4 }} />;
+}
 const isBusinessOs = (id: WorkspaceToolId) => (businessOsTools as readonly string[]).includes(id);
 const isCore = (id: WorkspaceToolId) => (coreTools as readonly string[]).includes(id);
 
