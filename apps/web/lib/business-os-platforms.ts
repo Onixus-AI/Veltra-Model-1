@@ -18,9 +18,10 @@ export const platforms: Record<PlatformId, Platform> = {
     name: 'Zee AI',
     logo: 'Zee AI',
     tagline: 'Business OS · Event planning',
-    description: 'Plan events with tasks, vendors, budgets and timelines in one place. Built on the platform behind Zee Event Planning.',
-    action: {label: 'Request access', href: 'mailto:info@onixus.xyz?subject=Zee%20AI%20access'},
-    steps: ['Request access and tell us about your events business.', 'Onixus sets up your event workspace on the Zee AI platform.', 'Plan events here and let Onyx keep tasks and vendors moving.'],
+    description: 'Plan events with tasks, vendors, budgets and timelines in one place. Onyx reads your Zee events, so you can ask what is due, which vendors owe a balance and how each budget stands.',
+    action: {label: 'Open Zee ↗', href: 'https://zeevents.xyz'},
+    secondary: {label: 'Request access', href: 'mailto:info@onixus.xyz?subject=Zee%20AI%20access'},
+    steps: ['Use the same email for Zee and for Workspace.', 'Open Onyx in this business and ask: What is due on my events this week?', 'New to Zee? Request access and Onixus sets up your event workspace.'],
   },
   design: {
     id: 'design',
