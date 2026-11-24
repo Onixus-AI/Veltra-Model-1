@@ -4,6 +4,8 @@ export const APP_NAMES:Record<AccessApp,string>={mail:'Onixus Mail',crm:'Onixus 
 export function appsForTool(name:string,args:Record<string,unknown>={},confirm?:{target?:string}):AccessApp[]{
  if(name==='business_team')return ['crm'];
  if(name==='signal_creative'||confirm?.target==='signal')return ['signal'];
+ // Design Studio uses the same verified Signal business link, so it asks under Signal.
+ if(name==='design_studio'||confirm?.target==='design')return ['signal'];
  if(confirm?.target==='google'||confirm?.target==='calendar')return [confirm.target];
  if(name.startsWith('brand_'))return ['brand'];
  if(name.startsWith('google_'))return ['google'];if(name.startsWith('calendar_'))return ['calendar'];

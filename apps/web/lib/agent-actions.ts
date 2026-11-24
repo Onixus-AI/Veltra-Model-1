@@ -2,6 +2,7 @@ import {businessTeamAction} from './business-team/agent';
 import {webSearch,searchQuery} from './web-search';
 import {prepareImport,csvImportRows} from './crm/bulk-import';
 import {signalAgentAction} from './signal-agent';
+import {designStudioAction} from './design-studio-agent';
 import {ONYX_ACTION_CAPABILITIES} from './onyx-action-capabilities';
 import {googleAgentAction} from './google-agent';
 import {taskAccessEnabled} from './task-access-config';
@@ -30,7 +31,7 @@ export async function agentScope(client:SupabaseClient,user:string,context:Agent
  return scope;
 }
 /** One authenticated execution path for model tools. The model never supplies identity, table or destination. */
-export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail'|'google'|'calendar'|'signal';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
+export async function agentAction(o:{client:SupabaseClient;user:string;scope:BrainScope;name:string;args:Record<string,unknown>;authorization:string;mailOrigin?:string;confirm?:{target:'crm'|'brain'|'mail'|'google'|'calendar'|'signal'|'design';id:string};app?:'chat'|'mail'|'crm';appAccess?:(apps:AccessApp[])=>Promise<void>}):Promise<ToolOutcome>{
  const {client,user,scope,args}=o,app=o.app??'chat';
  if(o.name==='web_search'&&!o.confirm){
   const query=searchQuery(args.query);if(!process.env.FIRECRAWL_API_KEY)throw Error('503:Web search is not configured.');
@@ -49,6 +50,7 @@ export async function agentAction(o:{client:SupabaseClient;user:string;scope:Bra
   }
  }
  if(o.name==='signal_creative'||o.confirm?.target==='signal')return signalAgentAction(o);
+ if(o.name==='design_studio'||o.confirm?.target==='design')return designStudioAction(o);
  if(o.name.startsWith('google_')||o.name.startsWith('calendar_')||o.confirm?.target==='google'||o.confirm?.target==='calendar')return googleAgentAction(o);
  if(o.name==='browser_inspect'&&!o.confirm)return inspectBrowserPage({user,url:args.url});
  if(o.name==='mail_work'&&!o.confirm){
