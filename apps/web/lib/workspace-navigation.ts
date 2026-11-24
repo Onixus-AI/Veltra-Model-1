@@ -1,7 +1,9 @@
 /** Shared navigation metadata. No React, browser storage, or authorization logic. */
-/** The business tools, shown together under "Business OS" in the menu. TMS is not a separate
- * menu choice: it shows wherever Mail does (see withTms), so saved menus get it too. */
-export const businessOsTools = ["crm", "mail", "tms", "calendar", "signal"] as const;
+/** Everyday Workspace tools, grouped under "Workspace" in the menu. */
+export const coreTools = ["crm", "mail", "calendar"] as const;
+/** Business OS: finished Onixus platforms other entrepreneurs use from Workspace. They are always
+ * listed in this order and are not saved menu choices, so saved menus get new platforms too. */
+export const businessOsTools = ["tms", "zee", "design", "bee", "signal"] as const;
 export const workspaceTools = [
   { id: "overview", label: "Overview", path: "/workspace" },
   { id: "pathway", label: "Build & Growth", path: "/workspace/build" },
@@ -12,6 +14,9 @@ export const workspaceTools = [
   { id: "tms", label: "TMS", path: "/", canvas: "tms" },
   { id: "calendar", label: "Calendar", path: "/", canvas: "calendar" },
   { id: "signal", label: "Signal", path: "/", canvas: "signal" },
+  { id: "zee", label: "Zee AI", path: "/workspace/platforms/zee" },
+  { id: "design", label: "Design Studio", path: "/workspace/platforms/design" },
+  { id: "bee", label: "LiveAskew / Bee", path: "/workspace/platforms/bee" },
   { id: "files", label: "Docs & Sheets", path: "/workspace/files" },
   { id: "websites", label: "Websites", path: "/websites" },
   { id: "build", label: "Super Coder", path: "/", canvas: "build" },
@@ -83,7 +88,6 @@ export const defaultWorkspacePreferences: WorkspacePreferences = {
     "crm",
     "mail",
     "calendar",
-    "signal",
     "files",
     "websites",
   ],
@@ -115,12 +119,4 @@ export function readWorkspacePreferences(value: unknown): WorkspacePreferences {
         : defaultWorkspacePreferences.name,
     tools,
   };
-}
-
-/** TMS sits right after Mail in the menu; it follows Mail rather than being saved on its own. */
-export function withTms(tools: readonly WorkspaceToolId[]): WorkspaceToolId[] {
-  const list: WorkspaceToolId[] = tools.filter((id) => id !== "tms");
-  const at = list.indexOf("mail");
-  if (at >= 0) list.splice(at + 1, 0, "tms");
-  return list;
 }

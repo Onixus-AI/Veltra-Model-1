@@ -77,9 +77,11 @@ test('design requests bring the tool into the 32-tool catalog and ask under the 
  assert.deepEqual(appsForTool('design_studio',{},{target:'design'}),['signal']);
 });
 
-test('Business OS shows an Onixus Design Studio link to the live studio',async()=>{
+test('Business OS platforms: Design Studio opens the live studio and Zee AI asks for access',async()=>{
+ const {platforms,DESIGN_STUDIO_URL}=await import('../lib/business-os-platforms');
+ assert.equal(DESIGN_STUDIO_URL,'https://www.onixus.xyz/workspace/design-studio');
+ assert.equal(platforms.design.action.href,DESIGN_STUDIO_URL);
+ assert.equal(platforms.zee.name,'Zee AI');assert.match(platforms.zee.action.href,/^mailto:info@onixus\.xyz/);
  const {readFileSync}=await import('node:fs');
- const src=readFileSync(new URL('../components/business-os-canvas.tsx',import.meta.url),'utf8');
- assert.match(src,/https:\/\/www\.onixus\.xyz\/workspace\/design-studio/);
- assert.match(src,/Onixus Design Studio/);
+ assert.match(readFileSync(new URL('../components/business-os-canvas.tsx',import.meta.url),'utf8'),/Onixus Design Studio/);
 });
