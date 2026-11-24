@@ -79,7 +79,7 @@ test('design requests bring the tool into the 32-tool catalog and ask under the 
 
 test('Business OS platforms: Design Studio opens the live studio and Zee AI asks for access',async()=>{
  const {platforms,DESIGN_STUDIO_URL}=await import('../lib/business-os-platforms');
- assert.equal(DESIGN_STUDIO_URL,'https://www.onixus.xyz/workspace/design-studio');
+ assert.equal(DESIGN_STUDIO_URL,'/workspace/signal?open=design-studio');
  assert.equal(platforms.design.action.href,DESIGN_STUDIO_URL);
  assert.equal(platforms.zee.name,'Zee AI');assert.equal(platforms.zee.action.href,'https://zeevents.xyz');assert.match(platforms.zee.secondary!.href,/^mailto:info@onixus\.xyz/);
  const {readFileSync}=await import('node:fs');

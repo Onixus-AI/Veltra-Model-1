@@ -11,7 +11,8 @@ export type Platform = {
   secondary?: {label: string; href: string};
   steps: string[];
 };
-export const DESIGN_STUDIO_URL = 'https://www.onixus.xyz/workspace/design-studio';
+// Design Studio opens inside Signal in Onixus Workspace, not in a separate onixus.xyz tab.
+export const DESIGN_STUDIO_URL = '/workspace/signal?open=design-studio';
 export const platforms: Record<PlatformId, Platform> = {
   zee: {
     id: 'zee',
@@ -29,7 +30,7 @@ export const platforms: Record<PlatformId, Platform> = {
     logo: 'Design Studio',
     tagline: 'Business OS · Fashion and brand design',
     description: 'Design clothing, accessories and merch from your inspiration images: concepts, tech flats and colourways in your brand palette.',
-    action: {label: 'Open Design Studio ↗', href: DESIGN_STUDIO_URL},
+    action: {label: 'Open Design Studio', href: DESIGN_STUDIO_URL},
     steps: ['Open the studio and create a project.', 'Add up to 12 inspiration images.', 'Design concepts, tech flats or colourways. Onyx can check your projects and allowance here.'],
   },
   bee: {
