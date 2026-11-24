@@ -6,6 +6,7 @@ const brandAssets: Record<string, string> = {
   "Onixus TMS": "onixus-tms-gold.png",
   "Veltra Mail": "onixus-mail-icon-v2.png", "Veltra CRM": "onixus-crm-icon-v2.png", "Onixus Mail": "onixus-mail-icon-v2.png", "Onixus CRM": "onixus-crm-icon-v2.png",
   "LiveAskew / Bee": "liveaskew.png",
+  "Zee AI": "zee.png",
   GitHub: "github.svg", Vercel: "vercel.svg", Supabase: "supabase.svg",
   n8n: "n8n.svg", Gmail: "gmail.png",
   "Google Docs": "googledocs.png", "Google Sheets": "googlesheets.png",
@@ -19,7 +20,7 @@ const brandAssets: Record<string, string> = {
 };
 const workspaceIcons = {
   Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
-  Barber: Scissors, "Community Manager": Users, "Design Studio": Shirt, "Zee AI": CalendarDays,
+  Barber: Scissors, "Community Manager": Users, "Design Studio": Shirt,
   "Custom MCP Server": Plug, Firecrawl: Flame,
 };
 
