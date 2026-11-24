@@ -13,14 +13,16 @@ export async function signalAgentAction(o:Options,net:typeof fetch=fetch):Promis
  const key=process.env.SIGNAL_SUPABASE_PUBLISHABLE_KEY,workspaceKey=process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
  if(!key||!workspaceKey)throw Error('503:Signal bridge is not configured.');
  const args=o.args;
- if(!o.confirm&&Object.keys(args).some(k=>!['action','brief','id'].includes(k)))throw Error('400:Unsupported Signal arguments.');
+ if(!o.confirm&&Object.keys(args).some(k=>!['action','brief','id','decision'].includes(k)))throw Error('400:Unsupported Signal arguments.');
  const action=o.confirm?'generate':String(args.action??'context');
- if(!['context','library','production','advance_queue','propose','result','generate'].includes(action)||(!o.confirm&&action==='generate'))throw Error('400:Use a reviewed Signal proposal before generation.');
- const id=o.confirm?.id??args.id;if(['result','generate','advance_queue'].includes(action)&&!uuid(id))throw Error('400:Choose a returned Signal request or queue ID.');
- const r=await net('https://rjwbfkuzgusaoizcmmgf.supabase.co/functions/v1/workspace-signal-creative',{method:'POST',headers:{Authorization:o.authorization,apikey:key,'x-workspace-public-key':workspaceKey,'Content-Type':'application/json'},body:JSON.stringify({workspace,action,...(action==='propose'?{brief:args.brief}:{}),...(['result','generate','advance_queue'].includes(action)?{id}:{}),...(o.confirm?{confirmed:true}:{})}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(['generate','advance_queue'].includes(action)?180000:20000)});
+ if(!['context','library','production','research','advance_queue','propose','result','generate'].includes(action)||(!o.confirm&&action==='generate'))throw Error('400:Use a reviewed Signal proposal before generation.');
+ const id=o.confirm?.id??args.id;if(['result','generate','advance_queue','research'].includes(action)&&!uuid(id))throw Error('400:Choose a returned Signal request or queue ID.');
+ if(action==='research'&&(typeof args.decision!=='string'||args.decision.trim().length<20||args.decision.length>500))throw Error('400:Define one commercial research decision.');
+ const r=await net('https://rjwbfkuzgusaoizcmmgf.supabase.co/functions/v1/workspace-signal-creative',{method:'POST',headers:{Authorization:o.authorization,apikey:key,'x-workspace-public-key':workspaceKey,'Content-Type':'application/json'},body:JSON.stringify({workspace,action,...(action==='propose'?{brief:args.brief}:{}),...(action==='research'?{decision:args.decision}:{}),...(['result','generate','advance_queue','research'].includes(action)?{id}:{}),...(o.confirm?{confirmed:true}:{})}),cache:'no-store',redirect:'error',signal:AbortSignal.timeout(['generate','advance_queue'].includes(action)?180000:20000)});
  const data=await r.json().catch(()=>null);
  if(!r.ok||!data?.ok||data.scope?.workspace_id!==workspace||!uuid(data.scope?.client_id))throw Error(`${[400,401,402,403,404,409].includes(r.status)?r.status:503}:${data?.error??'Signal returned no verified receipt. Use result with the request ID before retrying.'}`);
  if(['generate','result'].includes(action)&&data.receipt?.request_id!==id)throw Error('503:Signal returned a different creative request.');
+ if(action==='research'&&(data.receipt?.project_id!==id||!uuid(data.receipt?.run_id)))throw Error('503:Signal returned a different research project.');
  if(action==='advance_queue'&&(data.receipt?.queue_id!==id||data.receipt?.queue?.id!==id))throw Error('503:Signal returned a different production queue item. Check the selected item before retrying.');
  if(action==='propose'){
   if(!uuid(data.receipt?.request_id)||data.receipt.status!=='proposed')throw Error('503:Signal returned no saved proposal.');
