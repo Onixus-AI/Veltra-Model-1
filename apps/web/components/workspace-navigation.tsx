@@ -20,11 +20,13 @@ import {
   ArrowUp,
   ArrowDown,
   Truck,
+  Shirt,
+  Sparkles,
 } from "lucide-react";
 import {
   workspaceTools,
   businessOsTools,
-  withTms,
+  coreTools,
   workspaceHref,
   readWorkspacePreferences,
   type WorkspacePreferences,
@@ -43,6 +45,9 @@ const icons = {
   tms: Truck,
   calendar: CalendarDays,
   signal: Radio,
+  zee: CalendarDays,
+  design: Shirt,
+  bee: Sparkles,
   files: FolderOpen,
   websites: Globe,
   build: Code2,
@@ -52,6 +57,7 @@ const icons = {
   settings: Settings,
 };
 const isBusinessOs = (id: WorkspaceToolId) => (businessOsTools as readonly string[]).includes(id);
+const isCore = (id: WorkspaceToolId) => (coreTools as readonly string[]).includes(id);
 
 export default function WorkspaceNavigation({
   business = "",
@@ -92,12 +98,14 @@ export default function WorkspaceNavigation({
       return { ...previous, tools };
     });
   }
-  const visible = withTms(preferences.tools);
+  // Business OS platforms are always listed in their own group, never from saved choices.
+  const visible: WorkspaceToolId[] = preferences.tools.filter((id) => !isBusinessOs(id));
   // An open tool remains reachable even when it isn't pinned.
   if (
     active &&
     !["connections", "settings"].includes(active) &&
-    !visible.includes(active)
+    !visible.includes(active) &&
+    !isBusinessOs(active)
   )
     visible.push(active);
   function item(id: WorkspaceToolId) {
@@ -131,13 +139,17 @@ export default function WorkspaceNavigation({
     <>
       <nav className="workspace-tool-navigation" aria-label="Workspace tools">
         <span className="workspace-navigation-name">{preferences.name}</span>
-        {visible.filter((id) => !isBusinessOs(id)).map(item)}
-        {visible.some(isBusinessOs) && (
-          <div className="workspace-navigation-group" role="group" aria-label="Business OS">
-            <span className="workspace-navigation-group-name">Business OS</span>
-            {visible.filter(isBusinessOs).map(item)}
+        {visible.filter((id) => !isCore(id)).map(item)}
+        {visible.some(isCore) && (
+          <div className="workspace-navigation-group" role="group" aria-label="Workspace">
+            <span className="workspace-navigation-group-name">Workspace</span>
+            {visible.filter(isCore).map(item)}
           </div>
         )}
+        <div className="workspace-navigation-group" role="group" aria-label="Business OS">
+          <span className="workspace-navigation-group-name">Business OS</span>
+          {businessOsTools.map(item)}
+        </div>
         <div className="workspace-navigation-settings">
           {item("connections")}
           {item("settings")}
@@ -195,7 +207,7 @@ export default function WorkspaceNavigation({
         <fieldset>
           <legend>Tools in your navigation</legend>
           {[
-            ...draft.tools,
+            ...draft.tools.filter((id) => !isBusinessOs(id)),
             ...workspaceTools
               .map((tool) => tool.id)
               .filter(
@@ -203,7 +215,7 @@ export default function WorkspaceNavigation({
                   !draft.tools.includes(id) &&
                   id !== "connections" &&
                   id !== "settings" &&
-                  id !== "tms", // TMS follows Mail; it is not a separate choice
+                  !isBusinessOs(id), // Business OS platforms are always listed
               ),
           ].map((id) => {
             const tool = workspaceTools.find((tool) => tool.id === id)!,

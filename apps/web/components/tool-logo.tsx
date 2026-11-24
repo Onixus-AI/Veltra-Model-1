@@ -19,7 +19,7 @@ const brandAssets: Record<string, string> = {
 };
 const workspaceIcons = {
   Dispatcher: Truck, "Event Planning": CalendarDays, Stylist: Sparkles,
-  Barber: Scissors, "Community Manager": Users, "Design Studio": Shirt,
+  Barber: Scissors, "Community Manager": Users, "Design Studio": Shirt, "Zee AI": CalendarDays,
   "Custom MCP Server": Plug, Firecrawl: Flame,
 };
 
