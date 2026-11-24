@@ -4,6 +4,7 @@ import { Fragment, FormEvent, ReactNode, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { browserSupabase } from "@/lib/supabase";
+import { onixusSignInUrl } from "@/lib/onixus-signin";
 
 export default function AuthGate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -20,6 +21,8 @@ export default function AuthGate({ children }: { children: ReactNode }) {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Onixus is the one login. The Workspace password form is only for Onixus staff and invited team members.
+  const [teamSignIn, setTeamSignIn] = useState(false);
 
   useEffect(() => {
     const recoveryPending = window.location.hash.includes("type=recovery") || sessionStorage.getItem("veltra-password-recovery") === "1";
@@ -109,6 +112,11 @@ export default function AuthGate({ children }: { children: ReactNode }) {
     } finally { setBusy(false); }
   }
 
+  function continueWithOnixus() {
+    setBusy(true); setError("");
+    window.location.assign(onixusSignInUrl(window.location.origin, window.sessionStorage));
+  }
+
   if (publicPage) return <>{children}</>;
   if (!ready) return <main className="auth-page"><p role="status">Opening your workspace…</p></main>;
   if (userId && !recovering) return <Fragment key={userId}>{children}</Fragment>;
@@ -118,7 +126,10 @@ export default function AuthGate({ children }: { children: ReactNode }) {
         <img className="auth-logo" src="/veltra-logo.png" alt="Onixus Workspace" />
         <span className="eyebrow">ONIXUS WORKSPACE</span>
         <h1>{recovering ? "Choose a new password." : resetMode ? "Reset your password." : "Welcome back."}</h1>
-        <p>{recovering ? "Enter and confirm your new Onixus Workspace password." : resetMode ? "We’ll email you a link to reset your Onixus Workspace password." : "Sign in once to open Chat, Mail and CRM."}</p>
+        <p>{recovering ? "Enter and confirm your new Onixus Workspace password." : resetMode ? "We’ll email you a link to reset your Onixus Workspace password." : "Sign in with your Onixus account to open Chat, Mail and CRM."}</p>
+        {!recovering && !resetMode && pathname !== "/workspace/join" && <button type="button" className="auth-primary" disabled={busy} onClick={continueWithOnixus}>Continue with Onixus</button>}
+        {!recovering && !resetMode && pathname !== "/workspace/join" && !teamSignIn && <button type="button" className="auth-secondary" onClick={() => setTeamSignIn(true)}>Onixus team or invited team member? Sign in here</button>}
+        {(teamSignIn || recovering || resetMode || pathname === "/workspace/join") && <>
         {!recovering && <>
         <label htmlFor="login-email">Email</label>
         <input id="login-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} required />
@@ -135,13 +146,14 @@ export default function AuthGate({ children }: { children: ReactNode }) {
           <input id="confirm-password" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} />
         </>}
         </>}
-        {notice && <p role="status">{notice}</p>}
-        {error && <p role="alert">{error}</p>}
         <button type="submit" disabled={busy || !browserSupabase()}>{busy ? "Please wait…" : recovering ? "Save new password" : resetMode ? "Send reset link" : "Sign in"}</button>
         {pathname === "/workspace/join" && process.env.NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED === "true" && !recovering && !resetMode && <button type="button" disabled={busy} onClick={() => void invitationSignIn()}>Email me a sign-in link</button>}
         {pathname === "/workspace/join" && !recovering && !resetMode && process.env.NEXT_PUBLIC_CLIENT_EMAIL_SIGNIN_ENABLED !== "true" && <p>{googleEnabled ? "Use Continue with Google with the email your agency invited. You do not need an existing Workspace password." : "Client sign-in is not configured yet. Ask your agency to enable a verified sign-in provider."}</p>}
         {!recovering && !resetMode && googleEnabled && <button type="button" disabled={busy} onClick={() => void signInWithGoogle()}>Continue with Google</button>}
         {!recovering && <button type="button" disabled={busy} onClick={() => { setResetMode(!resetMode); setError(""); setNotice(""); setPassword(""); }}>{resetMode ? "Back to sign in" : "Forgot password?"}</button>}
+        </>}
+        {notice && <p role="status">{notice}</p>}
+        {error && <p role="alert">{error}</p>}
         <nav className="auth-legal" aria-label="Legal and help"><Link href="/eula">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/docs">Docs</Link><Link href="/support">Support</Link></nav>
       </form>
     </main>

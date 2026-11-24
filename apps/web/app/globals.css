@@ -589,3 +589,6 @@ body,.workspace.unified-workspace{background:var(--veltra-bg);color:var(--veltra
 .cx-page :is(button,a,input,select):focus-visible{outline:2px solid #c86bff;outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.cx-card,.cx-meter:after{transition:none}.cx-spin,.cx-skeleton{animation:none}}
 @media (max-width:760px){.cx-header{grid-template-columns:1fr;gap:16px}.cx-summary{justify-content:space-between}.cx-toolbar{flex-direction:column;align-items:stretch}.cx-search{flex:auto}.cx-grid{grid-template-columns:1fr}}
+
+.auth-page .auth-card button.auth-primary { background: #c86bff; color: #000; border: 0; }
+.auth-page .auth-card button.auth-secondary { border: 0; font-weight: 500; }
