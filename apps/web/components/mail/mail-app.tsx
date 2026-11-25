@@ -135,7 +135,7 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
     setOpen(id); setThread(null); setCrm(null); setImages(false); setError("");
     try {
       const r = await call<{thread: Thread; crm: Crm}>({action: "thread", id});
-      setThread(r.thread); setCrm(r.crm);
+      setThread(r.thread); setCrm(r.crm ?? {unavailable: true});
       setCrmForm({company: "", email: r.thread.messages[r.thread.messages.length - 1]?.from ?? ""});
       if (r.thread.messages.some(m => m.unread)) { void call({}, {action: "act", id, op: "read"}).catch(() => undefined); setRows(rs => rs?.map(x => x.id === id ? {...x, unread: false} : x) ?? rs); }
     } catch (e) { report(e); setOpen(null); }
@@ -150,7 +150,7 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
       await call({}, {...body, thread_id: thread.id, subject: thread.subject});
       say(done);
       const r = await call<{thread: Thread; crm: Crm}>({action: "thread", id: thread.id});
-      setThread(r.thread); setCrm(r.crm);
+      setThread(r.thread); setCrm(r.crm ?? {unavailable: true});
     } catch (e) { report(e); } finally { setBusy(false); }
   };
 

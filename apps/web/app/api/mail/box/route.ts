@@ -140,8 +140,10 @@ export async function POST(request: NextRequest) {
       const thread = b.thread_id as string, account = access.account_id, subject = text(b.subject, 500) ?? '(no subject)';
       if (b.action === 'crm_link') {
         if (b.customer_id != null && !(typeof b.customer_id === 'string' && UUID.test(b.customer_id))) return Response.json({error: 'Choose a valid customer.'}, {status: 400});
+        const email = text(b.email, 320);
+        if (email && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email)) return Response.json({error: 'Enter a valid email address.'}, {status: 400});
         const {data, error} = await client.rpc('mail_thread_link_customer', {p_workspace: workspace, p_account: account, p_thread_id: thread, p_subject: subject,
-          p_customer_id: (b.customer_id as string | undefined) ?? null, p_company: text(b.company, 200), p_email: text(b.email, 320)});
+          p_customer_id: (b.customer_id as string | undefined) ?? null, p_company: text(b.company, 200), p_email: email});
         if (error) throw new Error(error.message);
         return json(data);
       }
