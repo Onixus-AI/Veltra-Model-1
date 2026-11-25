@@ -29,8 +29,9 @@ export default function MailCanvas({ onClose }: { onClose: () => void }) {
     void launch();
     return () => { active = false; };
   }, [attempt]);
-  if (error && !workspace) return <section className="mail-canvas"><div className="mail-canvas-state" role="alert"><h2>Open your Mail workspace</h2><p>{error}</p><Link href="/settings/connections">Manage Google connection</Link><button onClick={() => setAttempt(value => value + 1)}>Try again</button><button onClick={onClose}>Back to canvas</button></div></section>;
-  if (!workspace) return <section className="mail-canvas"><div className="mail-canvas-state" role="status">Opening Onixus Mail…</div></section>;
+  const header = <header><div><img src="/brands/onixus-mail-icon-v2.png" width={24} height={24} alt="Onixus Mail logo" style={{ objectFit: "contain" }} /><span className="mail-status-dot" /> <strong>Onixus Mail</strong><span className="mail-canvas-caption">Your Mail workspace</span></div><div><Link href="/settings/connections">Connections</Link><button onClick={() => setAttempt(value => value + 1)}>Reload Mail</button><button onClick={onClose}>Back to canvas</button></div></header>;
+  if (error && !workspace) return <section className="mail-canvas">{header}<div className="mail-canvas-state" role="alert"><h2>Open your Mail workspace</h2><p>{error}</p><Link href="/settings/connections">Manage Google connection</Link><button onClick={() => setAttempt(value => value + 1)}>Try again</button></div></section>;
+  if (!workspace) return <section className="mail-canvas">{header}<div className="mail-canvas-state" role="status">Opening Onixus Mail…</div></section>;
   if (settings) return <section className="mail-canvas">
     <header><div><img src="/brands/onixus-mail-icon-v2.png" width={24} height={24} alt="" style={{ objectFit: "contain" }} /><strong>Onixus Mail</strong><span className="mail-canvas-caption">Employee settings: rules, rates, outreach and sender names</span></div><div><button onClick={() => setSettings(false)}>Back to Mail</button><button onClick={onClose}>Back to canvas</button></div></header>
     <iframe title="Onixus Mail employee settings" src={`/revenue?view=mail&w=${encodeURIComponent(workspace)}`} sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-top-navigation-by-user-activation" />
