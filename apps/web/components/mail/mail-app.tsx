@@ -15,6 +15,11 @@ type Row = {id: string; from: string; fromName: string; subject: string; snippet
 type Msg = {id: string; from: string; fromName: string; to: string; cc: string; at: string; subject: string; text: string; html: string | null; messageIdHeader: string | null; references: string | null; unread: boolean; attachments: {id: string; filename: string; mimeType: string; size: number}[]};
 type Thread = {id: string; subject: string; labels: string[]; starred: boolean; messages: Msg[]};
 type Label = {id: string; name: string; unread: number; type: "system" | "user"};
+type CrmDeal = {id: string; title: string; stage: string; value_cents: number | null; currency: string | null};
+type CrmContext = {customer: {id: string; company: string; email: string | null} | null; deals: CrmDeal[];
+  thread: {thread_id: string; subject: string; customer_id: string | null; quote_outcome: {status: string; reason: string} | null} | null};
+type Crm = CrmContext | {unavailable: true} | null;
+const money = (cents: number | null, currency: string | null) => cents == null ? "" : new Intl.NumberFormat([], {style: "currency", currency: currency || "USD"}).format(cents / 100);
 type Plan = {action: string; headline?: string; purpose?: string; needs_review?: boolean; unsubscribe?: boolean; quote_check?: string; quote_note?: string};
 type Work = {id: string; thread_id: string; from_email: string; from_name: string | null; subject: string; category: string | null; summary: string; priority: string; needs_owner: boolean; owner_reason: string | null; plan: Plan | null; draft: string | null; status: string; created_at: string};
 type Draft = {key: string; to: string; cc: string; bcc: string; subject: string; body: string; threadId: string | null; inReplyTo: string | null; references: string | null; showCc: boolean; mode: "new" | "reply" | "forward"};
@@ -45,7 +50,10 @@ function EmailBody({m, images}: {m: Msg; images: boolean}) {
   const doc = useMemo(() => {
     if (!m.html) return "";
     const img = images ? "data: cid: https: http:" : "data: cid:";
-    return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' https:; font-src https: data:; img-src ${img}">`
+    // Remote stylesheets and fonts are remote content too: they wait for "Show images" like pictures do.
+    const style = images ? "'unsafe-inline' https:" : "'unsafe-inline'";
+    const font = images ? "https: data:" : "data:";
+    return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${style}; font-src ${font}; img-src ${img}">`
       + `<base target="_blank"><style>body{margin:0;padding:16px;font:14px/1.55 Arial,Helvetica,sans-serif;color:#202124;background:#fff;word-break:break-word}img{max-width:100%;height:auto}</style></head><body>${m.html}</body></html>`;
   }, [m.html, images]);
   const fit = () => { const d = frame.current?.contentDocument; if (frame.current && d?.body) frame.current.style.height = Math.min(Math.max(d.documentElement.scrollHeight, 80), 20000) + "px"; };
@@ -69,6 +77,9 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<string | null>(null);
   const [thread, setThread] = useState<Thread | null>(null);
+  const [crm, setCrm] = useState<Crm>(null);
+  const [crmForm, setCrmForm] = useState({company: "", email: ""});
+  const [crmTask, setCrmTask] = useState({title: "", due: ""});
   const [images, setImages] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [edits, setEdits] = useState<Record<string, string>>({});
@@ -121,14 +132,27 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
   }, [open, pages.length, loadList, loadWork]);
 
   const openThread = useCallback(async (id: string) => {
-    setOpen(id); setThread(null); setImages(false); setError("");
+    setOpen(id); setThread(null); setCrm(null); setImages(false); setError("");
     try {
-      const r = await call<{thread: Thread}>({action: "thread", id});
-      setThread(r.thread);
+      const r = await call<{thread: Thread; crm: Crm}>({action: "thread", id});
+      setThread(r.thread); setCrm(r.crm);
+      setCrmForm({company: "", email: r.thread.messages[r.thread.messages.length - 1]?.from ?? ""});
       if (r.thread.messages.some(m => m.unread)) { void call({}, {action: "act", id, op: "read"}).catch(() => undefined); setRows(rs => rs?.map(x => x.id === id ? {...x, unread: false} : x) ?? rs); }
     } catch (e) { report(e); setOpen(null); }
   }, [call]);
-  const close = () => { setOpen(null); setThread(null); };
+  const close = () => { setOpen(null); setThread(null); setCrm(null); };
+
+  // CRM writes are the owner's own clicks; the server re-checks ownership in the database.
+  const crmWrite = async (body: Record<string, unknown>, done: string) => {
+    if (!thread) return;
+    setBusy(true); setError("");
+    try {
+      await call({}, {...body, thread_id: thread.id, subject: thread.subject});
+      say(done);
+      const r = await call<{thread: Thread; crm: Crm}>({action: "thread", id: thread.id});
+      setThread(r.thread); setCrm(r.crm);
+    } catch (e) { report(e); } finally { setBusy(false); }
+  };
 
   const act = async (ids: string[], op: string, done: string) => {
     if (!ids.length) return;
@@ -187,8 +211,11 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
   };
 
   // Gmail's keys: c compose, / search, e archive, # delete, r reply, Esc back.
+  // The handler is refreshed after every render and read through a ref, so the window listener is
+  // attached once instead of being torn down and re-added on every render.
+  const onKey = useRef<(e: KeyboardEvent) => void>(() => undefined);
   useEffect(() => {
-    const key = (e: KeyboardEvent) => {
+    onKey.current = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]") || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "c" && !draft) { e.preventDefault(); setDraft({key: newKey(), mode: "new", to: "", cc: "", bcc: "", subject: "", body: "", threadId: null, inReplyTo: null, references: null, showCc: false}); }
@@ -198,9 +225,12 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
       else if (open && thread && e.key === "#") void act([thread.id], "trash", "Moved to Trash.");
       else if (open && thread && e.key === "r") { const m = thread.messages[thread.messages.length - 1]; if (m) startReply(m, "reply"); }
     };
+  }); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => onKey.current(e);
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const inbox = labels.find(l => l.id === "INBOX");
   const onixusLabels = labels.filter(l => l.type === "user" && l.name.startsWith("Onixus/"));
@@ -234,6 +264,34 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
       </button></li>)}
     {items && !items.length && <li className="omail-empty">{pending ? "Nothing needs you right now. Onixus sorted everything else." : "Nothing handled yet."}</li>}
   </ul>;
+
+  // The CRM strip under a conversation: who the sender is, their open deals, the quote outcome, and the follow-up.
+  const crmStrip = () => {
+    if (!thread || crm === null) return null;
+    if ("unavailable" in crm) return <section className="omail-crm-bar" aria-label="CRM"><div className="omail-crm-head">CRM is unavailable right now. Mail still works.</div></section>;
+    const outcome = crm.thread?.quote_outcome?.status ?? null, customer = crm.customer;
+    return <section className="omail-crm-bar" aria-label="CRM">
+      <div className="omail-crm-head">{customer ? `CRM · ${customer.company}` : "Not in CRM yet"}{outcome && <span className={`omail-chip ${outcome}`}>Quote {outcome}</span>}</div>
+      {customer && crm.deals.length > 0 && <div className="omail-crm-row">{crm.deals.map(d => <small key={d.id}>{d.title || "Deal"} · {d.stage}{d.value_cents != null ? ` · ${money(d.value_cents, d.currency)}` : ""}</small>)}</div>}
+      {!customer && <form className="omail-crm-row" onSubmit={e => { e.preventDefault(); void crmWrite({action: "crm_link", company: crmForm.company, email: crmForm.email}, "Linked to CRM."); }}>
+        <input aria-label="Company" placeholder="Company" value={crmForm.company} onChange={e => setCrmForm({...crmForm, company: e.target.value})}/>
+        <input aria-label="Sender email" placeholder="Email" value={crmForm.email} onChange={e => setCrmForm({...crmForm, email: e.target.value})}/>
+        <button type="submit" disabled={busy || !(crmForm.company.trim() || crmForm.email.trim())}>Link customer</button>
+      </form>}
+      <div className="omail-crm-row" role="group" aria-label="Quote outcome">
+        <small>Quote</small>
+        {(["won", "lost", "pending"] as const).map(s => <button key={s} type="button" disabled={busy} aria-pressed={outcome === s}
+          onClick={() => void crmWrite({action: "crm_outcome", status: s}, `Quote marked ${s}.`)}>{s}</button>)}
+      </div>
+      {customer && <form className="omail-crm-row" onSubmit={e => { e.preventDefault();
+        void crmWrite({action: "crm_task", customer_id: customer.id, title: crmTask.title, due_at: crmTask.due ? new Date(`${crmTask.due}T09:00`).toISOString() : null}, "Follow-up added to CRM.");
+        setCrmTask({title: "", due: ""}); }}>
+        <input aria-label="Follow-up" placeholder="Follow up on…" value={crmTask.title} onChange={e => setCrmTask({...crmTask, title: e.target.value})}/>
+        <input aria-label="Due date" type="date" value={crmTask.due} onChange={e => setCrmTask({...crmTask, due: e.target.value})}/>
+        <button type="submit" disabled={busy || !crmTask.title.trim()}>Add follow-up</button>
+      </form>}
+    </section>;
+  };
 
   return <section className="omail">
     <header className="omail-top">
@@ -276,6 +334,7 @@ export default function MailApp({onClose, toolbar}: {onClose?: () => void; toolb
           {!thread ? <p className="omail-loading" role="status">Opening conversation…</p> : <>
             <h1>{thread.subject}</h1>
             <div className="omail-chips">{thread.labels.filter(l => l === "INBOX" || l.startsWith("Label_")).map(l => <span className="omail-chip" key={l}>{l === "INBOX" ? "Inbox" : labels.find(x => x.id === l)?.name.replace(/^Onixus\//, "") ?? "Label"}</span>)}</div>
+            {crmStrip()}
             {pendingFor(thread.id) && suggestion(pendingFor(thread.id)!)}
             {thread.messages.some(m => m.html) && !images && <p className="omail-images">Images are hidden to protect your privacy. <button onClick={() => setImages(true)}>Show images</button></p>}
             {thread.messages.map((m, i) => <details className="omail-msg" key={m.id} open={i === thread.messages.length - 1 || m.unread}>

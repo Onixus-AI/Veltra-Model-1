@@ -43,6 +43,26 @@ function fail(e: unknown) {
 }
 const json = (body: unknown) => Response.json(body, {headers: {'Cache-Control': 'no-store'}});
 
+type CrmClient = Awaited<ReturnType<typeof crmUser>>['client'];
+const OUTCOMES = ['won', 'lost', 'pending', 'declined', 'unknown'] as const;
+const text = (v: unknown, max: number) => typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
+
+// Addresses on the thread other than the mailbox itself: the CRM matches the sender on these.
+function threadEmails(thread: {messages: {from: string; to: string; cc: string}[]}, mailbox: string) {
+  const own = mailbox.toLowerCase(), found = new Set<string>();
+  for (const m of thread.messages) for (const a of `${m.from} ${m.to} ${m.cc}`.match(/[^\s<>,;"']+@[^\s<>,;"']+/g) ?? []) {
+    if (a.toLowerCase() !== own) found.add(a.toLowerCase());
+  }
+  return [...found].slice(0, 50);
+}
+
+// The CRM strip is extra: if the CRM cannot answer, the owner still reads and sends mail.
+async function crmFor(client: CrmClient, workspace: string, account: string, mailbox: string, thread: {id: string; messages: {from: string; to: string; cc: string}[]}) {
+  const {data, error} = await client.rpc('mail_thread_crm_context', {p_workspace: workspace, p_account: account, p_thread_id: thread.id, p_emails: threadEmails(thread, mailbox)});
+  if (error) { console.warn('CRM context unavailable:', error.message); return {unavailable: true}; }
+  return data;
+}
+
 export async function GET(request: NextRequest) {
   const p = request.nextUrl.searchParams;
   try {
@@ -61,7 +81,8 @@ export async function GET(request: NextRequest) {
     if (action === 'thread') {
       const id = p.get('id');
       if (!gmailId(id)) return Response.json({error: 'Unknown conversation.'}, {status: 400});
-      return json({...me, thread: await box.thread(id)});
+      const thread = await box.thread(id);
+      return json({...me, thread, crm: await crmFor(client, workspace, access.account_id, access.mailbox, thread)});
     }
     if (action === 'attachment') {
       const message = p.get('message'), attachment = p.get('attachment');
@@ -93,7 +114,7 @@ export async function POST(request: NextRequest) {
   let b: Record<string, unknown>;
   try { b = JSON.parse(raw); } catch { return Response.json({error: 'Invalid request.'}, {status: 400}); }
   try {
-    const {client, workspace, box} = await open(request, b.workspace, b.mailbox);
+    const {client, workspace, access, box} = await open(request, b.workspace, b.mailbox);
     if (b.action === 'act') {
       const ids = Array.isArray(b.ids) ? b.ids : [b.id];
       if (!ids.length || ids.length > 50 || !ids.every(id => gmailId(id))) return Response.json({error: 'Choose up to 50 conversations.'}, {status: 400});
@@ -112,6 +133,31 @@ export async function POST(request: NextRequest) {
         subject: subject || '(no subject)', body, threadId: (b.thread_id as string | undefined) ?? null,
         inReplyTo: typeof b.in_reply_to === 'string' ? b.in_reply_to.slice(0, 1000) : null, references: typeof b.references === 'string' ? b.references.slice(0, 20000) : null});
       return json({sent: true, id: sent.providerMessageId, thread_id: sent.providerThreadId, duplicate: sent.duplicate});
+    }
+    if (b.action === 'crm_link' || b.action === 'crm_outcome' || b.action === 'crm_task') {
+      // The CRM writes go through the same owner-checked functions the migration defines; the browser sends intent only.
+      if (!(typeof b.thread_id === 'string' && gmailId(b.thread_id))) return Response.json({error: 'Unknown conversation.'}, {status: 400});
+      const thread = b.thread_id as string, account = access.account_id, subject = text(b.subject, 500) ?? '(no subject)';
+      if (b.action === 'crm_link') {
+        if (b.customer_id != null && !(typeof b.customer_id === 'string' && UUID.test(b.customer_id))) return Response.json({error: 'Choose a valid customer.'}, {status: 400});
+        const {data, error} = await client.rpc('mail_thread_link_customer', {p_workspace: workspace, p_account: account, p_thread_id: thread, p_subject: subject,
+          p_customer_id: (b.customer_id as string | undefined) ?? null, p_company: text(b.company, 200), p_email: text(b.email, 320)});
+        if (error) throw new Error(error.message);
+        return json(data);
+      }
+      if (b.action === 'crm_outcome') {
+        if (!(OUTCOMES as readonly string[]).includes(String(b.status))) return Response.json({error: 'Choose a quote outcome.'}, {status: 400});
+        const {data, error} = await client.rpc('mail_thread_log_quote_outcome', {p_workspace: workspace, p_account: account, p_thread_id: thread, p_subject: subject,
+          p_status: b.status, p_reason: text(b.reason, 300) ?? '', p_evidence: text(b.evidence, 2000) ?? '', p_source_message_id: null});
+        if (error) throw new Error(error.message);
+        return json(data);
+      }
+      if (!(typeof b.customer_id === 'string' && UUID.test(b.customer_id))) return Response.json({error: 'Link a CRM customer before creating a follow-up task.'}, {status: 400});
+      const due = typeof b.due_at === 'string' && Number.isFinite(Date.parse(b.due_at)) ? new Date(b.due_at).toISOString() : null;
+      const {data, error} = await client.rpc('mail_thread_create_task', {p_workspace: workspace, p_account: account, p_thread_id: thread, p_customer_id: b.customer_id,
+        p_title: text(b.title, 300) ?? '', p_due_at: due, p_action_key: null});
+      if (error) throw new Error(error.message);
+      return json(data);
     }
     if (b.action === 'decide') {
       // The owner approves or skips what the Mail employee planned; the database re-checks every rule.
