@@ -4,7 +4,7 @@
 export type OutboundMail = {
   idempotencyKey: string;
   from: string; fromName?: string | null; replyTo?: string | null;
-  to: string; cc?: string | null; subject: string; body: string;
+  to: string; cc?: string | null; bcc?: string | null; subject: string; body: string;
   threadId?: string | null; inReplyTo?: string | null; references?: string | null;
 };
 
@@ -84,7 +84,7 @@ export function buildMime(m: OutboundMail, now = new Date()): string {
   const subject = thread.inReplyTo ? replySubject(m.subject) : m.subject;
   const encodedSubject = /^[\x20-\x7e]*$/.test(subject) ? headerSafe(subject) : `=?UTF-8?B?${Buffer.from(headerSafe(subject)).toString('base64')}?=`;
   const lines = [
-    `From: ${from}`, `To: ${headerSafe(m.to)}`, ...(m.cc ? [`Cc: ${headerSafe(m.cc)}`] : []),
+    `From: ${from}`, `To: ${headerSafe(m.to)}`, ...(m.cc ? [`Cc: ${headerSafe(m.cc)}`] : []), ...(m.bcc ? [`Bcc: ${headerSafe(m.bcc)}`] : []),
     ...(m.replyTo ? [`Reply-To: ${headerSafe(m.replyTo)}`] : []),
     `Subject: ${encodedSubject}`, `Date: ${now.toUTCString()}`,
     `Message-ID: ${messageIdFor(m.idempotencyKey)}`,
