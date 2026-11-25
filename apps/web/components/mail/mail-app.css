@@ -151,3 +151,15 @@
   .omail-html{width:100%}
 }
 @media(max-width:600px){.omail-top-right .omail-link{display:none}.omail-search{padding-left:12px}}
+
+/* CRM strip under a conversation: cool teal, so it reads as the CRM and not as Onixus's purple suggestion. */
+.omail-crm-bar{display:grid;gap:10px;margin:0 24px 16px 72px;padding:12px 14px;border:1px solid #17363a;border-radius:12px;background:#07161a}
+.omail-crm-bar .omail-crm-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;color:var(--om-cyan);font-weight:600;font-size:13px}
+.omail-crm-bar .omail-crm-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.omail-crm-bar small{color:var(--om-muted);font-size:12px}
+.omail-crm-bar input{min-width:0;padding:6px 10px;border:1px solid #1e3c41;border-radius:8px;background:#050a0b;color:var(--om-text);font:inherit;font-size:13px}
+.omail-crm-bar button{padding:5px 12px;border:1px solid #1e3c41;border-radius:999px;background:none;color:#cfeff2;font-size:12px;text-transform:capitalize}
+.omail-crm-bar button:hover:not(:disabled){background:#0c2226}
+.omail-crm-bar button[aria-pressed="true"]{background:#0f3138;border-color:var(--om-cyan)}
+.omail-crm-bar .omail-chip.won{background:#0f2e1a;color:#9ff5b0}
+.omail-crm-bar .omail-chip.lost{background:#2e1212;color:#ffb4b4}
